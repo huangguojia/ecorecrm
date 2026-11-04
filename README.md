@@ -4,6 +4,8 @@
 去掉获客、AI Agent、邮件营销、WhatsApp、知识库、考试等模块，作为独立项目维护。
 界面采用纯黑单色设计系统（ECORE Theme）。
 
+**仓库**：<https://github.com/huangguojia/ecorecrm>（分支 `main`）
+
 ## 保留的功能
 
 | 板块 | 内容 |
