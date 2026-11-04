@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工作台重设计 · 方案挑选</title>
+<style>
+  :root{
+    --brand:#6366f1; --brand-strong:#4f46e5; --brand-tint:#eef0ff;
+    --bg:#f6f7fa; --card:#fff; --ink:#1b2231; --text:#47506a; --muted:#8b94a8; --line:#e8ebf3;
+    --shadow:0 1px 2px rgba(23,34,48,.04), 0 10px 30px -18px rgba(23,34,48,.25);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1360px;margin:0 auto;padding:40px 28px 72px}
+
+  header.top{margin-bottom:28px}
+  .kicker{margin:0 0 12px;color:var(--brand);font-size:11px;font-weight:800;letter-spacing:.22em}
+  h1{margin:0;color:var(--ink);font-size:32px;font-weight:700;letter-spacing:-.025em}
+  .lede{margin:14px 0 0;max-width:78ch;font-size:14px;line-height:1.75;color:var(--text)}
+  .lede b{color:var(--ink)}
+
+  .note{display:flex;gap:14px;align-items:flex-start;margin:22px 0 0;padding:14px 18px;border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:12px;background:#fff;font-size:13px;line-height:1.7}
+  .note b{color:var(--ink)}
+
+  /* 方案切换 */
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:30px 0 16px}
+  .tabs button{padding:9px 16px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--muted);font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:.16s cubic-bezier(.22,1,.36,1)}
+  .tabs button:hover{color:var(--ink);border-color:#ccd3e2}
+  .tabs button.active{color:#fff;background:var(--brand);border-color:var(--brand);box-shadow:0 6px 18px -8px rgba(99,102,241,.6)}
+
+  .stage{border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:var(--shadow);overflow:hidden}
+  .stage-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;padding:20px 24px;border-bottom:1px solid var(--line)}
+  .stage-head h2{margin:0 0 6px;color:var(--ink);font-size:19px;font-weight:700;letter-spacing:-.015em}
+  .stage-head p{margin:0;font-size:13px;line-height:1.7;color:var(--text);max-width:82ch}
+  .tag{flex:none;padding:5px 11px;border-radius:999px;background:var(--brand-tint);color:var(--brand-strong);font-size:11px;font-weight:700;letter-spacing:.04em}
+  .shot{display:block;width:100%;height:auto;background:#f0f2f7;cursor:zoom-in}
+  .stage-foot{display:flex;flex-wrap:wrap;gap:18px;justify-content:space-between;align-items:center;padding:16px 24px;border-top:1px solid var(--line);background:#fbfcfe}
+  ul.points{display:flex;flex-wrap:wrap;gap:8px 22px;margin:0;padding:0;list-style:none;font-size:12.5px;color:var(--text)}
+  ul.points li::before{content:"—";margin-right:8px;color:var(--brand)}
+  .stage-foot a{color:var(--brand-strong);font-size:12.5px;font-weight:600;text-decoration:none;border-bottom:1px solid rgba(79,70,229,.3)}
+  .panel{display:none}
+  .panel.on{display:block}
+
+  /* 收尾 */
+  .pick{margin:30px 0 0;padding:22px 24px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:var(--shadow)}
+  .pick h3{margin:0 0 12px;color:var(--ink);font-size:15px;font-weight:700}
+  .pick table{width:100%;border-collapse:collapse;font-size:13px}
+  .pick th,.pick td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  .pick th{color:var(--muted);font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .pick td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
+  .rec{margin:20px 0 0;padding:16px 18px;border-radius:12px;background:var(--brand-tint);color:var(--brand-strong);font-size:13px;line-height:1.75}
+  .rec b{color:var(--brand-strong)}
+  .foot{margin:26px 0 0;color:var(--muted);font-size:12px;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <p class="kicker">GOODJOB / WORKBENCH REDESIGN</p>
+    <h1>工作台重设计 · 4 个方案</h1>
+    <p class="lede">
+      现状：晨白主题（浅色侧栏 + 靛蓝）下，工作台仍是<b>近黑底 + 荧光黄</b>的「Kinetic 驾驶舱」，
+      一整块深色砸在浅色界面里，所以看着不搭。<br>
+      下面四套都基于<b>真实页面</b>渲染（真实数据、真实侧栏、真实字体），只是工作台区域换了设计语言。
+      点标签切换对比，点图可看全屏细节。
+    </p>
+    <div class="note">
+      <div><b>顺手修掉的一个老问题：</b>线索漏斗的折线与阶段点是写死的荧光黄（<code>#dfe104</code>），
+      所以以前不管把主题切成青绿还是玫红，那条线永远是黄的。这次已改成由主题变量驱动——
+      四套方案的折线都跟着各自的品牌色走。</div>
+    </div>
+  </header>
+
+  <div class="tabs" id="tabs">
+    <button data-k="before">改版前（对照）</button>
+    <button data-k="a" class="active">A · 晨白原生</button>
+    <button data-k="b">B · 柔光层叠</button>
+    <button data-k="c">C · 靛蓝墨玉</button>
+    <button data-k="d">D · 行动优先</button>
+  </div>
+
+  <section class="stage panel" data-k="before">
+    <div class="stage-head">
+      <div>
+        <h2>改版前 · Kinetic 驾驶舱</h2>
+        <p>近黑底（#09090b）＋ 荧光黄（#dfe104）。气势足，但与晨白的浅色侧栏、靛蓝品牌色属于两套语言，整块嵌进去很跳。</p>
+      </div>
+      <span class="tag">对照</span>
+    </div>
+    <img class="shot" src="shots/before-top.png" alt="改版前工作台">
+  </section>
+
+  <section class="stage panel on" data-k="a">
+    <div class="stage-head">
+      <div>
+        <h2>A · 晨白原生（Paper Native）</h2>
+        <p>主张：工作台不搞特殊化，就是晨白主题的一部分。白卡 + 1px 细线 + 靛蓝点缀，层级全部靠字号与留白建立，不用反色块。</p>
+      </div>
+      <span class="tag">最稳</span>
+    </div>
+    <img class="shot" src="shots/plan-a-top.png" alt="方案 A">
+    <div class="stage-foot">
+      <ul class="points">
+        <li>海报级巨字 → 30px 专业抬头</li>
+        <li>卡片 1px 细线 + 极轻阴影</li>
+        <li>靛蓝只用于品牌与激活态</li>
+      </ul>
+      <a href="shots/plan-a-full.png" target="_blank">看完整工作台 →</a>
+    </div>
+  </section>
+
+  <section class="stage panel" data-k="b">
+    <div class="stage-head">
+      <div>
+        <h2>B · 柔光层叠（Soft Depth）</h2>
+        <p>主张：同样浅色，但用「光」和「层」做品质感。页面底是淡靛蓝柔光，卡片大圆角 + 多层柔阴影浮起来，数字更大更重。</p>
+      </div>
+      <span class="tag">最精致</span>
+    </div>
+    <img class="shot" src="shots/plan-b-top.png" alt="方案 B">
+    <div class="stage-foot">
+      <ul class="points">
+        <li>页头成一整块柔光护栏</li>
+        <li>卡片 18px 圆角 + 顶部渐变线</li>
+        <li>指标数字放大为视觉落点</li>
+      </ul>
+      <a href="shots/plan-b-full.png" target="_blank">看完整工作台 →</a>
+    </div>
+  </section>
+
+  <section class="stage panel" data-k="c">
+    <div class="stage-head">
+      <div>
+        <h2>C · 靛蓝墨玉（Indigo Ink）</h2>
+        <p>主张：保住「工作台是独立驾驶舱」的深色气质，但把它从荧光黄的黑改成靛蓝墨——与晨白同一个色相家族，不再打架。字号也收敛了。</p>
+      </div>
+      <span class="tag">最有气场</span>
+    </div>
+    <img class="shot" src="shots/plan-c-top.png" alt="方案 C">
+    <div class="stage-foot">
+      <ul class="points">
+        <li>近黑改为带靛调的 #0f1119</li>
+        <li>强调色 = 品牌靛蓝（不用荧光黄）</li>
+        <li>46px 稳重标题，不做海报</li>
+      </ul>
+      <a href="shots/plan-c-full.png" target="_blank">看完整工作台 →</a>
+    </div>
+  </section>
+
+  <section class="stage panel" data-k="d">
+    <div class="stage-head">
+      <div>
+        <h2>D · 行动优先（Action First）</h2>
+        <p>主张：不只换配色，重排信息架构。把「主判断」提到第一屏并放大，「跟进优先级队列」从页面底部提到主栏和漏斗并排——每天打开先看到今天该做什么。</p>
+      </div>
+      <span class="tag">最实用</span>
+    </div>
+    <img class="shot" src="shots/plan-d-top.png" alt="方案 D">
+    <div class="stage-foot">
+      <ul class="points">
+        <li>12 列网格重排，行动清单上位</li>
+        <li>焦点带 h2 放大到 30px</li>
+        <li>视觉基底同 A（晨白原生）</li>
+      </ul>
+      <a href="shots/plan-d-full.png" target="_blank">看完整工作台 →</a>
+    </div>
+  </section>
+
+  <div class="pick">
+    <h3>怎么选</h3>
+    <table>
+      <tr><th>方案</th><th>性格</th><th>适合的判断</th></tr>
+      <tr><td>A 晨白原生</td><td>克制、专业、与系统完全同源</td><td>要「看不出改过，但整体舒服了」——风险最低</td></tr>
+      <tr><td>B 柔光层叠</td><td>精致、有呼吸感、层次明显</td><td>要「一眼看出变好看了」——视觉收益最大</td></tr>
+      <tr><td>C 靛蓝墨玉</td><td>深色驾驶舱、气场强</td><td>要「工作台就该跟别的页面不一样」——但同色相不留冲突</td></tr>
+      <tr><td>D 行动优先</td><td>结构重组、行动导向</td><td>要「打开就知道先做什么」——改的是信息架构</td></tr>
+    </table>
+    <p class="rec">
+      <b>可以组合：</b>D 的结构（网格重排）与 A / B 的视觉互不冲突——选 D 之后还能再选 A 或 B 的肤色。
+      也可以先选一个，我按它落地到 index.html，再微调细节。
+    </p>
+  </div>
+
+  <p class="foot">
+    四张图均为真实页面渲染：1680px 视口、真实账号数据、侧栏与顶栏保持现状未动。<br>
+    方案只覆盖工作台区域，其余页面不受影响；筛选与交互逻辑（周期切换、图表点击、晨会视图）都照常可用。
+  </p>
+</div>
+
+<script>
+  const tabs = document.getElementById("tabs");
+  const panels = [...document.querySelectorAll(".panel")];
+  tabs.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-k]");
+    if (!b) return;
+    [...tabs.querySelectorAll("button")].forEach((x) => x.classList.toggle("active", x === b));
+    panels.forEach((p) => p.classList.toggle("on", p.dataset.k === b.dataset.k));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  document.querySelectorAll(".shot").forEach((img) => {
+    img.addEventListener("click", () => window.open(img.src, "_blank"));
+  });
+</script>
+</body>
+</html>

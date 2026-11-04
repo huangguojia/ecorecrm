@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>联系条 · 配色与背景色改造</title>
+<style>
+  :root{--ink:#131c2e;--ink-2:#37445b;--muted:#6b7d94;--faint:#94a3b6;--line:#e7ecf4;--bg:#f6f8fb;--card:#fff;--brand:#6366f1;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:40px 28px 72px}
+  h1{margin:0 0 6px;font-size:26px;letter-spacing:-.02em}
+  .lede{color:var(--muted);font-size:13px;margin-bottom:32px}
+  h2{margin:44px 0 14px;font-size:17px;letter-spacing:-.01em;
+    padding-bottom:9px;border-bottom:1px solid var(--line)}
+  h3{margin:26px 0 10px;font-size:14px;color:var(--ink-2)}
+  p{margin:10px 0}
+  code{background:#eef2f8;border-radius:4px;padding:1px 5px;
+    font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:#40506a}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
+  .verdict{background:linear-gradient(112deg,#eef0ff 0%,#fff 56%);border-color:#c9cdfa}
+  .verdict b{color:var(--brand)}
+  .shot{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:0 0 6px}
+  .shot img{display:block;width:100%}
+  .cap{display:flex;align-items:center;gap:9px;padding:9px 14px;border-bottom:1px solid var(--line);
+    background:#fbfcfe;font-size:12px;color:var(--muted)}
+  .tag{font-size:10px;font-weight:700;letter-spacing:.06em;padding:2px 7px;border-radius:5px;text-transform:uppercase}
+  .tag.before{background:#f1f4f9;color:#8492a6}
+  .tag.after{background:#e8eaff;color:#4f46e5}
+  .tag.alt{background:#eef2f6;color:#5a6b83}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:820px){.grid2,.grid4{grid-template-columns:1fr}}
+  table{border-collapse:collapse;width:100%;font-size:13px;background:var(--card);
+    border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f8fafd;color:var(--muted);font-weight:600;font-size:12px}
+  tr:last-child td{border-bottom:0}
+  .sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px;
+    border:1px solid rgba(0,0,0,.08)}
+  ul{margin:8px 0 8px 20px;padding:0}
+  li{margin:5px 0}
+  .kbd{font:11px ui-monospace,Menlo,monospace;background:#eef2f8;border-radius:4px;padding:1px 5px;color:#40506a}
+  .note{font-size:12.5px;color:var(--muted)}
+  .ok{color:#0a6435;font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>联系条 · 配色与背景色改造</h1>
+  <div class="lede">对象：客户管理 / 线索 / 客户公池 三个列表页点行后出现的「快捷联系」条，以及客户全景页的「联系中心」按钮组。</div>
+
+  <div class="card verdict">
+    <p style="margin-top:0"><b>结论</b>：原来那条的问题不是「颜色没调好」，是 <b>背景没有层次、空态两副面孔</b>。改后：容器给品牌氛围底 + 左侧品牌竖条，四个通道各拿自己的颜色，空态统一成冷调浅底实线边。</p>
+    <p style="margin-bottom:0" class="note">改动只落在两处文件：<code>frontend/index.html</code>（联系条与按钮的样式规则原地改写）、<code>frontend/src/prototype-api.ts</code>（详情页按钮补齐 <code>is-empty</code> 类，消除空态双面孔）。</p>
+  </div>
+
+  <h2>1 · 原来到底丑在哪</h2>
+  <table>
+    <tr><th style="width:150px">问题</th><th>具体表现</th><th style="width:210px">改法</th></tr>
+    <tr>
+      <td>容器平、没层次</td>
+      <td>整条是 <code>var(--surface)</code> 纯白，和下面的表格同一个底色，点出来像「表格上方多了一块白」。</td>
+      <td>品牌浅色氛围底（左浓右淡）+ 左侧 3px 品牌竖条 + 圆角 10→12</td>
+    </tr>
+    <tr>
+      <td>空态两副面孔</td>
+      <td>列表页空态是<b>虚线框 + 白底</b>；详情页「电话 / 微信」空态却是<b>灰色实线框</b>（模板漏加 <code>is-empty</code>，落到基础态）。同一套按钮，两种长相。</td>
+      <td>基础态直接按空态写；模板补齐 <code>is-empty</code>，双保险</td>
+    </tr>
+    <tr>
+      <td>空态发虚</td>
+      <td>旧版本用 <code>opacity:.5</code> 压暗，实测文字只剩 <code>rgb(179,187,185)</code>，边框几乎看不见，整条像没加载完。</td>
+      <td>去掉 opacity，改冷调浅底 <code>#f5f7fb</code> + 实线边 <code>#e5ebf4</code> + 中性字 <code>#93a1b5</code></td>
+    </tr>
+    <tr>
+      <td>四个通道一个颜色</td>
+      <td>不管邮箱、电话、WhatsApp 还是微信，有值都是同一个品牌色。扫一眼分不出哪个通道有资料。</td>
+      <td>通道分色：邮箱靛蓝 / 电话青 / WhatsApp 绿 / 微信深绿</td>
+    </tr>
+    <tr>
+      <td>禁用光标用错</td>
+      <td>空态按钮写死 <code>cursor:not-allowed</code>，但它其实<b>可点</b>（点了是「补录该通道」）。</td>
+      <td>只有真 <code>disabled</code> 才禁用光标；空态给正常可点反馈</td>
+    </tr>
+  </table>
+
+  <h2>2 · 前后对照（同机位、同数据行）</h2>
+
+  <h3>先看按钮特写</h3>
+  <div class="shot">
+    <div class="cap"><span class="tag before">改前</span> vs <span class="tag after">改后</span>　客户管理联系条的按钮区放大</div>
+    <img src="shots-icons/tune/cmp-buttons.png" alt="按钮区前后特写">
+  </div>
+  <p class="note">一眼能看出两件事：① 空态从<b>虚线 + 白底</b>变成<b>冷调浅底 + 实线边</b>，不再发虚；② 「邮箱」由白底描边变成通道浅底，颜色从「统一品牌色」换成「各通道自己的颜色」。</p>
+
+  <h3>客户管理 · 完整联系条</h3>
+  <div class="shot">
+    <div class="cap"><span class="tag before">改前</span>纯白底 · 虚线空态 · 统一品牌色</div>
+    <img src="shots-icons/dock-customers.png" alt="改前 客户列表联系条">
+  </div>
+  <div class="shot">
+    <div class="cap"><span class="tag after">改后</span>品牌氛围底 + 左侧竖条 · 冷调实线空态 · 通道分色</div>
+    <img src="shots-icons/tune/live-real.png" alt="改后 客户列表联系条">
+  </div>
+
+  <h3>线索 · 完整联系条</h3>
+  <div class="shot">
+    <div class="cap"><span class="tag before">改前</span></div>
+    <img src="shots-icons/dock-leads.png" alt="改前 线索列表联系条">
+  </div>
+  <div class="shot">
+    <div class="cap"><span class="tag after">改后</span></div>
+    <img src="shots-icons/tune/live-real-leads.png" alt="改后 线索列表联系条">
+  </div>
+
+  <h3>客户全景 · 联系中心按钮组</h3>
+  <p class="note">这一组是「空态两副面孔」最明显的地方：改前「邮件」是浅色实底、「电话 / 微信」是灰色实线、「WhatsApp」是虚线 —— 三种长相挤在一起。改后全部收敛成两种：有值 = 通道浅底，空态 = 冷调浅底。</p>
+  <div class="shot">
+    <div class="cap"><span class="tag before">改前</span> / <span class="tag after">改后</span>　上下对照</div>
+    <img src="shots-icons/tune/cmp-detail.png" alt="联系中心按钮组前后对照">
+  </div>
+
+  <h2>3 · 配色方案：每个通道自己的颜色</h2>
+  <div class="grid2">
+    <div>
+      <table>
+        <tr><th>通道</th><th>主色</th><th>浅底</th></tr>
+        <tr><td>邮箱</td><td><span class="sw" style="background:#4f46e5"></span>#4f46e5</td><td><span class="sw" style="background:#e8eaff"></span>#e8eaff</td></tr>
+        <tr><td>电话</td><td><span class="sw" style="background:#0c736a"></span>#0c736a</td><td><span class="sw" style="background:#ddf3f0"></span>#ddf3f0</td></tr>
+        <tr><td>WhatsApp</td><td><span class="sw" style="background:#12733e"></span>#12733e</td><td><span class="sw" style="background:#ddf3e6"></span>#ddf3e6</td></tr>
+        <tr><td>微信</td><td><span class="sw" style="background:#0a6435"></span>#0a6435</td><td><span class="sw" style="background:#dcf0e4"></span>#dcf0e4</td></tr>
+      </table>
+    </div>
+    <div class="card" style="margin:0">
+      <p style="margin-top:0"><b>为什么通道色不跟主题走</b></p>
+      <p style="margin-bottom:0" class="note">WhatsApp 是绿的、微信是绿的，这是品牌语义，换了主题也不该变成玫红。所以通道色写成固定值；<b>主题跟随交给外层容器</b>（氛围底、左竖条、「快捷联系」标签都吃 <code>var(--brand)</code>）。这样切主题时整条联系条的调性跟着变，通道色仍是识别标记。</p>
+    </div>
+  </div>
+
+  <h3>四个通道全有值时（极端情况）</h3>
+  <div class="shot">
+    <div class="cap"><span class="tag after">改后</span>靛蓝 / 青 / 绿 / 深绿四色并排</div>
+    <img src="shots-icons/tune/live-all.png" alt="四通道全有值">
+  </div>
+
+  <h2>4 · 交互与主题</h2>
+  <div class="grid2">
+    <div class="shot" style="margin:0">
+      <div class="cap"><span class="tag after">悬停</span>有值按钮反转为实底白字（<code>#fff on #4f46e5</code>，实测取自计算样式）</div>
+      <img src="shots-icons/tune/live-hover.png" alt="悬停态">
+    </div>
+    <div class="shot" style="margin:0">
+      <div class="cap"><span class="tag after">悬停前</span>常态保持浅底通道色，不抢注意力</div>
+      <img src="shots-icons/tune/live-real.png" alt="常态">
+    </div>
+  </div>
+
+  <h3>主题跟随（容器吃品牌变量，通道色不变）</h3>
+  <div class="grid4">
+    <div class="shot" style="margin:0"><div class="cap">晨白 paper · 靛蓝</div><img src="shots-icons/tune/live-theme-paper.png" alt="paper"></div>
+    <div class="shot" style="margin:0"><div class="cap">玫红 rose</div><img src="shots-icons/tune/live-theme-rose.png" alt="rose"></div>
+    <div class="shot" style="margin:0"><div class="cap">青松 ocean</div><img src="shots-icons/tune/live-theme-ocean.png" alt="ocean"></div>
+    <div class="shot" style="margin:0"><div class="cap">板岩 slate</div><img src="shots-icons/tune/live-theme-slate.png" alt="slate"></div>
+  </div>
+  <p class="note">实测取值：容器渐变底分别为 <code>#eef0ff</code> / <code>#fdecee</code> / <code>#e7f6f3</code> / <code>#eef2f6</code>，左竖条与「快捷联系」标签同步换色；通道色保持各自固定值。</p>
+
+  <h2>5 · 另外两套没采用的方案</h2>
+  <p class="note">三套都做了真实渲染对比，最终采用上面那套（通道分色）。另两套的成品图也留着 —— 想换一句话的事。</p>
+  <div class="grid2">
+    <div class="shot" style="margin:0">
+      <div class="cap"><span class="tag alt">备选 P1</span>品牌实心：有值 = 品牌实底白字</div>
+      <img src="shots-icons/tune/p1-real.png" alt="P1 品牌实心">
+    </div>
+    <div class="shot" style="margin:0">
+      <div class="cap"><span class="tag alt">备选 P3</span>渐变实心：有值 = 品牌渐变实底</div>
+      <img src="shots-icons/tune/p3-real.png" alt="P3 渐变实心">
+    </div>
+  </div>
+  <p class="note">没选 P1 / P3 的原因：详情页那组按钮是 2 列大按钮，实心色块铺满后整块显得笨重（下图），而列表页又只有 1–2 个通道有值，实心反而浪费了「颜色区分通道」这个机会。</p>
+  <div class="grid2">
+    <div class="shot" style="margin:0"><div class="cap">P1 在详情页</div><img src="shots-icons/tune/detail-p1-mixed.png" alt="P1 详情页"></div>
+    <div class="shot" style="margin:0"><div class="cap">P2（采用方案）在详情页</div><img src="shots-icons/tune/detail-p2-mixed.png" alt="P2 详情页"></div>
+  </div>
+
+  <h2>6 · 验证</h2>
+  <ul>
+    <li><span class="ok">✓</span> <code>tsc --noEmit</code> 通过</li>
+    <li><span class="ok">✓</span> 前端自测 <code>npx tsx src/self-test.ts</code> — <b>174 / 174</b></li>
+    <li><span class="ok">✓</span> 客户管理 / 线索两个列表页实跑点行触发联系条（dev 5298，API 代理到后端 4188）</li>
+    <li><span class="ok">✓</span> 有值态悬停取计算样式：常态 <code>rgb(232,234,255)</code> 浅靛蓝底 → 悬停 <code>rgb(79,70,229)</code> 实底 + 白字</li>
+    <li><span class="ok">✓</span> 四个主题（晨白 / 玫红 / 青松 / 板岩）下容器氛围色均跟随</li>
+    <li><span class="ok">✓</span> 详情页 4 个按钮在「有值 / 空值」两种组合下长相统一，不再出现虚线 + 实线混排</li>
+  </ul>
+
+  <h2>7 · 改了什么（可核对）</h2>
+  <table>
+    <tr><th style="width:280px">文件</th><th>改动</th></tr>
+    <tr>
+      <td><code>frontend/index.html</code><br><span class="note">约 10985–11090 行</span></td>
+      <td>
+        · <code>.customer-contact-action</code> 基础态改写为「空态」长相（冷调浅底 + 实线边）<br>
+        · 新增 4 条通道色变量（<code>--ch / --ch-bg / --ch-bd</code>）<br>
+        · <code>.is-ready</code> 改通道色浅底，<code>.is-ready:hover</code> 反转为实底白字<br>
+        · <code>.is-empty</code> 去掉虚线与 opacity；<code>cursor</code> 拆给 <code>:disabled</code><br>
+        · <code>.contact-dock</code> 容器：品牌渐变底 + 12px 圆角 + <code>::before</code> 左侧竖条<br>
+        · 「快捷联系」标签改 <code>var(--brand)</code>；关闭键改透明底融入容器
+      </td>
+    </tr>
+    <tr>
+      <td><code>frontend/src/prototype-api.ts</code><br><span class="note">约 16018–16021 行</span></td>
+      <td>详情页 4 个联系按钮的 <code>${ 有值 ? "is-ready" : "" }</code> 补齐为 <code>: "is-empty"</code></td>
+    </tr>
+  </table>
+  <p class="note">两处都是原地改写，没有新增覆盖块。未提交，等 SVN 备注。</p>
+
+  <h2>8 · 顺手记录（未动）</h2>
+  <ul>
+    <li>客户公池页点行不出联系条（有数据行但无 dock）—— 既有问题，与配色无关。</li>
+    <li>线索页 <code>#leadNewButton</code> / <code>#leadCreateForm</code> 在源码中无任何引用，点击无反应 —— 既有问题。</li>
+  </ul>
+
+</div>
+</body>
+</html>

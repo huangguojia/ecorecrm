@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>01 · 晨报编辑版</title>
+<link rel="stylesheet" href="base.css">
+<style>
+  :root { --paper:#faf8f3; --ink:#191510; --text:#403a31; --muted:#7a7367; --line:#ddd7ca; --line-soft:#ebe6da; }
+  body { background:var(--paper); }
+  .stage { padding:30px 40px 52px; }
+  .edition { max-width:1240px; }
+
+  /* ---- 报头 ---- */
+  .masthead { display:grid; grid-template-columns:minmax(0,1fr) 268px; gap:34px; padding-bottom:22px; border-bottom:2px solid var(--ink); }
+  .date-block { display:flex; align-items:flex-start; gap:14px; }
+  .date-block b { font-family:var(--serif); font-size:52px; line-height:.86; font-weight:400; letter-spacing:-.03em; color:var(--ink); }
+  .date-block span { padding-top:4px; font-family:var(--mono); font-size:9px; line-height:1.7; letter-spacing:.12em; color:var(--muted); }
+  .kicker { margin:0 0 12px; font-family:var(--mono); font-size:9px; letter-spacing:.2em; color:var(--brand); }
+  h1.title { margin:0; font-family:var(--serif); font-weight:400; font-size:42px; line-height:1.16; letter-spacing:-.015em; color:var(--ink); }
+  h1.title em { font-style:normal; color:var(--brand); }
+  .dek { margin:12px 0 0; max-width:52ch; font-size:12.5px; line-height:1.7; color:var(--muted); }
+
+  .rates { padding-top:6px; }
+  .live { display:flex; align-items:center; gap:6px; margin-bottom:14px; font-family:var(--mono); font-size:9px; letter-spacing:.14em; color:var(--muted); }
+  .live i { width:5px; height:5px; border-radius:50%; background:var(--brand); box-shadow:0 0 0 3px rgba(190,18,60,.12); }
+  .rate-row { display:flex; align-items:baseline; justify-content:space-between; padding:6px 0; border-top:1px solid var(--line-soft); font-size:11px; }
+  .rate-row span { font-family:var(--mono); font-size:9.5px; letter-spacing:.06em; color:var(--muted); }
+  .rate-row b { font-family:var(--serif); font-size:14px; font-weight:400; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .rate-row em { width:52px; text-align:right; font-family:var(--mono); font-size:9.5px; font-style:normal; }
+  .rate-row em.dn { color:var(--green); } .rate-row em.up { color:var(--brand); }
+
+  /* ---- 指标带 ---- */
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid var(--ink); }
+  .stat { padding:18px 20px 16px 0; border-right:1px solid var(--line); }
+  .stat:last-child { border-right:0; padding-right:0; }
+  .stat + .stat { padding-left:20px; }
+  .stat span { display:block; font-size:9.5px; letter-spacing:.1em; color:var(--muted); }
+  .stat b { display:block; margin-top:6px; font-family:var(--serif); font-size:30px; font-weight:400; line-height:1; color:var(--ink); letter-spacing:-.02em; }
+  .stat b small { font-family:var(--font); font-size:11px; color:var(--muted); letter-spacing:0; }
+  .stat u { display:block; margin-top:7px; font-size:10px; text-decoration:none; color:var(--muted); }
+  .stat u i { font-style:normal; color:var(--brand); }
+
+  /* ---- 双栏 ---- */
+  .columns { display:grid; grid-template-columns:minmax(0,1.62fr) minmax(0,1fr); gap:0; margin-top:26px; }
+  .col-l { padding-right:34px; border-right:1px solid var(--line); }
+  .col-r { padding-left:34px; }
+
+  .sec-head { display:flex; align-items:baseline; justify-content:space-between; padding-bottom:8px; border-bottom:1px solid var(--ink); }
+  .sec-head h2 { margin:0; font-size:11px; font-weight:700; letter-spacing:.1em; color:var(--ink); }
+  .sec-head span { font-family:var(--mono); font-size:9px; letter-spacing:.12em; color:var(--faint); }
+
+  .verdict { margin:16px 0 4px; font-family:var(--serif); font-size:25px; line-height:1.45; letter-spacing:-.01em; color:var(--ink); }
+  .verdict mark { background:linear-gradient(transparent 62%, #f6d3dc 62%); color:inherit; padding:0 2px; }
+  .lede { margin:0 0 16px; font-size:12px; line-height:1.75; color:var(--muted); }
+  .why { display:grid; gap:0; }
+  .why div { display:grid; grid-template-columns:76px minmax(0,1fr); gap:12px; padding:10px 0; border-top:1px solid var(--line-soft); font-size:11.5px; line-height:1.65; }
+  .why b { font-size:9.5px; font-weight:600; letter-spacing:.1em; color:var(--brand); padding-top:2px; }
+  .why span { color:var(--text); }
+
+  /* 队列 */
+  .queue { margin-top:24px; }
+  .q-row { display:grid; grid-template-columns:26px minmax(0,1fr) 84px 78px; gap:12px; align-items:center; padding:12px 0; border-bottom:1px solid var(--line-soft); }
+  .q-row:first-of-type { border-top:1px solid var(--line-soft); }
+  .q-no { font-family:var(--serif); font-size:15px; color:var(--faint); }
+  .q-main b { display:block; font-family:var(--serif); font-size:15px; font-weight:400; color:var(--ink); }
+  .q-main span { display:block; margin-top:2px; font-size:10.5px; color:var(--muted); }
+  .q-amt { text-align:right; font-family:var(--mono); font-size:11px; color:var(--ink); }
+  .q-due { text-align:right; font-size:10px; color:var(--muted); }
+  .q-due.late { color:var(--brand); font-weight:600; }
+
+  /* 右侧 */
+  .side-sec { margin-bottom:26px; }
+  .tl { margin-top:12px; }
+  .tl-item { position:relative; display:grid; grid-template-columns:44px minmax(0,1fr); gap:12px; padding:0 0 16px 0; }
+  .tl-item::before { content:""; position:absolute; left:49px; top:14px; bottom:0; width:1px; background:var(--line); }
+  .tl-item:last-child::before { display:none; }
+  .tl-time { font-family:var(--mono); font-size:9.5px; color:var(--muted); padding-top:3px; }
+  .tl-body { position:relative; padding-left:14px; }
+  .tl-body::before { content:""; position:absolute; left:-4px; top:6px; width:5px; height:5px; border-radius:50%; background:var(--line); box-shadow:0 0 0 3px var(--paper); }
+  .tl-item.now .tl-body::before { background:var(--brand); box-shadow:0 0 0 3px rgba(190,18,60,.14); }
+  .tl-body b { display:block; font-size:11.5px; font-weight:600; color:var(--ink); line-height:1.4; }
+  .tl-body span { display:block; margin-top:2px; font-size:10px; color:var(--muted); }
+  .tl-item.now .tl-body b { color:var(--brand-deep); }
+
+  .risk { padding:11px 0; border-top:1px solid var(--line-soft); }
+  .risk b { display:block; font-size:11.5px; font-weight:600; color:var(--ink); }
+  .risk span { display:block; margin-top:3px; font-size:10px; line-height:1.6; color:var(--muted); }
+  .risk .tag { display:inline-block; margin-bottom:5px; padding:1px 6px; border:1px solid var(--line); font-family:var(--mono); font-size:8.5px; letter-spacing:.08em; color:var(--muted); }
+  .risk.hi .tag { color:var(--brand); border-color:#f0cbd5; background:#fdf1f4; }
+
+  .tender { padding:11px 0; border-top:1px solid var(--line-soft); }
+  .tender b { display:block; font-size:11px; font-weight:600; color:var(--ink); line-height:1.45; }
+  .tender span { display:flex; gap:8px; margin-top:5px; font-family:var(--mono); font-size:9px; color:var(--muted); }
+  .tender span i { font-style:normal; color:var(--brand); }
+
+  .colophon { display:flex; justify-content:space-between; margin-top:30px; padding-top:10px; border-top:1px solid var(--line); font-family:var(--mono); font-size:8.5px; letter-spacing:.14em; color:var(--faint); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" id="rail"></aside>
+  <main class="stage">
+    <div class="wrap edition">
+
+      <header class="masthead">
+        <div>
+          <div class="date-block">
+            <b>23</b>
+            <span>OCT / 2026<br>FRI · 01:06</span>
+          </div>
+          <p class="kicker" style="margin-top:18px">GOODJOB DAILY BRIEF · NO.214 · 今日经营判断</p>
+          <h1 class="title">今天，先把 <em>Nova Metrics</em><br>这一单落地。</h1>
+          <p class="dek">12 个待跟进里有 3 个已经逾期；真正会改变本月结果的，只有这一单 42,000 美元的认证文件。</p>
+        </div>
+        <div class="rates">
+          <div class="live"><i></i>LIVE · 汇率 01:06 更新</div>
+          <div class="rate-row"><span>USD/CNY</span><b>6.6743</b><em class="dn">-0.18%</em></div>
+          <div class="rate-row"><span>EUR/CNY</span><b>7.8142</b><em class="up">+0.06%</em></div>
+          <div class="rate-row"><span>GBP/CNY</span><b>8.9610</b><em class="up">+0.11%</em></div>
+          <div class="rate-row"><span>JPY/CNY</span><b>0.0441</b><em class="dn">-0.03%</em></div>
+          <div class="rate-row"><span>AUD/CNY</span><b>4.4318</b><em class="up">+0.09%</em></div>
+        </div>
+      </header>
+
+      <section class="stats">
+        <div class="stat"><span>今日待跟进</span><b>12<small> 条</small></b><u>其中 <i>3 条逾期</i></u></div>
+        <div class="stat"><span>高风险商机</span><b>3<small> 单</small></b><u>敞口 <i>$86k</i></u></div>
+        <div class="stat"><span>本月成交</span><b>$412<small>k</small></b><u>目标 $600k · <i>69%</i></u></div>
+        <div class="stat"><span>新增线索</span><b>28<small> 条</small></b><u>有效转化 <i>56%</i></u></div>
+      </section>
+
+      <div class="columns">
+        <div class="col-l">
+          <div class="sec-head"><h2>今天的判断</h2><span>01 / VERDICT</span></div>
+          <p class="verdict">别急着铺新线索。先把 <mark>Nova Metrics</mark> 的 CE 文件补齐，并在今天 10:30 的电话里把交期锁死。</p>
+          <p class="lede">系统按「金额 × 停滞天数 × 阶段胜率」排序后的结论：这一单的期望值比另外三单加起来还高。</p>
+          <div class="why">
+            <div><b>判断依据</b><span>谈判中 · $42,000 · 报价有效期 10-25；客户已 9 天未回邮件，但 09:42 仍打开了报价单 3 次。</span></div>
+            <div><b>建议动作</b><span>通话确认认证清单 → 当场发 PDF → 把交期从「30 天」改为可承诺的 11-20。</span></div>
+            <div><b>业务影响</b><span>本周确认则本月成交 $454k，完成率 69% → 76%；再拖一周将顺延到下月。</span></div>
+          </div>
+
+          <div class="queue">
+            <div class="sec-head"><h2>跟进优先级</h2><span>02 / QUEUE · 4 OF 12</span></div>
+            <div class="q-row">
+              <div class="q-no">01</div>
+              <div class="q-main"><b>Nova Metrics GmbH</b><span>确认 500 台计价秤的 CE 认证文件 · 陈露</span></div>
+              <div class="q-amt">$42,000</div><div class="q-due late">今天 10:30</div>
+            </div>
+            <div class="q-row">
+              <div class="q-no">02</div>
+              <div class="q-main"><b>Pacific Weigh Pty</b><span>安排技术视频会议（对方 3 人，含技术总监）· 林楠</span></div>
+              <div class="q-amt">$61,000</div><div class="q-due">明天 09:00</div>
+            </div>
+            <div class="q-row">
+              <div class="q-no">03</div>
+              <div class="q-main"><b>Ali Trading LLC</b><span>发送 FOB 宁波的修正报价单 · 陈露</span></div>
+              <div class="q-amt">$28,000</div><div class="q-due">今天 14:00</div>
+            </div>
+            <div class="q-row">
+              <div class="q-no">04</div>
+              <div class="q-main"><b>Sakura Scale Co.</b><span>回复样品测试视频与交期 · 王磊</span></div>
+              <div class="q-amt">$16,500</div><div class="q-due late">逾期 2 天</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-r">
+          <div class="side-sec">
+            <div class="sec-head"><h2>今日节奏</h2><span>03 / SCHEDULE</span></div>
+            <div class="tl">
+              <div class="tl-item now">
+                <div class="tl-time">10:30</div>
+                <div class="tl-body"><b>WhatsApp 通话 · Nova Metrics</b><span>Hans Weber / 采购总监</span></div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-time">11:20</div>
+                <div class="tl-body"><b>内部评审：澳州 61k 报价</b><span>林楠 + 财务</span></div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-time">14:00</div>
+                <div class="tl-body"><b>报价复核 · Ali Trading</b><span>FOB 条款修正</span></div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-time">16:30</div>
+                <div class="tl-body"><b>样品发运 · Sakura</b><span>顺丰国际 7734 2190</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="side-sec">
+            <div class="sec-head"><h2>风险信号</h2><span>04 / RISK · 3</span></div>
+            <div class="risk hi"><span class="tag">沉默风险</span><b>Nova Metrics 已 9 天未回邮件</b><span>报价后静默，建议换电话线触达，不要继续发邮件。</span></div>
+            <div class="risk"><span class="tag">汇率</span><b>USD/CNY 跌破 6.68</b><span>未锁汇订单 $86,000，毛利预计 -1.4 个点。</span></div>
+            <div class="risk"><span class="tag">流程卡点</span><b>Sakura 样品签收超 5 天</b><span>客户未反馈测试结果，交期承诺无法推进。</span></div>
+          </div>
+
+          <div class="side-sec">
+            <div class="sec-head"><h2>海外竞标</h2><span>05 / TENDER</span></div>
+            <div class="tender"><b>Kenya Medical Supplies Agency · 电子台秤年度框架</b><span>USD 240k · 截止 11-06 · <i>匹配 82%</i></span></div>
+            <div class="tender"><b>Queensland TAFE · 实验室精密天平 3 年</b><span>AUD 96k · 截止 11-12 · 匹配 64%</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="colophon"><span>GOODJOB / OPERATING SYSTEM</span><span>数据范围：本人业务 · 自动刷新 60s</span></div>
+    </div>
+  </main>
+</div>
+<script src="shell.js"></script>
+</body>
+</html>

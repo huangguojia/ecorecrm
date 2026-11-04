@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文档管理 · 评分、重设计与维护方案</title>
+<style>
+  :root{
+    --ink:#131c2e; --text:#37425a; --muted:#6b7d94; --note:#94a3b6;
+    --line:#e7ecf4; --line-soft:#f0f4fa; --surface:#fff; --bg:#f4f7fb;
+    --brand:#6366f1; --brand-strong:#4f46e5; --brand-tint:#eef0ff;
+    --red:#c0392b; --amber:#b45309; --green:#1a8f5a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:44px 28px 80px}
+  header.top{margin-bottom:30px}
+  .eyebrow{margin:0 0 8px;color:var(--brand);font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
+  h1{margin:0;font-size:31px;line-height:1.2;color:var(--ink);letter-spacing:-.02em;font-weight:700}
+  .lead{margin:10px 0 0;color:var(--muted);font-size:14px;max-width:80ch}
+  h2{margin:46px 0 14px;font-size:19px;color:var(--ink);letter-spacing:-.01em;display:flex;align-items:baseline;gap:10px}
+  h2 .n{font-size:12px;font-weight:600;color:var(--brand);background:var(--brand-tint);border-radius:999px;padding:2px 9px}
+  h3{margin:26px 0 10px;font-size:15px;color:var(--ink)}
+  h4{margin:18px 0 8px;font-size:13.5px;color:var(--ink)}
+  .h2sub{margin:-8px 0 16px;color:var(--muted);font-size:13px}
+  p{margin:10px 0}
+  ul,ol{margin:10px 0;padding-left:20px}
+  li{margin:5px 0}
+  .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:18px 0 6px}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px 17px}
+  .kpi span{display:block;color:var(--muted);font-size:11px;font-weight:500;letter-spacing:.02em}
+  .kpi b{display:block;margin-top:4px;color:var(--ink);font-size:24px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.15}
+  .kpi small{display:block;margin-top:3px;color:var(--note);font-size:11px}
+  .kpi.bad b{color:#9a2f22}
+  .kpi.mid b{color:#8a5a08}
+  table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+  th{background:#f8fafd;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.04em;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:10px 12px;border-bottom:1px solid var(--line-soft);color:var(--text);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.k{color:var(--ink);font-weight:600}
+  td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+  code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--brand-strong);background:var(--brand-tint);border-radius:5px;padding:1px 5px}
+  pre{margin:10px 0;padding:12px 14px;background:#0f1729;color:#d7e0f0;border-radius:10px;overflow:auto;font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .score{display:inline-block;min-width:46px;text-align:center;border-radius:7px;padding:2px 7px;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+  .s-bad{color:#9a2f22;background:#fdeceb}
+  .s-mid{color:#8a5a08;background:#fdf3e2}
+  .s-ok{color:#166b45;background:#e8f6ee}
+  .s-good{color:#0f5c3a;background:#dff4e9}
+  .chip{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:600;background:#f2f5fa;color:var(--muted);margin:1px 3px 1px 0}
+  .chip.red{background:#fdeceb;color:#9a2f22}
+  .chip.amber{background:#fdf3e2;color:#8a5a08}
+  .chip.green{background:#e8f6ee;color:#166b45}
+  .chip.brand{background:var(--brand-tint);color:var(--brand-strong)}
+  .note{background:#fff;border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:10px;padding:13px 16px;margin:14px 0}
+  .note.warn{border-left-color:#d98324;background:#fffdfa}
+  .note.bad{border-left-color:#c0392b;background:#fffbfb}
+  .note b{color:var(--ink)}
+  img.shot{display:block;width:100%;border:1px solid var(--line);border-radius:12px;background:#fff}
+  figure{margin:16px 0}
+  figcaption{margin-top:8px;color:var(--note);font-size:12px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .card h4{margin:0 0 7px}
+  .card p{margin:6px 0;font-size:12.5px;color:var(--muted)}
+  .card .big{color:var(--ink);font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.015em}
+  /* 辩论 */
+  .debate{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:16px 0}
+  .debate > header{padding:13px 18px;background:#fbfcfe;border-bottom:1px solid var(--line-soft);display:flex;align-items:baseline;gap:10px}
+  .debate > header b{color:var(--ink);font-size:14.5px}
+  .debate > header .round{font-size:11px;font-weight:600;color:var(--brand-strong);background:var(--brand-tint);border-radius:999px;padding:2px 9px}
+  .side{padding:14px 18px;border-bottom:1px solid var(--line-soft)}
+  .side .who{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;border-radius:6px;padding:2px 8px;margin-bottom:7px}
+  .side.pro .who{background:#e8f6ee;color:#166b45}
+  .side.con .who{background:#fdeceb;color:#9a2f22}
+  .side.verdict .who{background:var(--brand-tint);color:var(--brand-strong)}
+  .side.verdict{background:#fbfcff}
+  .side p{margin:6px 0;font-size:13px}
+  .side ul{margin:6px 0 0;padding-left:20px}
+  .side li{font-size:12.5px;color:var(--muted)}
+  .side li b{color:var(--text)}
+  /* mockup */
+  .mock{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:16px 0}
+  .mock .bar{display:flex;align-items:center;gap:8px;padding:9px 14px;background:#f8fafd;border-bottom:1px solid var(--line)}
+  .mock .bar i{width:9px;height:9px;border-radius:50%;background:#e2e8f2;display:inline-block}
+  .mock .bar span{margin-left:6px;color:var(--note);font-size:11px;font-family:ui-monospace,Menlo,monospace}
+  .mock .body{padding:0}
+  .mk-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:16px 18px 12px}
+  .mk-head h5{margin:0;font-size:18px;color:var(--ink);letter-spacing:-.01em}
+  .mk-head p{margin:3px 0 0;color:var(--muted);font-size:11.5px}
+  .mk-btns{display:flex;gap:8px}
+  .mk-btn{border:1px solid var(--line);background:#fff;color:#2b3a36;border-radius:8px;padding:5px 11px;font-size:11.5px;font-weight:500}
+  .mk-btn.primary{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  .mk-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 18px 14px}
+  .mk-kpi{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fcfdff}
+  .mk-kpi span{display:block;color:var(--muted);font-size:11px;font-weight:500}
+  .mk-kpi b{display:block;margin-top:3px;color:var(--ink);font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.015em}
+  .mk-kpi small{display:block;margin-top:2px;color:var(--note);font-size:10.5px}
+  .mk-kpi.is-warn b{color:#8a5a08}
+  .mk-kpi.is-bad b{color:#9a2f22}
+  .mk-tabs{display:flex;gap:6px;padding:0 18px 10px}
+  .mk-tab{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 12px;font-size:11.5px;color:var(--muted)}
+  .mk-tab.active{background:var(--brand-tint);border-color:#c9cdff;color:var(--brand-strong);font-weight:600}
+  .mk-table{margin:0 18px 16px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .mk-tr{display:grid;grid-template-columns:2.6fr .9fr .9fr 1.1fr .9fr;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line-soft);font-size:11.5px}
+  .mk-tr:last-child{border-bottom:0}
+  .mk-tr.head{background:#f8fafd;color:var(--muted);font-size:10.5px;font-weight:600;letter-spacing:.03em}
+  .mk-tr .t{color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mk-tr .t em{display:block;font-style:normal;color:var(--note);font-weight:400;font-size:10.5px;margin-top:2px}
+  .mk-pill{display:inline-block;border-radius:999px;padding:1px 8px;font-size:10.5px;font-weight:600}
+  .mk-pill.core{background:#e8f6ee;color:#166b45}
+  .mk-pill.long{background:#f2f5fa;color:#6b7d94}
+  .mk-pill.cand{background:#fdf3e2;color:#8a5a08}
+  .mk-bar{display:inline-block;vertical-align:middle;width:62px;height:6px;border-radius:999px;background:#eef2f8;overflow:hidden;margin-right:7px}
+  .mk-bar i{display:block;height:100%;border-radius:999px;background:#1a8f5a}
+  .mk-tr > span{align-self:center}
+  .mk-tr em.mk-num{font-style:normal;font-weight:700;color:var(--ink)}
+  .mk-bar.mid i{background:#d98324}
+  .mk-bar.bad i{background:#c0392b}
+  .mk-num{font-variant-numeric:tabular-nums;color:var(--text)}
+  .mk-num b{color:var(--ink)}
+  .ok{color:#166b45;font-weight:600}
+  .no{color:#9a2f22;font-weight:600}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0 0;color:var(--note);font-size:11.5px}
+  @media (max-width:900px){.cards,.three,.two,.mk-kpis{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">GoodJob CRM · 文档管理体检</p>
+  <h1>文档管理：评分、重设计与维护方案</h1>
+  <p class="lead">
+    对象＝<b>文件中心（资料维护）</b>及其下游——<b>资源中心检索</b>与插件<b>训练库</b>这两条服务于「会话推荐」的语料链路。
+    结论先说：<b>综合 3.1 / 10，必须重做而不是美化</b>。它现在的问题不是"界面土"，而是
+    <b>供给侧没有质量标准、需求侧没有反馈回流</b>——这恰好就是你担心的"文档一多，推荐就不准"的成因。
+  </p>
+</header>
+
+<div class="note">
+  <b>先说口径，避免做错方向。</b>
+  系统里没有叫「文档管理」的页面，我按你的描述（"要用到会话推荐里""文档过多会影响沉淀与推荐效果"）判定你指的是
+  <b>导航「资料维护」→ 页面「文件中心」</b>（表 <code>knowledge_assets</code>），它是资源中心四源里唯一的"文档"源，
+  也是扩展右侧「相关文档」面板的供给端。
+  顺带把你提到的「沉淀训练」一并体检了——那是插件「训练与自动回复」里的<b>训练库</b>（表 <code>training_library_entries</code>）。
+  如果你说的其实是「单据平台」或别处，直接说，我改口径。
+</div>
+
+<h2><span class="n">1</span>链路：这两份"文档"是怎么进到会话推荐里的</h2>
+<p class="h2sub">看清供需两侧，才知道"多"到底伤在哪一环。</p>
+
+<pre>
+【供给 A · 文档】                           【供给 B · 会话沉淀】
+ 文件中心 knowledge_assets                    归档并学习（插件）
+ (title/category/tags/summary/URL)                    │
+        │                                             ▼
+        │                                   训练档案 training_profiles
+        │                                    (话术样本 ≤200 + 风格)
+        ▼                                             │ importFromProfile
+ 资源中心 resource-hub ◀──── skill_resources           ▼
+ 四源合并 · 四路打分                  训练库 training_library_entries
+ (lexical .52 / structured .20                (qa / snippet / policy / forbidden)
+  / semantic .16 / vector .12)                        │
+        │                                             │ resolve()
+        │                                             │  qa 取 top-5（相似度门槛）
+        ▼                                             │  snippet 全量≤6
+ POST /api/agent/resources/recommend                  │  policy 全量≤10
+        │                                             │
+        └──────────────┬──────────────────────────────┘
+                       ▼
+        插件 resource-recommend-service ──▶ CLI 复排 ──▶ 扩展右侧面板
+        「相关文档」推荐发哪份资料              「推荐回复」推荐怎么回
+</pre>
+<p>
+  两条链的失败方式不同：<b>A（文档）坏 → 推错资料</b>，业务员把过期报价、错误型号发给客户，是业务事故；
+  <b>B（训练库）坏 → 回复跑偏</b>，语气、口径被污染，是信任事故。所以两者的治理手段也应当不同。
+</p>
+
+<h2><span class="n">2</span>现状体检：四张实测表</h2>
+<p class="h2sub">全部数字来自本机个人库 + 4188 真实渲染 + CDP 抽计算样式，不是估计。</p>
+
+<h3>2.1 资料库本身：4 条，且 3 条是"看不见的"</h3>
+<table>
+  <thead><tr><th>标题</th><th>类目</th><th>状态</th><th>团队</th><th>链接</th><th>标签</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td class="k">Ltans Skill</td><td>产品知识</td><td><span class="chip green">published</span></td><td>europe</td><td>百度网盘</td><td class="no">无</td><td>翻译 skill</td></tr>
+    <tr><td class="k">LED 灯具参数手册 V3</td><td>产品知识</td><td><span class="chip green">published</span></td><td class="no">all</td><td class="no">legacy（无）</td><td class="no">无</td><td class="no">无</td></tr>
+    <tr><td class="k">欧洲报价模板</td><td>报价规则</td><td><span class="chip amber">review</span></td><td class="no">all</td><td class="no">legacy（无）</td><td class="no">无</td><td class="no">无</td></tr>
+    <tr><td class="k">CE 证书客户解释话术</td><td>认证资料</td><td><span class="chip green">published</span></td><td class="no">all</td><td class="no">legacy（无）</td><td class="no">无</td><td class="no">无</td></tr>
+  </tbody>
+</table>
+<div class="note bad">
+  <b>三个硬事实。</b>
+  ① 界面上「可见资料 = 1」——因为 <code>canSeeKnowledgeAsset</code> 要求 <code>team_id</code> 必须等于<b>当前用户所在团队</b>，
+  三条 <code>team_id='all'</code> 的资料<b>对任何非 all 团队都不可见，而 all 身份又被平台身份判定排除</b> → 它们是孤儿（代码：<code>server.ts:1713</code>、<code>resource-hub.ts:199</code>）。
+  ② 这 3 条恰好是最像"业务资料"的内容（规格书 / 报价模板 / 认证话术），却因为 <code>source_type='legacy'</code> <b>没有真实链接</b>，即使被推荐出去，点「打开资料」也只会<br>
+  <code>reveal → { ok:false, reason:"no_link" }</code>（<code>resource-hub.ts:572</code>）——而且<b>召回阶段完全不过滤它们</b>：<code>hasExternalLink</code> 算出来了，却从头到尾没被用过一次。
+  ③ 4 条里 <b>4 条无标签、3 条无说明</b>。而打分公式里标签权重 1.6、摘要权重 1.0（满分 2.0）——这两档直接归零，只剩标题能命中。
+</div>
+
+<h3>2.2 界面本身：一个视图里 7 档字号、6 档字重、5 套灰</h3>
+<p>CDP 逐节点读 <code>getComputedStyle</code>，文件中心视图内共 49 个文本节点：</p>
+<table>
+  <thead><tr><th>位置</th><th>字号 / 字重</th><th>颜色</th><th>问题</th></tr></thead>
+  <tbody>
+    <tr><td>表头「资料 / 来源 / 状态 / 访问」</td><td class="num">9px / 700</td><td>#8995a5</td><td class="no">低于 11px 下限；第 4 套灰</td></tr>
+    <tr><td>列表来源值「百度网盘」</td><td class="num">10px / 650</td><td>#526176</td><td class="no">650 字重非标准档；第 5 套灰</td></tr>
+    <tr><td>文件类型标「BD」</td><td class="num">9px / 800</td><td>#315f96</td><td class="no">800 字重</td></tr>
+    <tr><td>行副信息「产品知识 · v1 · Admin」</td><td class="num">9px / 400</td><td>#6d798b</td><td class="no">9px 正文级信息</td></tr>
+    <tr><td>状态徽章「已发布」</td><td class="num">9px / 400</td><td>#286553</td><td class="no">青绿残留色</td></tr>
+    <tr><td>详情 dt / dd</td><td class="num">9px / 10px 650</td><td>#6d798b / #131c2e</td><td class="no">同上</td></tr>
+    <tr><td>4 个 KPI 标签 / 数值</td><td class="num">11px 500 / 20px 700</td><td>#6b7d94 / #131c2e</td><td class="ok">✓ 已合规</td></tr>
+  </tbody>
+</table>
+<p>
+  合计：字号 <b>9 / 10 / 11 / 12 / 16 / 20 / 24 px = 7 档</b>，字重 <b>400 / 500 / 600 / 650 / 700 / 800 = 6 档</b>，灰色 <b>5 套</b>。
+  这与你上一轮刚定下的「右上文字 + 输入框」统一规范（标签 11 / 数值 20 / 说明 11，禁 9·10px 与 800 字重）<b>正面冲突</b>——
+  说明上一轮的规范只覆盖了你点名的区域，<b>文件中心这个页面整体还没被纳入</b>。
+</p>
+<figure>
+  <img class="shot" src="./shots-docs/knowledge.png" alt="文件中心现状">
+  <figcaption>现状：4 个 KPI 里「百度网盘」是<b>存储介质</b>当指标；中间列表空掉一大片；详情面板只有版本/维护人/访问次数/提取码，没有一条能回答"这份资料推得好不好"。</figcaption>
+</figure>
+
+<h3>2.3 推荐效果：曝光 24 次，平均得分 0.041</h3>
+<p>库里 <code>resource_retrieval_events</code> 的真实埋点：</p>
+<table>
+  <thead><tr><th>事件</th><th>次数</th><th>平均分</th><th>解读</th></tr></thead>
+  <tbody>
+    <tr><td>exposed 曝光</td><td class="num">24</td><td class="num">0.041</td><td class="no">分数区间 0.017–0.10，贴着 0.01 阈值</td></tr>
+    <tr><td>revealed 取链接</td><td class="num">2</td><td class="num">—</td><td>其中 1 次来自 e2e 测试</td></tr>
+    <tr><td>accepted 采纳</td><td class="num">1</td><td class="num">—</td><td>真实采纳率 ≈ 1/24</td></tr>
+    <tr><td>dismissed 忽略</td><td class="num">1</td><td class="num">—</td><td>样本过小</td></tr>
+  </tbody>
+</table>
+<div class="note warn">
+  <b>0.041 意味着什么。</b> 打分是加权和，词法项满分 0.52。得分 0.04 ≈「整段会话里只有 1 个弱词命中了标题」。
+  公式是 <code>词法分 = Σ(命中权重×idf) / Σ(全部查询词 idf)</code>（<code>resource-hub.ts:457</code>）——
+  查询是<b>整段会话</b>（几十个词），分母把分数稀释掉了，而淘汰阈值只有 <code>score &gt; 0.01</code>（<code>:530</code>）。
+  ⇒ <b>候选之间几乎没有区分度</b>：第 1 名和第 5 名的差距，小于“有没有命中”这件事本身的噪声。这才是"推了但没用"的技术原因。
+</div>
+
+<h3>2.4 训练库（你说的"沉淀训练"）：45 条，0 条人工，0 次命中</h3>
+<table>
+  <thead><tr><th>指标</th><th>实测</th><th>意味着什么</th></tr></thead>
+  <tbody>
+    <tr><td>条目总数</td><td class="num">45（qa 40 / policy 5）</td><td>已经沉淀了，但不是"训练"出来的</td></tr>
+    <tr><td>来源分布</td><td class="num">profile 自动导入 45 / 人工录入 0</td><td class="no">100% 来自聊天原文自动拆解</td></tr>
+    <tr><td>标签覆盖</td><td class="num">0 / 45 有条目有标签</td><td class="no">无法按产品线/场景筛选</td></tr>
+    <tr><td>优先级</td><td class="num">全部 100（无区分）</td><td class="no">排序退化到只看相似度</td></tr>
+    <tr><td>命中计数 <code>hit_count</code></td><td class="num">45 条全为 0</td><td class="no">"清理死条目"的唯一信号没产生</td></tr>
+  </tbody>
+</table>
+<p>抽 20 条样本看内容质量，问题一眼可见：</p>
+<pre>
+question                                   answer
+"test test 2"                        →     "Test past Ho 6012-2166638"
+"Ok, waiting"                        →     "PDF TR100D说明书-英文版 (2).pdf 20页•PDF•675 kB 下午2:0"
+"已转发 +2 下午3:07 已转发 下午3:07"   →     "Okay, I'll give it to the engineer... Okay, th"
+"Hello 凌晨1:03 Hello Please send..." →     "good day,ok,i will send"
+"What document to give?..."          →     "你已删除这条消息 上午9:44 Yes. Once the goods arrive at"
+</pre>
+<ul>
+  <li><b>机器垃圾混进语料</b>：时间戳（"下午2:0""上午9:44"）、附件名与体积（"20页•PDF•675 kB"）、系统短语（"你已删除这条消息"）、"已转发"标记。</li>
+  <li><b>答案被截断</b>成半句；<b>中英混杂</b>（英文客户语料里夹中文说明书文件名）。</li>
+  <li><b>只有精确指纹去重</b>（<code>fingerprintOf</code> = kind+question+answer 的 sha256），所以"Ok, waiting"和"Ok waiting"算两条。</li>
+</ul>
+<div class="note bad">
+  <b>关键机制：<code>resolve()</code> 的注入策略是"qa 取 top-5、snippet 全量≤6、policy 全量≤10"。</b>
+  也就是说——<b>口径类条目不经过任何相关性过滤，全部塞进提示词</b>。
+  库越大，注入的噪声越多。这正是你说的"文档过多会影响效果"的<b>准确机制</b>，而且它已经在发生了。
+</div>
+<div class="note">
+  <b>闭环为什么断了。</b> 训练库有条目命中计数 <code>hit_count</code> 与"清理死条目"的设计意图，
+  但 <code>recordHits()</code> 全项目<b>只有一个调用点</b>：<code>auto-chat-service.ts:712</code>——即<b>自动回复</b>通道。
+  「推荐回复」建议面板走的是另一条路径，<b>永远不记命中</b>。所以 45 条全为 0 不代表"没被用过"，
+  而代表<b>这条反馈回路在主路径上根本没接通</b>。
+</div>
+
+<h3>2.5 顺手发现的既有缺陷（不是本次引入）</h3>
+<ul>
+  <li><b>孤儿资料</b>：<code>teamId = asset.teamId || owner?.teamId || "all"</code> 的兜底值 <code>"all"</code> 会导致资料对所有人不可见（实测 3/4 条）。"共享/全局"语义与团队隔离判定冲突。</li>
+  <li><b>可见性两套标准</b>：file 源写死 <code>teamId === actor.teamId</code>，product 源用 <code>canSeeOwner()</code>（允许 all）。同一份资料换个源可见性就不同。</li>
+  <li><b>静默截断</b>：<code>MAX_SCAN_PER_SOURCE = 400</code> 按 <code>updated_at DESC</code> 截断，第 401 份起<b>直接不在候选集里</b>，界面上没有任何提示。你以为库里有，实际检索不到。</li>
+</ul>
+
+<h2><span class="n">3</span>评分：10 个维度，综合 3.1 / 10</h2>
+<p class="h2sub">口径沿用本项目既有设计文档的评分标准：9 = 可以直接交给客户用；10 = 同类里做得比别人好。</p>
+<table>
+  <thead><tr><th>#</th><th>维度</th><th>得分</th><th>扣分依据（可验证）</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td class="k">信息架构 / 可发现性</td><td><span class="score s-bad">5.0</span></td><td>三栏布局本身合理，但类目树只有一级；4 个 KPI 里的「百度网盘」是存储介质不是业务维度；没有分层、没有"待治理"入口</td></tr>
+    <tr><td>2</td><td class="k">元数据规范（受控词表）</td><td><span class="score s-bad">2.0</span></td><td>类目与标签都是自由文本（<code>z.string()</code>，schema 默认"产品知识"）；实测 4/4 无标签、3/4 无说明；<b>没有"适用范围 / 产品线 / 目标市场"任何字段</b></td></tr>
+    <tr><td>3</td><td class="k">入库质量闸门</td><td><span class="score s-bad">2.5</span></td><td>必填只有标题 + URL；新建默认 <code>draft</code>，但弹窗里没有「保存并发布」，要回到列表再点一次才能被推荐；无重复检测、无质量自检</td></tr>
+    <tr><td>4</td><td class="k">生命周期管理</td><td><span class="score s-bad">1.5</span></td><td><code>version</code> 只是文本：无替代关系、无生效/失效日期、无复核日。<b>V1 与 V3 同权竞争</b>；过期证书、旧价目表照常被推荐</td></tr>
+    <tr><td>5</td><td class="k">推荐效果可见性</td><td><span class="score s-bad">2.0</span></td><td>列表只有 <code>accessCount</code>（自己点开次数）。埋点已落库 5 类事件、后端有 <code>/api/agent/resources/stats</code>，但 <b>CRM 前端没有任何视图</b>（既有设计文档自己写明"不做 CRM 前端视图"）</td></tr>
+    <tr><td>6</td><td class="k">分层与上限管理</td><td><span class="score s-bad">3.0</span></td><td>硬截断 400/源且静默；核心与长尾同权；曝光分 0.017–0.10 贴阈值；无"未校订"标记</td></tr>
+    <tr><td>7</td><td class="k">视觉一致性</td><td><span class="score s-bad">4.0</span></td><td>单视图 7 档字号、6 档字重、5 套灰（详见 §2.2），与上一轮刚定的规范冲突</td></tr>
+    <tr><td>8</td><td class="k">批量与效率</td><td><span class="score s-bad">2.0</span></td><td>无批量导入、无批量改标签/类目、无批量发布；一次一份 8 字段弹窗</td></tr>
+    <tr><td>9</td><td class="k">权限与可见性正确性</td><td><span class="score s-mid">5.5</span></td><td>团队隔离方向正确，但 <code>"all"</code> 兜底造成孤儿资料（实测 3/4）；file 与 product 两套可见性标准</td></tr>
+    <tr><td>10</td><td class="k">与推荐链路的契合度</td><td><span class="score s-mid">4.5</span></td><td><code>hasExternalLink</code> 算出来却从不参与召回过滤；无接受度权重；无"被推 20 次 0 采纳"识别</td></tr>
+  </tbody>
+</table>
+<div class="cards">
+  <div class="kpi bad"><span>综合得分</span><b>3.1</b><small>10 维均分</small></div>
+  <div class="kpi bad"><span>低于 9 分的维度</span><b>10 / 10</b><small>无一项达标</small></div>
+  <div class="kpi mid"><span>其中低于 3 分</span><b>5</b><small>元数据/入库/生命周期/反馈/批量</small></div>
+  <div class="kpi"><span>结论</span><b>重做</b><small>不是精修</small></div>
+</div>
+<div class="note bad">
+  <b>判断：这不是"页面丑"，是"治理面缺失"。</b>
+  10 个维度里 5 项低于 3 分，且集中在<b>元数据、入库闸门、生命周期、反馈回流</b>——
+  这四项恰好就是"文档一多就崩"的四个成因。所以正确做法不是重新排版，而是<b>先把供给侧的规则建起来，再让界面服务于规则</b>。
+</div>
+
+<h2><span class="n">4</span>根因：三条断裂</h2>
+<div class="three">
+  <div class="card">
+    <h4>① 入口无约束</h4>
+    <p>类目、标签是<b>自由文本</b>。两个人写"CE 认证"和"ce认证"，检索就当成两个话题；写错别字就永远匹配不上。字段里没有"适用范围"，模型只能靠标题猜。</p>
+    <p class="big">4 / 4 无标签</p>
+  </div>
+  <div class="card">
+    <h4>② 中间无生命周期</h4>
+    <p>有 <code>version</code> 却<b>没有替代关系</b>；有 <code>updatedAt</code> 却<b>没有生效/失效</b>。结果是旧版本永远在候选池里与新版抢分，且没人知道哪份是"现行版"。</p>
+    <p class="big">V1 与 V3 同权</p>
+  </div>
+  <div class="card">
+    <h4>③ 出口无回流</h4>
+    <p>推荐埋点落库了，训练库有 <code>hit_count</code> 字段，但<b>没有任何界面把"这份资料被推了多少次、采纳了几次"显示给维护人</b>。没人能依据数据做淘汰。</p>
+    <p class="big">曝光 24 → 采纳 1</p>
+  </div>
+</div>
+<p>
+  三条断裂乘起来就是你的直觉：<b>入口脏 → 候选区分度低 → 反馈不回 → 无法淘汰 → 越堆越脏</b>。
+  所以治理的关键不是"限制数量"，而是<b>把这三条接上</b>：让每条资料有规范、有生命周期、有成绩单。
+</p>
+
+<h2><span class="n">5</span>重设计方案：三闸两池</h2>
+<p class="h2sub">一句话：<b>把"资料库"改造成"资料治理台"——机器做减法，人做加法，数据做裁判。</b></p>
+
+<div class="mock">
+  <div class="bar"><i></i><i></i><i></i><span>文件中心 → 资料治理台（提案）</span></div>
+  <div class="body">
+    <div class="mk-head">
+      <div>
+        <h5>资料治理台</h5>
+        <p>团队资料 · 分层可见 · 推荐效果回流 · 复核到期提醒</p>
+      </div>
+      <div class="mk-btns">
+        <button class="mk-btn">批量导入</button>
+        <button class="mk-btn">治理清单</button>
+        <button class="mk-btn primary">添加资料</button>
+      </div>
+    </div>
+    <div class="mk-kpis">
+      <div class="mk-kpi"><span>核心池</span><b>0</b><small>人工校订 · 全量参与推荐</small></div>
+      <div class="mk-kpi is-warn"><span>长尾池</span><b>1</b><small>未校订 · 仅精确命中时出</small></div>
+      <div class="mk-kpi is-bad"><span>待治理</span><b>3</b><small>缺标签/疑似重复/0 采纳</small></div>
+      <div class="mk-kpi"><span>近 30 天采纳率</span><b>4%</b><small>曝光 24 · 采纳 1</small></div>
+    </div>
+    <div class="mk-tabs">
+      <span class="mk-tab active">全部 4</span>
+      <span class="mk-tab">核心池 0</span>
+      <span class="mk-tab">长尾池 1</span>
+      <span class="mk-tab">待治理 3</span>
+      <span class="mk-tab">已过期 0</span>
+      <span class="mk-tab">覆盖缺口</span>
+    </div>
+    <div class="mk-table">
+      <div class="mk-tr head"><span>资料</span><span>分层</span><span>健康度</span><span>曝光 → 采纳</span><span>下次复核</span></div>
+      <div class="mk-tr">
+        <span class="t">Ltans Skill<em>产品知识 · v1 · 复读机翻译 skill</em></span>
+        <span><span class="mk-pill long">长尾</span></span>
+        <span><span class="mk-bar mid"><i style="width:52%"></i></span><em class="mk-num">52</em></span>
+        <span class="mk-num"><b>6</b> → <b>1</b> <span class="ok">17%</span></span>
+        <span class="mk-num">11-12</span>
+      </div>
+      <div class="mk-tr">
+        <span class="t">LED 灯具参数手册 V3<em>产品知识 · v3 · 无链接（需补）</em></span>
+        <span><span class="mk-pill cand">待确认</span></span>
+        <span><span class="mk-bar bad"><i style="width:18%"></i></span><em class="mk-num">18</em></span>
+        <span class="mk-num"><b>0</b> → <b>0</b> <span class="no">—</span></span>
+        <span class="mk-num">—</span>
+      </div>
+      <div class="mk-tr">
+        <span class="t">欧洲报价模板<em>报价规则 · v2 · 旧版未标注替代</em></span>
+        <span><span class="mk-pill cand">待确认</span></span>
+        <span><span class="mk-bar bad"><i style="width:24%"></i></span><em class="mk-num">24</em></span>
+        <span class="mk-num"><b>0</b> → <b>0</b> <span class="no">—</span></span>
+        <span class="mk-num">—</span>
+      </div>
+      <div class="mk-tr">
+        <span class="t">CE 证书客户解释话术<em>认证资料 · v1 · 疑似与「认证答疑」重复</em></span>
+        <span><span class="mk-pill cand">待确认</span></span>
+        <span><span class="mk-bar mid"><i style="width:41%"></i></span><em class="mk-num">41</em></span>
+        <span class="mk-num"><b>0</b> → <b>0</b> <span class="no">—</span></span>
+        <span class="mk-num">—</span>
+      </div>
+    </div>
+    <div class="legend">
+      <span>健康度 = 元数据完整 30 + 新鲜度 20 + 推荐表现 25 + 唯一性 15 + 可达性 10</span>
+    </div>
+  </div>
+</div>
+
+<h3>5.1 三闸：把质量做进流程，而不是靠自觉</h3>
+<table>
+  <thead><tr><th>闸门</th><th>什么时候</th><th>做什么</th><th>解决哪个根因</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="k">① 入库闸</td><td>保存资料时</td>
+      <td>
+        <b>受控词表</b>：类目改成下拉（产品知识/认证资料/报价规则/单证模板/技术方案/案例话术…可后台增删），标签改成<b>可选可新建的标签选择器</b>（输入即联想，杜绝同义异写）。<br>
+        <b>结构化必填</b>：适用范围（产品线 + 目标市场 + 语言）、一句话摘要（≤120 字，进检索字段）、真实链接有效性探测。<br>
+        <b>重复检测</b>：保存前对标题/摘要做语义比对，命中同族提示"已有《LED 灯具参数手册 V3》，这是新版本吗？"→ 是则自动建立<b>替代关系</b>并把旧版转 <code>superseded</code>。<br>
+        <b>一键发布</b>：弹窗底部给「保存并发布」，不要让用户回列表再点第二次。
+      </td>
+      <td><span class="chip red">① 入口无约束</span></td>
+    </tr>
+    <tr>
+      <td class="k">② 检索闸</td><td>每次推荐时</td>
+      <td>
+        <b>生命周期过滤</b>：<code>expired</code> / <code>superseded</code> <b>不进候选</b>；<code>draft</code> 只在精确标题命中时进（且标"未校订"）。<br>
+        <b>可达性过滤</b>：<code>hasExternalLink=false</code> 且非 inline 正文的资料，<b>不上推荐榜</b>（否则点了必然 <code>no_link</code>）——这正好修掉 §2.1 的缺陷 ②。<br>
+        <b>分层加权</b>：核心池 ×1.0，长尾池 ×0.4。让"数量"从负担变成分层。<br>
+        <b>同族合并</b>：同一 <code>docGroupId</code> 只出最新一版，避免 V1/V2/V3 三分命中证据。
+      </td>
+      <td><span class="chip red">② 中间无生命周期</span></td>
+    </tr>
+    <tr>
+      <td class="k">③ 反馈闸</td><td>推荐之后</td>
+      <td>
+        <b>成绩单回流</b>：把已有的 <code>resource_retrieval_events</code> 聚合进文件中心列表——每份资料显示 <b>曝光 → 采纳</b>。这是最小改动、最大收益的一步（埋点已在跑）。<br>
+        <b>补上断掉的调用点</b>：<code>recordHits()</code> 现在只在自动回复通道被调用，建议路径也要记，否则 <code>hit_count</code> 永远是 0。<br>
+        <b>自动降权</b>：曝光 ≥20 且采纳 0 的资料 → 健康度扣分 + 进「待治理」；连续 8 周无改善 → 自动转 <code>draft</code>（只下架推荐，不删数据）。
+      </td>
+      <td><span class="chip red">③ 出口无回流</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>5.2 入库表单 v2：把规则做进控件里</h3>
+<p>上面 8 条 Checklist 如果只写在文档里，没人会照做。所以要点是<b>把规则变成控件本身</b>——不会填错，也漏不掉。</p>
+<div class="mock">
+  <div class="bar"><i></i><i></i><i></i><span>添加资料（提案）· 520px → 760px</span></div>
+  <div class="body" style="padding:16px 18px 18px">
+    <div style="display:grid;grid-template-columns:1.55fr 1fr;gap:18px">
+      <div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">资料标题</div>
+        <div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;color:var(--ink)">照明-规格书-户外工程款-V3</div>
+        <div style="margin-top:5px;font-size:10.5px" class="ok">✓ 含产品线 + 资料类型 + 版本，符合命名规范</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
+          <div>
+            <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">资料类目 <span class="no">*</span></div>
+            <div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;color:var(--ink)">产品知识 <span style="float:right;color:var(--note)">▾</span></div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">资料类型 <span class="no">*</span></div>
+            <div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;color:var(--ink)">规格书 <span style="float:right;color:var(--note)">▾</span></div>
+          </div>
+        </div>
+
+        <div style="margin-top:14px">
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:5px">适用范围 <span style="color:var(--note);font-weight:400">（决定什么时候能被推给客户）</span></div>
+          <div>
+            <span class="chip brand">产品线：照明</span><span class="chip brand">市场：EU</span><span class="chip brand">语言：EN</span>
+            <span class="chip">+ 添加</span>
+          </div>
+        </div>
+
+        <div style="margin-top:14px">
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">一句话摘要 <span class="no">*</span> <span style="color:var(--note);font-weight:400">（进检索字段，权重 1.0）</span></div>
+          <div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;color:var(--ink)">户外工程款灯具的功率/光效/防护等级与安装尺寸，用于回答客户选型与参数质询。</div>
+          <div style="margin-top:4px;font-size:10.5px;color:var(--note);text-align:right">38 / 120</div>
+        </div>
+
+        <div style="margin-top:14px">
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">标签 <span class="no">*</span> <span style="color:var(--note);font-weight:400">（3–6 个，只能从词表选）</span></div>
+          <div>
+            <span class="chip green">照明</span><span class="chip green">规格书</span><span class="chip green">EU</span><span class="chip green">EN</span>
+            <span class="chip">+ 选择标签</span>
+          </div>
+        </div>
+
+        <div style="margin-top:14px">
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">资料 URL <span class="no">*</span></div>
+          <div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;color:var(--ink)">https://pan.baidu.com/s/1xxxxxx <span style="float:right;color:var(--brand-strong);font-weight:600">验证链接</span></div>
+          <div style="margin-top:5px;font-size:10.5px" class="ok">✓ 已探测：可达 · 提取码已填</div>
+        </div>
+
+        <div style="margin-top:14px">
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">替代关系</div>
+          <div style="border:1px solid #c9cdff;background:var(--brand-tint);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--brand-strong)">
+            检测到同族《照明-规格书-户外工程款-V2》 → 保存后 V2 自动置为 <b>已被替代</b>（不再参与推荐）
+          </div>
+        </div>
+
+        <div style="margin-top:14px">
+          <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">下次复核</div>
+          <div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;color:var(--ink)">2027-04-14 <span style="color:var(--note)">· 规格书默认 6 个月</span></div>
+        </div>
+      </div>
+
+      <div>
+        <div style="border:1px solid var(--line);border-radius:10px;padding:12px 13px;background:#fcfdff">
+          <div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:8px">入库预检</div>
+          <div style="font-size:11.5px;color:var(--muted);line-height:2.05">
+            <div>元数据完整度 <b style="float:right;color:#8a5a08">7 / 8</b></div>
+            <div>重复检测 <b style="float:right;color:#8a5a08">1 个同族</b></div>
+            <div>链接可达 <b style="float:right" class="ok">✓</b></div>
+            <div>命名规范 <b style="float:right" class="ok">✓</b></div>
+            <div>标签覆盖 <b style="float:right" class="ok">✓</b></div>
+            <div>适用范围 <b style="float:right" class="ok">✓</b></div>
+          </div>
+          <div style="margin-top:10px;border-top:1px solid var(--line-soft);padding-top:9px">
+            <div style="font-size:11px;color:var(--muted);font-weight:600">预计检索权重</div>
+            <div style="font-size:19px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums">1.0</div>
+            <div style="font-size:10.5px;color:var(--note)">核心池 · 全量参与推荐</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:12px 13px">
+          <div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:6px">缺失 1 项</div>
+          <div style="font-size:11.5px;color:#8a5a08">需补「产品型号」——客户常按型号提问，缺它会让精确召回失效。</div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+          <button class="mk-btn">保存为草稿</button>
+          <button class="mk-btn primary">保存并发布</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>5.3 两池：不是砍数量，是分权重</h3>
+<div class="two">
+  <div class="card">
+    <h4>核心池 Curated</h4>
+    <p>条件：字段齐（类目 + ≥3 标签 + 摘要 + 适用范围 + 有效链接）、有人签过字、未过期。</p>
+    <p>待遇：<b>全量参与召回、权重 ×1.0、可进提示词、面板显示来源徽章。</b></p>
+    <p>建议上限 <b>200 份</b>。到顶后的新资料必须走"合并进已有族"或"退到长尾"。</p>
+    <p class="big">上限 200</p>
+  </div>
+  <div class="card">
+    <h4>长尾池 Indexed</h4>
+    <p>条件：自动导入 / 字段不全 / 未复核。</p>
+    <p>待遇：<b>只在精确命中（标题或型号）时召回、权重 ×0.4、面板标"未校订"、默认不进提示词。</b></p>
+    <p>价值：保住召回率的底线——长尾客户问冷门型号时仍然找得到，但不会污染高频场景。</p>
+    <p class="big">只做兜底</p>
+  </div>
+</div>
+<div class="note">
+  <b>为什么要分池？</b> 现在的机制是"所有资料同权，按 400 条截断"。这导致两个恶果：
+  高频资料被长尾挤掉扫描位、长尾资料在高频场景里当噪声。
+  分池之后，<b>数量增长只影响长尾池，核心场景的候选集规模恒定</b>——检索区分度不再随库增长而下降。
+  这是把"数量问题"转成"分层问题"的关键一步。
+</div>
+
+<h3>5.4 界面重排：从"浏览"改为"治理"</h3>
+<table>
+  <thead><tr><th>区块</th><th>现在</th><th>提案</th><th>理由</th></tr></thead>
+  <tbody>
+    <tr><td class="k">顶部 KPI</td><td>可见资料 / 已发布 / <b>百度网盘</b> / 累计访问</td><td>核心池 / 长尾池 / <b>待治理</b> / 近 30 天采纳率</td><td>前四个都是"库存量"，后四个才是"健康度"。删除"百度网盘"（存储介质不是业务维度）</td></tr>
+    <tr><td class="k">左侧筛选</td><td>扁平类目树（1 级）</td><td>分层页签（核心/长尾/待确认）+ 类目 + <b>覆盖缺口</b></td><td>维护人第一个要问的是"哪些该修"，不是"有哪些"</td></tr>
+    <tr><td class="k">中间列表</td><td>资料 / 来源 / 状态 / 访问</td><td>资料 / 分层 / <b>健康度</b> / <b>曝光→采纳</b> / 下次复核</td><td>把成绩单放到列表首屏；"来源"降为行内小字（它是元数据不是列）</td></tr>
+    <tr><td class="k">右侧详情</td><td>版本 / 维护人 / 访问次数 / 提取码</td><td>健康度分解 + 适用范围 + <b>替代关系</b> + <b>推荐表现</b> + 复核按钮</td><td>详情页要能回答"这份该留还是该退"</td></tr>
+    <tr><td class="k">批量能力</td><td>无</td><td>批量导入（URL 列表/网盘目录）、批量打标签、批量发布、批量转核心池</td><td>治理要做减法，没有批处理就没人做</td></tr>
+    <tr><td class="k">字号规范</td><td>7 档 / 6 档字重 / 5 套灰</td><td>标签 11/500 <code>#6b7d94</code> · 数值 20/700 <code>#131c2e</code> · 说明 11/400 <code>#94a3b6</code></td><td>复用你上一轮已定的规范，把文件中心纳入覆盖</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="n">6</span>文档维护 SOP（可直接执行）</h2>
+<p class="h2sub">这一节是"给出好的建议"的部分，尽量写成能照做的清单。</p>
+
+<h3>6.1 命名规范（解决 80% 的检索问题）</h3>
+<pre>
+[产品线] [资料类型] [范围] [版本]
+  照明      规格书      户外工程款    V3
+  称重仪表   报价单      欧洲市场     2026Q3
+  全公司     认证资料    CE/ENEC      V2
+
+✗ 反例：Ltans Skill / 手册 / 新建文档2 / 未命名
+✓ 正例：照明-规格书-户外工程款-V3
+</pre>
+<p><b>规则：</b>标题必须含<b>产品线词</b>与<b>资料类型词</b>——因为检索权重里标题占 2.0（满分档），你的标题就是最强索引。</p>
+
+<h3>6.2 标签规范（受控词表，5 类，每份 3–6 个）</h3>
+<table>
+  <thead><tr><th>维度</th><th>示例值</th><th>作用</th></tr></thead>
+  <tbody>
+    <tr><td class="k">产品线</td><td>照明 / 称重仪表 / 水泵 / 储能 / 网络设备</td><td>对应客户历史报价里的产品词（结构化加分项）</td></tr>
+    <tr><td class="k">资料类型</td><td>规格书 / 报价单 / 认证 / 图纸 / 说明书 / 案例 / 话术</td><td>对应业务词典（规格/spec、报价/quotation…）</td></tr>
+    <tr><td class="k">适用场景</td><td>首触达 / 报价跟进 / 认证答疑 / 售后 / 催单</td><td>对应开发阶段与客户意图</td></tr>
+    <tr><td class="k">市场</td><td>EU / NA / SEA / ME / 全球</td><td>避免把北美认证发给欧洲客户</td></tr>
+    <tr><td class="k">语言</td><td>EN / ES / RU / AR / ZH</td><td>跨语言召回与语种守卫</td></tr>
+  </tbody>
+</table>
+<p><b>要点：标签只在选择器里选、不能手打新词</b>（需要新词就走"新建标签"申请，由管理员合并同义词）。这是受控词表能起作用的前提。</p>
+
+<h3>6.3 入库 Checklist（每份资料必须过）</h3>
+<ol>
+  <li>标题符合命名规范（含产品线 + 类型 + 版本）</li>
+  <li>类目从下拉选（不是手打）</li>
+  <li>标签 3–6 个，覆盖"产品线 + 类型 + 市场语言"</li>
+  <li>一句话摘要 ≤120 字，写清"能回答客户的什么问题"（摘要进检索字段，权重 1.0）</li>
+  <li>适用范围已填（产品线 / 市场 / 语言）</li>
+  <li>链接<b>可点开验证过</b>（点了 404 的资料不如没有）</li>
+  <li>若存在旧版 → 建立替代关系，旧版置 <code>superseded</code>，不要两份并存</li>
+  <li>设置复核日（默认 6 个月；认证类 12 个月；报价类 3 个月）</li>
+</ol>
+
+<h3>6.4 季度治理节奏（每次 30 分钟）</h3>
+<table>
+  <thead><tr><th>动作</th><th>看什么</th><th>判断</th></tr></thead>
+  <tbody>
+    <tr><td class="k">清死条目</td><td>曝光 0 且入库 &gt;90 天</td><td>要么改标题/标签让它能被搜到，要么下架</td></tr>
+    <tr><td class="k">清哑炮</td><td>曝光 ≥20 且采纳 0</td><td>资料不对题（改标签）或本身没用（下架）</td></tr>
+    <tr><td class="k">并重复</td><td>健康度里"唯一性"扣分项</td><td>同族合并，只留最新版</td></tr>
+    <tr><td class="k">补缺口</td><td>"覆盖缺口"页签：客户高频问法 vs 库里没有</td><td>补资料，而不是重写话术</td></tr>
+    <tr><td class="k">过复核</td><td>今天到期的资料</td><td>点一次「确认仍有效」或改复核日，批量处理</td></tr>
+  </tbody>
+</table>
+
+<h3>6.5 数量红线：依据是"提示词预算"，不是拍脑袋</h3>
+<p>为什么要有上限？先算一笔账——这是把"文档过多会变差"变成可计算的事：</p>
+<table>
+  <thead><tr><th>注入项</th><th>上限</th><th>估算字数</th><th>估算 token</th></tr></thead>
+  <tbody>
+    <tr><td>相关文档（推荐资料）</td><td class="num">5 份</td><td>5 × 240</td><td class="num">≈ 1 800</td></tr>
+    <tr><td>训练库 QA</td><td class="num">5 条</td><td>5 × 300</td><td class="num">≈ 2 200</td></tr>
+    <tr><td>口径片段 snippet</td><td class="num">6 条</td><td>6 × 200</td><td class="num">≈ 1 800</td></tr>
+    <tr><td>政策 policy</td><td class="num">10 条</td><td>10 × 150</td><td class="num">≈ 2 200</td></tr>
+    <tr><td>合计</td><td></td><td></td><td class="num"><b>≈ 8 000</b></td></tr>
+  </tbody>
+</table>
+<p>
+  这些是<b>叠加在</b>现成提示词（会话转写、风格档案、背调、技能方法论）之上的。项目实测单次 AI 回复的 prompt 已在 3 600+ token 量级，
+  再叠 8 000 token ≈ <b>翻三倍</b>：延迟上升、成本上升，而<b>注意力被稀释</b>——这就是"库越大越不准"的算术解释。
+</p>
+<div class="note">
+  <b>所以红线应该这样定</b>（数值来自上面这张表的反推）：
+  <ul>
+    <li><b>核心池 ≤ 200 份</b>：因为单源扫描上限是 400，候选池要留出 2× 的竞争空间才有区分度。</li>
+    <li><b>训练库 QA ≤ 300 条</b>：超过之后同分野竞争加剧，应按<b>产品线或语言分域</b>（只取当前会话语言的域），而不是继续堆。</li>
+    <li><b>snippet / policy 保持 ≤6 / ≤10</b>：这两类现在是<b>全量注入、零相关性过滤</b>，是污染最快的入口，建议加"启用数超过上限就报警"。</li>
+    <li><b>提示词总预算设硬上限</b>（建议 8 000 token）：超了就先砍长尾池、再砍 policy，最后砍 QA——按"离当前会话的距离"由远及近地砍。</li>
+  </ul>
+</div>
+
+<h3>6.6 沉淀训练的闸门（针对训练库）</h3>
+<p>把"归档 → 自动入库 → 直接进提示词"改成三段式：</p>
+<pre>
+会话归档
+   │
+   ▼
+① 候选池 candidates ── 机器清洗（规则，零成本）
+   · 丢：含时间戳 / 附件名与体积 / 系统短语（"你已删除这条消息"/"已转发"）
+        / 纯表情 / 单字 / 中英混杂且长度<10 / answer 被截断
+   · 并：语义去重（同一问法的多种写法合并，保留答复最完整的一条）
+   · 打标：从标题与正文抽候选标签（产品线 / 类型 / 语言）
+   │
+   ▼
+② 人工批量确认（一次 20 条，2 分钟）
+   · 采纳 / 合并到已有条目 / 丢弃 / 改写成"客户这么问 → 我们这么答"
+   · 默认状态 = candidate，「不进提示词」，但可被搜索到
+   │
+   ▼
+③ 训练库 active ── 只有 active 进提示词
+   · 带 productLine / scenario 标签，按当前会话语言与产品线分域取用
+   · hit_count 在「建议路径」也记（补上断掉的调用点）
+   · 90 天 0 命中且 0 采纳 → 自动 retired（不删，可恢复）
+</pre>
+<div class="note">
+  <b>核心一句：机器做减法，人做加法。</b>
+  机器不可能判断"这句话能不能代表公司口径"，但机器非常擅长剔掉时间戳、附件名和重复问法。
+  把不可判定的留给人工、把机械的交给机器，人工成本就从"每条 30 秒"降到"每批 2 分钟"——
+  这是"人工确认不会变成瓶颈"的唯一可行解。
+</div>
+
+<h2><span class="n">7</span>三轮自我辩论</h2>
+<p class="h2sub">每一轮都针对方案里最容易做错的一个判断，反方都是我自己。</p>
+
+<div class="debate">
+  <header><span class="round">第 1 轮</span><b>"沉淀训练"到底该不该训练？</b></header>
+  <div class="side pro">
+    <span class="who">正方 · 训练派</span>
+    <p>用户说的就是"沉淀训练用于推荐"。可以走微调小模型或构建 embedding 索引，让语料"内化"进权重——
+    好处是提示词不用膨胀，检索也不用逐条比词。</p>
+    <ul>
+      <li>提示词预算问题自然消失：知识进权重，不进上下文。</li>
+      <li>能处理"客户没说出关键词、但意思到了"的长尾表达。</li>
+      <li>库变大时，向量检索的召回不依赖词表，扩展性更好。</li>
+    </ul>
+  </div>
+  <div class="side con">
+    <span class="who">反方 · 检索派</span>
+    <p>三条现实约束把"训练"这条路堵死了：</p>
+    <ul>
+      <li><b>模型不在我们手里。</b> 本项目走的是外部网关凭据（<code>ai_model_configs</code> 明文 key 打第三方），
+      没有微调通道；能用的只有推理接口。</li>
+      <li><b>当前失败不是算法差，是语料脏。</b> 45 条 QA、45 条 0 命中——里面混着"test test 2"和时间戳。
+      换更强的算法去检索这些内容，只会更精确地把垃圾找出来。</li>
+      <li><b>污染成本不对称。</b> 提示词污染改一行配置就能回滚；权重污染要重训、且没人能说出"到底是哪条数据把它带偏的"。
+      对一个已经建立了"证据链/留档/可审计"哲学的系统（背调留档、阶段推导、埋点），引入不可解释的一层是倒退。</li>
+    </ul>
+  </div>
+  <div class="side verdict">
+    <span class="who">裁决</span>
+    <p><b>不做模型训练，做"语料训练"。</b>把"沉淀训练"重新定义成：
+    <b>把散落的历史会话，沉淀成结构化、可审阅、可回滚的资产</b>（QA 对 / 口径片段 / 政策 / 特征词表），
+    并让它走检索、不走权重。</p>
+    <p><b>落到设计里的三条：</b>
+    ① §6.6 的三段式闸门（候选池 → 人工确认 → active）；
+    ② 训练库条目必须带 <code>productLine / scenario / language</code> 标签，按会话分域取用；
+    ③ 向量只作为<b>可选精排</b>（项目里已是这个姿态：<code>vectorEnabled:false</code> 时全链路照常可用），
+    绝不作为唯一召回通道——它做加法，不做地基。</p>
+    <p class="h2sub" style="margin:8px 0 0">为什么这次辩论重要：如果不辩，最自然的动作就是"上向量库/微调"，
+    而那会把一个<b>数据治理问题</b>误诊成<b>算法问题</b>，投入大、见效慢、且不可回滚。</p>
+  </div>
+</div>
+
+<div class="debate">
+  <header><span class="round">第 2 轮</span><b>文档到底"越多越好"还是"越少越好"？</b></header>
+  <div class="side pro">
+    <span class="who">正方 · 越多越好</span>
+    <p>召回率是生命线。"库里没有"是最糟的失败——客户问一个冷门型号，你答不上来就丢单。</p>
+    <ul>
+      <li>长尾客户恰恰最需要资料支撑，砍库等于砍长尾。</li>
+      <li>埋点样本还小（曝光 24 次），现在就下"少即是好"的结论是过拟合。</li>
+      <li>"少"会让人不敢上传 → 上传意愿下降 → 供给侧枯竭，比脏更糟。</li>
+    </ul>
+  </div>
+  <div class="side con">
+    <span class="who">反方 · 越少越好</span>
+    <p>实测数据指向相反方向：</p>
+    <ul>
+      <li><b>候选之间已无区分度</b>：曝光分 0.017–0.10，淘汰阈值 0.01。第 1 名与第 5 名的差距小于噪声。
+      这种状态下"多"不增加信息，只增加卡片数量。</li>
+      <li><b>"多"有一半是假的</b>：<code>MAX_SCAN_PER_SOURCE=400</code> 静默截断，超出部分根本进不了检索。
+      用户以为有，系统不知道——这是最危险的一种"多"。</li>
+      <li><b>错资料发给客户是业务事故</b>：推错型号规格书、过期报价单，代价远超"没推到"。</li>
+      <li><b>同族多版本互相拆证据</b>：V1/V2/V3 各命中 1/3 的词，三个半对不如一个全对。</li>
+    </ul>
+  </div>
+  <div class="side verdict">
+    <span class="who">裁决</span>
+    <p><b>"多"本身不伤，"扁平的多"才伤。</b>结论不是砍数量，而是<b>分层 + 上限 + 淘汰</b>——把"数量"从负担转成结构。</p>
+    <ul>
+      <li><b>分层</b>：核心池（×1.0，全量召回）/ 长尾池（×0.4，仅精确命中）。长尾客户照旧搜得到，高频场景不被污染。</li>
+      <li><b>上限</b>：核心池 ≤200；单源 400 的静默截断改成<b>显式提示"还有 N 份未纳入检索"</b>——
+      把"看不见的丢"变成"看得见的选"。</li>
+      <li><b>淘汰</b>：健康度 &lt; 阈值降权；曝光 ≥20 且 0 采纳进待治理；连续 8 周无改善自动转 draft（可恢复，不删）。</li>
+      <li><b>同族合并</b>：一个 <code>docGroupId</code> 只出最新版。</li>
+    </ul>
+    <p class="h2sub" style="margin:8px 0 0">这一轮的产出是 §5.3 两池 + §6.5 数量红线。
+    <b>它把"控制数量"换成了"分配权重"</b>——维护人的体感从"我要开始删东西了"变成"我把这份标成核心"，
+    阻力小得多，效果一样。</p>
+  </div>
+</div>
+
+<div class="debate">
+  <header><span class="round">第 3 轮</span><b>治理该全自动还是必须人工把关？</b></header>
+  <div class="side pro">
+    <span class="who">正方 · 全自动</span>
+    <p>人工确认一定会变成瓶颈，最后没人做，系统退化成"自动导入 + 无人治理"——也就是现在这个样子。
+    与其设计一个人不会执行的流程，不如把自动化做到极致。</p>
+    <ul>
+      <li>用 LLM 自动改写 QA：把"Ok, waiting"洗成规范的"客户追问交期 → 回复模板"。</li>
+      <li>自动打标、自动判重、自动定复核日，人只看报表。</li>
+      <li>零人工 = 零阻力，规模化最省力。</li>
+    </ul>
+  </div>
+  <div class="side con">
+    <span class="who">反方 · 全人工</span>
+    <p>实测就是反例：45 条 100% 由机器自动沉淀，产出是 0 命中、0 标签、混着时间戳与"你已删除这条消息"。
+    <b>全自动 = 用系统的勤奋掩盖判断的缺失。</b></p>
+    <ul>
+      <li>LLM 改写无法判断"这句话算不算公司口径"——那是业务责任，不是语言能力。</li>
+      <li>自动打标一旦错了，错误会随检索扩散到所有会话，且没人知道是谁打错的。</li>
+      <li>让自动内容进提示词，等于让机器替业务员对客户说话——本项目的既有红线就是"永不自动发送"，
+      同一逻辑应延伸到"永不自动采纳语料"。</li>
+    </ul>
+  </div>
+  <div class="side verdict">
+    <span class="who">裁决</span>
+    <p><b>机器做减法，人做加法。</b>把"能不能自动"这个问题换成分工问题：</p>
+    <ul>
+      <li><b>机器负责可判定的</b>：剔时间戳 / 附件名与体积 / 系统短语 / 纯表情 / 截断答案；语义去重合并；
+      从标题正文抽<b>候选</b>标签；算健康度、排待治理清单。</li>
+      <li><b>人负责要担责的</b>：准入（这条能不能代表公司口径）、定名、定适用范围、签复核。</li>
+      <li><b>关键设计是"批量"</b>：候选池 + 批量确认（一次 20 条，2 分钟），
+      把人工成本从"每条 30 秒"压到"每批 2 分钟"。这是"人工不会成为瓶颈"的唯一可行解。</li>
+      <li><b>默认状态是 candidate，不进提示词</b>，但<b>可被搜索到</b>——
+      否则又会退化成 §2.1 那种"看不见的资料"。</li>
+    </ul>
+    <p class="h2sub" style="margin:8px 0 0">这一轮的产出是 §6.6 三段式闸门 + §5.1 的入库闸。
+    <b>它给"人工确认"设了一个可执行的形态</b>，而不是一句"建议人工复核"的口号。</p>
+  </div>
+</div>
+
+<h3>三轮辩论的共同结论</h3>
+<div class="three">
+  <div class="card"><h4>问题不是算法，是治理</h4><p>当前失败模式（0 命中、分数贴阈值、语料含垃圾）全部指向数据质量，不指向检索能力。先治数据，再谈模型。</p></div>
+  <div class="card"><h4>不是砍数量，是分层</h4><p>让核心场景的候选集恒定、长尾场景仍可搜到。数量增长只影响长尾池的深度，不影响主场景区分度。</p></div>
+  <div class="card"><h4>不是自动化，是分工</h4><p>机器做机械减法，人做责任加法，用批量确认把人工成本压到可承受。</p></div>
+</div>
+
+<h2><span class="n">8</span>落地清单</h2>
+<p class="h2sub">按"改动小、收益大"排序。P0 三项都不新增表、不动前端架构。</p>
+<table>
+  <thead><tr><th>优先级</th><th>事项</th><th>改动面</th><th>验收断言（会红的那种）</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><span class="chip red">P0</span></td>
+      <td class="k">文件中心列表显示「曝光 → 采纳」</td>
+      <td>前端 + 复用 <code>/api/agent/resources/stats</code>（已存在）</td>
+      <td>造 3 曝光 1 采纳 → 行内显示 <code>3 → 1 33%</code>；无埋点显示 <code>—</code> 而不是 <code>0%</code></td>
+    </tr>
+    <tr>
+      <td><span class="chip red">P0</span></td>
+      <td class="k">补上 <code>recordHits()</code> 在建议路径的调用</td>
+      <td>插件 1 处调用点</td>
+      <td>走一次推荐 → 命中条目 <code>hit_count</code> +1（现在是永远 0）</td>
+    </tr>
+    <tr>
+      <td><span class="chip red">P0</span></td>
+      <td class="k">召回过滤"不可达"资料</td>
+      <td><code>resource-hub.ts</code> 一处过滤</td>
+      <td>造一条 <code>legacy</code>（无链接）资料 → 不出现在推荐结果里；现有测试须补此断言</td>
+    </tr>
+    <tr>
+      <td><span class="chip amber">P1</span></td>
+      <td class="k">类目/标签改受控词表 + 入库字段扩展（适用范围/摘要/复核日）</td>
+      <td>表补列 + 弹窗 + 迁移（dev + personal 双库）</td>
+      <td>填了错误类目无法保存；同族标题保存时弹"是否新版本"</td>
+    </tr>
+    <tr>
+      <td><span class="chip amber">P1</span></td>
+      <td class="k">生命周期：<code>superseded / expired</code> 不进候选 + 同族合并</td>
+      <td><code>resource-hub.ts</code> + 文件中心操作</td>
+      <td>把 V3 标为 V2 的替代 → V2 不出现在推荐里，V3 出</td>
+    </tr>
+    <tr>
+      <td><span class="chip amber">P1</span></td>
+      <td class="k">修 <code>team_id='all'</code> 孤儿资料可见性 + 统一 file/product 可见性函数</td>
+      <td><code>server.ts</code> / <code>resource-hub.ts</code></td>
+      <td>team 为 all 的资料对该团队所有人可见（现在 0 人可见）</td>
+    </tr>
+    <tr>
+      <td><span class="chip brand">P2</span></td>
+      <td class="k">训练库候选池 + 批量确认 + 清洗规则</td>
+      <td>插件（表补充状态列 + 页面）</td>
+      <td>含时间戳/附件名的样本进不了 active；候选不注入提示词但可搜索到</td>
+    </tr>
+    <tr>
+      <td><span class="chip brand">P2</span></td>
+      <td class="k">文件中心视觉纳入统一规范（7 档字号 → 3 档）</td>
+      <td><code>index.html</code> 尾部新增样式块（沿用 head-text-refine / input-refine 的做法）</td>
+      <td>CDP 巡检：视图内字号档位数 ≤3、无 800 字重、灰阶 ≤2 套</td>
+    </tr>
+    <tr>
+      <td><span class="chip brand">P2</span></td>
+      <td class="k">健康度分 + 待治理清单 + 覆盖缺口</td>
+      <td>前端新增页签 + 后端聚合</td>
+      <td>曝光 20 采纳 0 的资料出现在"待治理"；连续 8 周自动转 draft</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2><span class="n">9</span>需要你定夺的三件事</h2>
+<ol>
+  <li><b>口径确认</b>：这份报告按「文件中心（资料维护）」理解"文档管理"，并顺带体检了插件「训练库」。
+  如果你其实指的是「单据平台」或另一处，说一下，我重做。</li>
+  <li><b>先做哪一段</b>：P0 三项加起来是"小改动、当天可验"，能立刻让"推荐效果"可见；
+  P1 需要动表结构（会走 dev + personal 双库迁移）；P2 是新一轮界面设计。
+  我建议<b>先做 P0 + 文件中心视觉规范化</b>，让你在正式改架构前先看到抓手。</li>
+  <li><b>受控词表的归属</b>：类目与标签要不要做成"管理员可维护"的后台配置（多一处设置页），
+  还是先写死在代码里（省事但改词表要发版）？我倾向前者，但它意味着多一个小的管理界面。</li>
+</ol>
+
+<div class="note">
+  <b>本轮我没有改动任何代码</b>——体检脚本与截图放在 <code>frontend/design-preview/</code>
+  （<code>shoot-docs.mjs</code> / <code>shoot-plugin-training.mjs</code> / <code>shots-docs/</code>），
+  报告是本文件。确认方向后我按 P0 → P1 → P2 推进，每一步照例带"会红的断言"和同机位改前改后对照。
+</div>
+
+</div>
+</body>
+</html>

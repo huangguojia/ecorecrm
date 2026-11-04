@@ -1,0 +1,423 @@
+/* ==========================================================================
+   方案 D · 行动优先（Action First）
+   --------------------------------------------------------------------------
+   设计主张：不只是换配色，而是重排信息架构——每天打开工作台，先看到
+   「今天该做什么」，而不是先看数据。
+   ・把「主判断」提到第一屏并放大（今日焦点带）
+   ・把「跟进优先级队列」（行动清单）从底部提到主栏，与漏斗并排
+   ・用 display:contents 打平原有两处两栏容器，重新按 12 列网格排布
+   视觉基底同方案 A（晨白原生），差异在结构与层级。
+   ========================================================================== */
+
+#dashboard.dashboard-v2 {
+  --kinetic-bg: #f6f7fa;
+  --kinetic-surface: #ffffff;
+  --kinetic-surface-2: #f8f9fc;
+  --kinetic-ink: #1b2231;
+  --kinetic-muted: #5c6678;
+  --kinetic-dim: #8b94a8;
+  --kinetic-line: #e8ebf3;
+  --kinetic-accent: #6366f1;
+  --kinetic-danger: #e11d48;
+  --kinetic-cyan: #0d9488;
+
+  --pd-brand: #6366f1;
+  --pd-brand-strong: #4f46e5;
+  --pd-tint: #eef0ff;
+  --pd-ink: #1b2231;
+  --pd-text: #47506a;
+  --pd-muted: #8b94a8;
+  --pd-line: #e8ebf3;
+  --pd-line-soft: #f0f2f7;
+  --pd-radius: 14px;
+  --pd-shadow: 0 1px 2px rgba(23, 34, 48, .04), 0 8px 24px -12px rgba(23, 34, 48, .10);
+
+  --gj-funnel-line: #6366f1;
+  --gj-funnel-label: #1b2231;
+  --gj-funnel-marker-ring: #ffffff;
+  --gj-funnel-entered: #c7d2fe;
+  --gj-funnel-pending: #a5b4fc;
+  --gj-funnel-valid: #818cf8;
+  --gj-funnel-customer: #6366f1;
+  --gj-funnel-deal: #4f46e5;
+
+  /* 12 列网格铺排 —— 工作台从「堆叠」变成「版面」 */
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  align-content: start;
+  max-width: none;
+  min-height: calc(100dvh - 64px);
+  margin: -8px -22px -24px;
+  padding: 26px 30px 40px;
+  color: var(--pd-text);
+  background: var(--pd-bg, #f6f7fa);
+  background: #f6f7fa;
+  overflow: visible;
+}
+
+#dashboard.dashboard-v2 > * { grid-column: span 12; min-width: 0; margin: 0; }
+
+/* 打平两处两栏容器，让子项参与顶层网格 */
+#dashboard.dashboard-v2 .command-center,
+#dashboard.dashboard-v2 .dashboard-grid { display: contents; }
+
+body:has(#dashboard.active) .main,
+body:has(#dashboard.active) .workspace { background: #f6f7fa; }
+
+/* ---------- 排序：先把「今天要做什么」放在最前 ---------- */
+#dashboard.dashboard-v2 .dashboard-masthead { order: 1; }
+#dashboard.dashboard-v2 .dashboard-ticker { order: 2; }
+#dashboard.dashboard-v2 .scope-banner { order: 3; }
+#dashboard.dashboard-v2 .panel.focus-panel { order: 4; grid-column: span 12; }
+#dashboard.dashboard-v2 .morning-panel { order: 5; grid-column: span 12; }
+#dashboard.dashboard-v2 .dashboard-task-panel { order: 6; grid-column: span 7; }
+#dashboard.dashboard-v2 .lead-funnel-panel { order: 6; grid-column: span 5; }
+#dashboard.dashboard-v2 .tender-daily-panel { order: 7; }
+#dashboard.dashboard-v2 .dashboard-pipeline-panel { order: 8; }
+#dashboard.dashboard-v2 .dashboard-footer-note { order: 9; margin: 0; padding-top: 4px; border-top: 0; }
+
+/* ---------- 页头（紧凑，让位给焦点带） ---------- */
+#dashboard.dashboard-v2 .dashboard-masthead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  min-height: 0;
+  padding: 0 0 18px;
+  border-bottom: 1px solid var(--pd-line);
+}
+#dashboard.dashboard-v2 .dashboard-index {
+  align-self: center;
+  min-width: 78px;
+  padding: 9px 13px;
+  border: 1px solid var(--pd-line);
+  border-radius: 11px;
+  background: #fff;
+  color: var(--pd-ink);
+  font: 700 12.5px/1.28 var(--font-sans);
+  text-align: center;
+}
+#dashboard.dashboard-v2 .dashboard-kicker {
+  margin: 0 0 8px;
+  color: var(--pd-brand);
+  font: 800 10px/1 var(--font-sans);
+  letter-spacing: .2em;
+}
+#dashboard.dashboard-v2 .dashboard-heading h1 {
+  margin: 0;
+  color: var(--pd-ink);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -.02em;
+}
+#dashboard.dashboard-v2 .dashboard-heading h1 em { font-style: normal; color: var(--pd-brand-strong); }
+#dashboard.dashboard-v2 .dashboard-subline { margin: 7px 0 0; color: var(--pd-muted); font-size: 12.5px; }
+#dashboard.dashboard-v2 .dashboard-masthead-side { align-items: center; gap: 10px; }
+#dashboard.dashboard-v2 .dashboard-live-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border: 1px solid var(--pd-line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--pd-muted);
+  font: 700 10px/1 var(--font-sans);
+  letter-spacing: .14em;
+}
+#dashboard.dashboard-v2 .dashboard-live-mark i { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; box-shadow: none; }
+
+/* ---------- 汇率条 / 范围条 ---------- */
+#dashboard.dashboard-v2 .dashboard-ticker {
+  border: 1px solid var(--pd-line);
+  border-radius: var(--pd-radius);
+  background: #fff;
+  overflow: hidden;
+}
+#dashboard.dashboard-v2 .dashboard-ticker-track { animation-duration: 58s; }
+#dashboard.dashboard-v2 .dashboard-ticker-segment { color: var(--pd-ink); font-size: 12px; }
+#dashboard.dashboard-v2 .dashboard-ticker-label { color: var(--pd-muted); font-weight: 600; }
+#dashboard.dashboard-v2 .dashboard-ticker-segment b { color: #dfe3ee; }
+#dashboard.dashboard-v2 .dashboard-rate-key { color: var(--pd-muted); }
+#dashboard.dashboard-v2 .dashboard-rate-value { color: var(--pd-ink); font-weight: 700; }
+#dashboard.dashboard-v2 .dashboard-rate-meta { color: var(--pd-muted); opacity: 1; }
+#dashboard.dashboard-v2 .dashboard-rate-empty { color: var(--pd-muted); }
+
+#dashboard.dashboard-v2 .scope-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 16px;
+  border: 1px solid var(--pd-line);
+  border-radius: var(--pd-radius);
+  background: #fff;
+  color: var(--pd-muted);
+  font-size: 12px;
+}
+#dashboard.dashboard-v2 .scope-banner b { color: var(--pd-ink); font-weight: 600; }
+#dashboard.dashboard-v2 .scope-tag {
+  border: 1px solid var(--pd-line);
+  border-radius: 999px;
+  background: var(--pd-tint);
+  color: var(--pd-brand-strong);
+  font-size: 11px;
+  font-weight: 600;
+}
+#dashboard.dashboard-v2 .scope-tag.personal { background: #f8f9fc; color: var(--pd-muted); }
+
+/* ---------- 卡片基线 ---------- */
+#dashboard.dashboard-v2 .panel,
+#dashboard.dashboard-v2 .panel.focus-panel,
+#dashboard.dashboard-v2 .lead-funnel-panel,
+#dashboard.dashboard-v2 .tender-daily-panel,
+#dashboard.dashboard-v2 .dashboard-task-panel,
+#dashboard.dashboard-v2 .dashboard-pipeline-panel,
+#dashboard.dashboard-v2 .morning-panel {
+  border: 1px solid var(--pd-line);
+  border-radius: var(--pd-radius);
+  background: #fff;
+  box-shadow: var(--pd-shadow);
+}
+#dashboard.dashboard-v2 .panel.focus-panel { padding: 22px 24px; }
+#dashboard.dashboard-v2 .panel.focus-panel::before,
+#dashboard.dashboard-v2 .panel.focus-panel::after { display: none; }
+#dashboard.dashboard-v2 .morning-panel { padding: 18px 20px; border-left: 3px solid var(--pd-brand); }
+#dashboard.dashboard-v2 .lead-funnel-panel,
+#dashboard.dashboard-v2 .tender-daily-panel,
+#dashboard.dashboard-v2 .dashboard-grid > .panel { padding: 18px 20px; }
+#dashboard.dashboard-v2 .tender-daily-panel { border-top: 1px solid var(--pd-line); }
+
+/* ---------- 焦点带（第一屏主角，放大） ---------- */
+#dashboard.dashboard-v2 .focus-top #dashboardUpdatedAt { color: var(--pd-muted); font-size: 11.5px; }
+#dashboard.dashboard-v2 .dashboard-period-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--pd-line);
+  border-radius: 10px;
+  background: #f8f9fc;
+}
+#dashboard.dashboard-v2 .dashboard-period-tabs button {
+  padding: 6px 15px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--pd-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#dashboard.dashboard-v2 .dashboard-period-tabs button.active {
+  color: #fff;
+  background: var(--pd-brand);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, .28);
+}
+#dashboard.dashboard-v2 .focus-title { margin: 20px 0 18px; }
+#dashboard.dashboard-v2 .focus-overline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--pd-brand-strong);
+  font: 800 10.5px/1 var(--font-sans);
+  letter-spacing: .18em;
+}
+#dashboard.dashboard-v2 .focus-overline::before {
+  content: "";
+  width: 18px; height: 2px;
+  border-radius: 2px;
+  background: var(--pd-brand);
+}
+#dashboard.dashboard-v2 .focus-title h2 {
+  margin: 13px 0 8px;
+  color: var(--pd-ink);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.32;
+  letter-spacing: -.026em;
+  max-width: 30ch;
+}
+#dashboard.dashboard-v2 .focus-title p { margin: 0; color: var(--pd-text); font-size: 13.5px; line-height: 1.62; max-width: 76ch; }
+#dashboard.dashboard-v2 .briefing-why {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--pd-line-soft);
+}
+#dashboard.dashboard-v2 .briefing-why > div { padding: 0; border: 0; background: none; }
+#dashboard.dashboard-v2 .briefing-why b { display: block; margin-bottom: 6px; color: var(--pd-brand-strong); font-size: 11px; font-weight: 700; }
+#dashboard.dashboard-v2 .briefing-why span,
+#dashboard.dashboard-v2 .briefing-why > div > span { color: var(--pd-text); font-size: 12.5px; line-height: 1.62; }
+#dashboard.dashboard-v2 .focus-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 18px;
+  border-top: 1px solid var(--pd-line-soft);
+}
+#dashboard.dashboard-v2 .focus-metric { padding: 16px 16px 0 0; border: 0; background: none; }
+#dashboard.dashboard-v2 .focus-metric + .focus-metric { padding-left: 18px; border-left: 1px solid var(--pd-line-soft); }
+#dashboard.dashboard-v2 .focus-metric span { color: var(--pd-muted); font-size: 11px; font-weight: 600; }
+#dashboard.dashboard-v2 .focus-metric b {
+  display: block;
+  margin: 8px 0 4px;
+  color: var(--pd-ink);
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.012em;
+}
+#dashboard.dashboard-v2 .focus-metric small { color: #a0a8ba; font-size: 11px; }
+
+/* ---------- 晨会指挥带 ---------- */
+#dashboard.dashboard-v2 .morning-panel .section-title h2 {
+  color: var(--pd-ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+}
+#dashboard.dashboard-v2 .morning-panel .section-title .icon {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: var(--pd-tint);
+  color: var(--pd-brand-strong);
+}
+#dashboard.dashboard-v2 .morning-grid { gap: 12px; margin-top: 15px; }
+#dashboard.dashboard-v2 .morning-card {
+  padding: 14px 16px;
+  border: 1px solid var(--pd-line-soft);
+  border-radius: 10px;
+  background: #f8f9fc;
+}
+#dashboard.dashboard-v2 .morning-card span { margin-bottom: 8px; color: var(--pd-muted); font-size: 11px; font-weight: 600; }
+#dashboard.dashboard-v2 .morning-card b { color: var(--pd-ink); font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ---------- 行动清单（提到主栏，行做大） ---------- */
+#dashboard.dashboard-v2 .dashboard-task-panel .section-head { margin-bottom: 14px; }
+#dashboard.dashboard-v2 .dashboard-task-panel .task-list { gap: 8px; }
+#dashboard.dashboard-v2 .dashboard-task-panel .task-row,
+#dashboard.dashboard-v2 .dashboard-task-panel .task-list > * {
+  padding: 13px 15px;
+  border: 1px solid var(--pd-line-soft);
+  border-radius: 11px;
+  background: #fcfdff;
+  transition: .16s var(--ease-out);
+}
+#dashboard.dashboard-v2 .dashboard-task-panel .task-row:hover,
+#dashboard.dashboard-v2 .dashboard-task-panel .task-list > *:hover {
+  border-color: #d8dff0;
+  background: #fff;
+  box-shadow: 0 8px 20px -14px rgba(23, 34, 48, .35);
+}
+
+/* ---------- 线索漏斗 ---------- */
+#dashboard.dashboard-v2 .lead-funnel-live {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--pd-tint);
+  color: var(--pd-brand-strong);
+  font-size: 11px;
+  font-weight: 600;
+}
+#dashboard.dashboard-v2 .lead-funnel-live::before { background: var(--pd-brand); }
+#dashboard.dashboard-v2 .lead-funnel-stage-row { border-radius: 8px; color: var(--pd-text); }
+#dashboard.dashboard-v2 .lead-funnel-stage-row:hover,
+#dashboard.dashboard-v2 .lead-funnel-stage-row:focus-visible { background: var(--pd-tint); }
+#dashboard.dashboard-v2 .lead-funnel-stage-dot { box-shadow: none; }
+#dashboard.dashboard-v2 .lead-funnel-stage-row small { color: var(--pd-muted); }
+#dashboard.dashboard-v2 .lead-funnel-summary { border-top: 1px solid var(--pd-line-soft); }
+#dashboard.dashboard-v2 .lead-funnel-summary span { color: var(--pd-muted); }
+#dashboard.dashboard-v2 .lead-funnel-summary b { color: var(--pd-ink); font-variant-numeric: tabular-nums; }
+#dashboard.dashboard-v2 .lead-funnel-filtered { border-color: var(--pd-line); background: #f8f9fc; color: var(--pd-muted); }
+#dashboard.dashboard-v2 .lead-funnel-filtered b { color: var(--pd-ink); }
+
+/* ---------- 竞标日报 / 管道 ---------- */
+#dashboard.dashboard-v2 .tender-daily-panel .section-title .icon,
+#dashboard.dashboard-v2 .dashboard-grid .section-title .icon {
+  border-radius: 8px;
+  background: var(--pd-tint);
+  color: var(--pd-brand-strong);
+}
+#dashboard.dashboard-v2 .panel-index { color: var(--pd-muted); font-weight: 700; letter-spacing: .14em; }
+#dashboard.dashboard-v2 .section-head h2 { color: var(--pd-ink); }
+#dashboard.dashboard-v2 .tender-daily-sub { color: var(--pd-muted); font-size: 12px; }
+#dashboard.dashboard-v2 .btn {
+  height: 32px;
+  border: 1px solid var(--pd-line);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--pd-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+#dashboard.dashboard-v2 .btn:hover { border-color: #ccd3e2; color: var(--pd-ink); background: #f8f9fc; }
+#dashboard.dashboard-v2 .badge.amber { background: #fdf3e3; color: #a45b09; border: 1px solid #f3e0c2; }
+
+/* ---------- 评分块与管道条 ---------- */
+#dashboard.dashboard-v2 .priority-score {
+  min-width: 48px;
+  padding: 7px 9px;
+  border: 1px solid rgba(99, 102, 241, .16);
+  border-radius: 10px;
+  background: var(--pd-tint);
+  color: var(--pd-brand-strong);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+#dashboard.dashboard-v2 .task h3 { color: var(--pd-ink); }
+#dashboard.dashboard-v2 .task p { color: var(--pd-text); }
+#dashboard.dashboard-v2 .task-line { background: var(--brand); }
+#dashboard.dashboard-v2 .bar-row { border-bottom-color: var(--pd-line-soft); }
+#dashboard.dashboard-v2 .bar-row > span { color: var(--pd-muted); }
+#dashboard.dashboard-v2 .bar-row > b { color: var(--pd-ink); font-variant-numeric: tabular-nums; }
+#dashboard.dashboard-v2 .track { background: #eef1f8; }
+#dashboard.dashboard-v2 .fill { background: var(--pd-brand); }
+#dashboard.dashboard-v2 .fill.amber { background: #d97706; }
+#dashboard.dashboard-v2 .fill.red { background: #e11d48; }
+#dashboard.dashboard-v2 .fill.green,
+#dashboard.dashboard-v2 .fill.aqua,
+#dashboard.dashboard-v2 .fill.violet { background: var(--pd-brand); }
+#dashboard.dashboard-v2 .todo-history-empty { color: var(--pd-muted); }
+
+/* ---------- CLI 等待块（原为硬编码蓝渐变） ---------- */
+#dashboard.dashboard-v2 .cli-wait {
+  margin: 14px 0 0;
+  border-color: var(--pd-line);
+  border-radius: 11px;
+  background: #f8f9fc;
+}
+#dashboard.dashboard-v2 .cli-wait-msg { color: var(--pd-ink); }
+#dashboard.dashboard-v2 .cli-wait-text small { color: var(--pd-muted); }
+#dashboard.dashboard-v2 .cli-wait-text .cli-wait-elapsed { color: var(--pd-brand-strong); }
+#dashboard.dashboard-v2 .cli-wait-found { color: #15803d; }
+#dashboard.dashboard-v2 .cli-wait-orbit i { border-top-color: var(--pd-brand); }
+
+/* ---------- 指标装饰线统一为品牌色族 ---------- */
+#dashboard.dashboard-v2 .focus-metric::before,
+#dashboard.dashboard-v2 .focus-metric:nth-child(1)::before,
+#dashboard.dashboard-v2 .focus-metric:nth-child(2)::before,
+#dashboard.dashboard-v2 .focus-metric:nth-child(3)::before,
+#dashboard.dashboard-v2 .focus-metric:nth-child(4)::before {
+  background: var(--pd-brand);
+  opacity: .55;
+}
+#dashboard.dashboard-v2 .focus-metric:nth-child(4)::before { background: var(--pd-brand-strong); opacity: .8; }
+
+/* ---------- 窄屏：网格退回单列 ---------- */
+@media (max-width: 1180px) {
+  #dashboard.dashboard-v2 { grid-template-columns: minmax(0, 1fr); margin: -8px -16px -24px; padding: 20px 18px 34px; }
+  #dashboard.dashboard-v2 .dashboard-task-panel,
+  #dashboard.dashboard-v2 .lead-funnel-panel { grid-column: span 1; }
+  #dashboard.dashboard-v2 .dashboard-masthead { grid-template-columns: auto minmax(0, 1fr); }
+  #dashboard.dashboard-v2 .dashboard-masthead-side { grid-column: 1 / -1; justify-content: flex-start; }
+  #dashboard.dashboard-v2 .briefing-why { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  #dashboard.dashboard-v2 .focus-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #dashboard.dashboard-v2 .focus-metric:nth-child(3) { padding-left: 0; border-left: 0; }
+  #dashboard.dashboard-v2 .focus-title h2 { font-size: 24px; }
+}

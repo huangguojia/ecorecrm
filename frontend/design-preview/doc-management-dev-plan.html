@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>资料管理 · 开发方案（三闸两池 · 功能闭环版）</title>
+<style>
+  :root{
+    --ink:#131c2e; --ink-2:#37445b; --muted:#6b7d94; --faint:#94a3b6;
+    --line:#e7ecf4; --line-2:#dbe3ee; --surface:#ffffff; --surface-2:#f8fafc;
+    --brand:#4f46e5; --brand-tint:#eef0ff; --brand-ring:#c9cdfa;
+    --teal:#0c736a; --teal-tint:#e6f6f4; --green:#12733e; --green-tint:#e7f7ed;
+    --amber:#a16207; --amber-tint:#fdf6e3; --red:#b42323; --red-tint:#fdeeee;
+    --radius:10px; --radius-sm:6px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#f3f5f9;color:var(--ink);
+    font:14px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;}
+  .page{max-width:1180px;margin:0 auto;padding:36px 44px 80px}
+  .doc{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 1px 2px rgba(23,35,61,.04),0 18px 40px -30px rgba(23,35,61,.35);overflow:hidden}
+  .hero{padding:34px 40px 30px;border-bottom:1px solid var(--line);
+    background:linear-gradient(112deg,var(--brand-tint) 0%,var(--surface) 58%)}
+  .hero .kicker{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--brand);text-transform:uppercase}
+  .hero h1{margin:8px 0 6px;font-size:26px;letter-spacing:-.02em}
+  .hero p{margin:0;color:var(--muted);font-size:13px;max-width:840px}
+  .hero .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  .hero .meta span{font-size:11px;color:var(--ink-2);background:var(--surface);
+    border:1px solid var(--line);border-radius:999px;padding:3px 11px}
+  section{padding:30px 40px;border-bottom:1px solid var(--line)}
+  section:last-child{border-bottom:0}
+  h2{margin:0 0 4px;font-size:19px;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+  h2 .no{font-size:11px;font-weight:700;color:var(--brand);background:var(--brand-tint);
+    border:1px solid var(--brand-ring);border-radius:6px;padding:2px 8px;letter-spacing:.04em}
+  h2 + .lead{color:var(--muted);font-size:13px;margin:0 0 18px}
+  h3{margin:24px 0 10px;font-size:15px}
+  h3:first-of-type{margin-top:4px}
+  h4{margin:16px 0 6px;font-size:13px;color:var(--ink-2)}
+  p{margin:8px 0}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12.5px}
+  th{background:var(--surface-2);text-align:left;font-weight:600;color:var(--ink-2);
+    border:1px solid var(--line);padding:7px 10px;white-space:nowrap}
+  td{border:1px solid var(--line);padding:7px 10px;vertical-align:top}
+  tr:hover td{background:#fcfdff}
+  code,kbd{font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:#3d3a8c}
+  td code{white-space:nowrap}
+  .grid{display:grid;gap:12px}
+  .grid.c2{grid-template-columns:1fr 1fr}
+  .grid.c3{grid-template-columns:repeat(3,1fr)}
+  .grid.c4{grid-template-columns:repeat(4,1fr)}
+  @media (max-width:960px){.grid.c2,.grid.c3,.grid.c4{grid-template-columns:1fr}}
+  .card{border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;background:var(--surface)}
+  .card h5{margin:0 0 6px;font-size:13px}
+  .card p{margin:0;font-size:12.5px;color:var(--muted)}
+  .tag{display:inline-block;font-size:11px;font-weight:600;border-radius:5px;padding:1px 8px;
+    border:1px solid transparent;white-space:nowrap}
+  .t-p0{background:var(--red-tint);color:var(--red);border-color:#f3caca}
+  .t-p1{background:var(--amber-tint);color:var(--amber);border-color:#eedfb4}
+  .t-p2{background:var(--teal-tint);color:var(--teal);border-color:#b6e4df}
+  .t-p3{background:var(--brand-tint);color:var(--brand);border-color:var(--brand-ring)}
+  .t-ok{background:var(--green-tint);color:var(--green);border-color:#b7e3c9}
+  .t-mut{background:var(--surface-2);color:var(--muted);border-color:var(--line)}
+  .note{border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+    background:var(--surface-2);padding:11px 14px;margin:14px 0;font-size:12.5px;color:var(--ink-2)}
+  .note.warn{border-left-color:var(--amber)}
+  .note.danger{border-left-color:var(--red)}
+  .note b{color:var(--ink)}
+  .kv{display:grid;grid-template-columns:150px 1fr;gap:4px 14px;font-size:12.5px;margin:10px 0}
+  .kv dt{color:var(--muted)}
+  .kv dd{margin:0}
+  .loop{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin:14px 0}
+  .loop-head{padding:10px 16px;background:var(--surface-2);border-bottom:1px solid var(--line);
+    display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .loop-head b{font-size:14px}
+  .loop-head span{font-size:12px;color:var(--muted)}
+  .loop-body{padding:6px 16px 14px}
+  .flow{display:flex;align-items:stretch;gap:0;margin:14px 0;flex-wrap:wrap}
+  .flow .node{flex:1;min-width:120px;border:1px solid var(--line-2);border-radius:var(--radius-sm);
+    background:var(--surface);padding:9px 11px;position:relative}
+  .flow .node b{display:block;font-size:12px;margin-bottom:2px}
+  .flow .node span{font-size:11px;color:var(--muted);line-height:1.5;display:block}
+  .flow .node.new{border-color:var(--brand-ring);background:var(--brand-tint)}
+  .flow .node.fix{border-color:#f3caca;background:var(--red-tint)}
+  .flow .arrow{flex:0 0 26px;display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:15px}
+  .audit{border:1px solid var(--line);border-radius:var(--radius);margin:14px 0;overflow:hidden}
+  .audit-head{padding:10px 16px;background:linear-gradient(112deg,var(--brand-tint),var(--surface));
+    border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+  .audit-head b{font-size:14px}
+  .audit-head span{font-size:12px;color:var(--muted)}
+  .audit-body{padding:6px 16px 14px}
+  .finding{border-left:3px solid var(--amber);background:var(--amber-tint);border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+    padding:10px 14px;margin:10px 0;font-size:12.5px}
+  .finding.fixed{border-left-color:var(--green);background:var(--green-tint)}
+  .finding b{color:var(--ink)}
+  .finding .fno{font-weight:700;color:var(--amber);margin-right:6px}
+  .finding.fixed .fno{color:var(--green)}
+  ul,ol{margin:8px 0;padding-left:22px}
+  li{margin:3px 0}
+  .small{font-size:12px;color:var(--muted)}
+  .diff{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+  .diff > div{border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px}
+  .diff .v-before{background:var(--red-tint);border-color:#f3caca}
+  .diff .v-after{background:var(--green-tint);border-color:#b7e3c9}
+  .diff b{display:block;font-size:11px;margin-bottom:4px;letter-spacing:.03em}
+  .diff .v-before b{color:var(--red)}
+  .diff .v-after b{color:var(--green)}
+  .svgbox{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);
+    padding:18px 14px;margin:14px 0;overflow-x:auto}
+  .svgbox .cap{font-size:11px;color:var(--faint);text-align:center;margin-top:8px}
+  .toc{display:grid;grid-template-columns:repeat(3,1fr);gap:6px 18px;font-size:12.5px;margin:16px 0 0}
+  .toc a{color:var(--ink-2);text-decoration:none;border-bottom:1px solid transparent}
+  .toc a:hover{color:var(--brand);border-bottom-color:var(--brand-ring)}
+  @media (max-width:960px){.toc{grid-template-columns:1fr}.diff{grid-template-columns:1fr}.page{padding:16px}}
+  .verdict{display:flex;gap:14px;flex-wrap:wrap;margin:16px 0 0}
+  .verdict > div{flex:1;min-width:200px;border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px 14px;background:var(--surface)}
+  .verdict b{display:block;font-size:20px;letter-spacing:-.015em;font-variant-numeric:tabular-nums}
+  .verdict span{font-size:11px;color:var(--muted)}
+  .verdict .v-brand b{color:var(--brand)}
+</style>
+</head>
+<body>
+<div class="page"><div class="doc">
+
+<div class="hero">
+  <div class="kicker">GoodJob CRM · 资料管理治理</div>
+  <h1>资料管理开发方案 · 三闸两池（功能闭环版）</h1>
+  <p>本方案把此前的体检评分（3.1/10）落成可执行开发计划：先修六个已核实的闭环断点（P0 不改表结构、当天可验），再建「入库闸 / 检索闸 / 反馈闸」与「核心池 / 长尾池」，最后做排序质量修复。全文所有结论均以代码行号标注，经过三轮自审（数据一致性 → 闭环完整性 → 可测性与可行性）修订。</p>
+  <div class="meta">
+    <span>状态：方案定稿 v3（三轮自审后）</span>
+    <span>口径：文件中心 + 资源中心召回 + 插件训练库</span>
+    <span>涉及仓库：GoodJob_private（CRM 前后端 / whatsapp-plugin / whatsapp-web-translator）</span>
+    <span>未改任何代码 · 等用户确认后按 P0→P3 实施</span>
+  </div>
+  <div class="verdict">
+    <div class="v-brand"><b>14</b><span>已核实闭环断点（全部带 file:line 证据）</span></div>
+    <div class="v-brand"><b>4</b><span>功能闭环（录入 / 推荐 / 训练沉淀 / 治理）</span></div>
+    <div class="v-brand"><b>3</b><span>轮自审，修订 20 处（§13 有逐条记录）</span></div>
+    <div class="v-brand"><b>4</b><span>个实施分期（P0 不改表结构，当天可验）</span></div>
+  </div>
+  <nav class="toc">
+    <a href="#s1">§1 口径与范围</a>
+    <a href="#s2">§2 现状核实（代码事实）</a>
+    <a href="#s3">§3 问题清单（13 项断点）</a>
+    <a href="#s4">§4 方案总设计</a>
+    <a href="#s5">§5 数据模型变更</a>
+    <a href="#s6">§6 接口设计</a>
+    <a href="#s7">§7 前端设计</a>
+    <a href="#s8">§8 插件与扩展设计</a>
+    <a href="#s9">§9 四大功能闭环</a>
+    <a href="#s10">§10 分期实施计划</a>
+    <a href="#s11">§11 测试方案</a>
+    <a href="#s12">§12 风险与回滚</a>
+    <a href="#s13">§13 三轮自审记录</a>
+  </nav>
+</div>
+
+<!-- ============================ §1 口径 ============================ -->
+<section id="s1">
+  <h2><span class="no">§1</span>口径与范围</h2>
+  <p class="lead">「资料管理」在本方案里是一个三段的完整链路，缺任何一段都不闭环。此前提过的「文档管理评分」即针对这一整体。</p>
+  <div class="grid c3">
+    <div class="card"><h5>① 文件中心（录入与维护）</h5><p>导航「资料维护」→ 视图 <code>#knowledge</code>（index.html:29734）。表 <code>knowledge_assets</code>，管「有什么资料、什么状态、链接是否有效」。</p></div>
+    <div class="card"><h5>② 资源中心（召回与推荐）</h5><p><code>resource-hub.ts</code> 四源合并（文件 / Skill / 知识 / 产品），四路打分，经插件供给扩展右侧「相关文档」面板。</p></div>
+    <div class="card"><h5>③ 插件训练库（沉淀与复用）</h5><p><code>training_library_entries</code>，自动回复与资料推荐的语料来源，与训练档案（风格快照）分工。</p></div>
+  </div>
+  <div class="note"><b>范围边界（明确不做）：</b>① 不做模型微调（外部网关无微调通道，权重污染不可回滚）——训练走「语料 + 检索」不走权重；② 不做文件本体的云存储（沿用「只存链接」模式，见 docs/FILE-CENTER-DEVELOPMENT.md）；③ 不动 WhatsApp 多账号与内置浏览器（已暂停）；④ 不为四源中的 Skill / 产品库新增维护界面（本次只治理文件中心，其余三源照常参与召回）。</div>
+</section>
+
+<!-- ============================ §2 现状 ============================ -->
+<section id="s2">
+  <h2><span class="no">§2</span>现状核实（代码事实）</h2>
+  <p class="lead">方案动过的每一行都先在这里对过。链路本身比体检时认为的更完整——埋点表、报表接口、reveal 唯一出口都已存在；断点分布在另外几处。</p>
+
+  <h3>2.1 主链路（现状）</h3>
+  <div class="svgbox">
+    <svg viewBox="0 0 1080 210" style="width:100%;max-width:1040px;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" stroke="#94a3b6" stroke-width="1.2"/></marker></defs>
+      <g font-family="-apple-system,PingFang SC,sans-serif">
+        <rect x="10" y="60" width="150" height="86" rx="8" fill="#f8fafc" stroke="#dbe3ee"/>
+        <text x="85" y="82" text-anchor="middle" font-size="12" font-weight="700" fill="#131c2e">文件中心</text>
+        <text x="85" y="100" text-anchor="middle" font-size="10" fill="#6b7d94">knowledge_assets</text>
+        <text x="85" y="116" text-anchor="middle" font-size="10" fill="#6b7d94">server.ts:13695</text>
+        <text x="85" y="132" text-anchor="middle" font-size="10" fill="#b42323">词表/重复/质量 ✗</text>
+        <path d="M160 103 H210" stroke="#94a3b6" stroke-width="1.2" marker-end="url(#ar)"/>
+        <rect x="212" y="52" width="190" height="102" rx="8" fill="#eef0ff" stroke="#c9cdfa"/>
+        <text x="307" y="74" text-anchor="middle" font-size="12" font-weight="700" fill="#131c2e">资源中心 resource-hub</text>
+        <text x="307" y="92" text-anchor="middle" font-size="10" fill="#6b7d94">四源采集 + 四路打分</text>
+        <text x="307" y="108" text-anchor="middle" font-size="10" fill="#6b7d94">recommend / reveal / feedback</text>
+        <text x="307" y="124" text-anchor="middle" font-size="10" fill="#6b7d94">resource_retrieval_events</text>
+        <text x="307" y="140" text-anchor="middle" font-size="10" fill="#b42323">可达性/截断/区分度 ✗</text>
+        <path d="M402 103 H452" stroke="#94a3b6" stroke-width="1.2" marker-end="url(#ar)"/>
+        <rect x="454" y="60" width="150" height="86" rx="8" fill="#f8fafc" stroke="#dbe3ee"/>
+        <text x="529" y="82" text-anchor="middle" font-size="12" font-weight="700" fill="#131c2e">插件 3100</text>
+        <text x="529" y="100" text-anchor="middle" font-size="10" fill="#6b7d94">resource-recommend</text>
+        <text x="529" y="116" text-anchor="middle" font-size="10" fill="#6b7d94">+ CLI 复排</text>
+        <text x="529" y="132" text-anchor="middle" font-size="10" fill="#6b7d94">stats 透传</text>
+        <path d="M604 103 H654" stroke="#94a3b6" stroke-width="1.2" marker-end="url(#ar)"/>
+        <rect x="656" y="52" width="160" height="102" rx="8" fill="#f8fafc" stroke="#dbe3ee"/>
+        <text x="736" y="74" text-anchor="middle" font-size="12" font-weight="700" fill="#131c2e">扩展右侧面板</text>
+        <text x="736" y="92" text-anchor="middle" font-size="10" fill="#6b7d94">资料卡 + 为什么推荐</text>
+        <text x="736" y="108" text-anchor="middle" font-size="10" fill="#6b7d94">复制链接 / 看正文</text>
+        <text x="736" y="124" text-anchor="middle" font-size="10" fill="#6b7d94">已发给客户 / 没帮助</text>
+        <text x="736" y="140" text-anchor="middle" font-size="10" fill="#b42323">accepted 无人发 ✗</text>
+        <path d="M816 103 V160 H307" stroke="#94a3b6" stroke-width="1.2" stroke-dasharray="4 3" fill="none" marker-end="url(#ar)"/>
+        <text x="560" y="176" text-anchor="middle" font-size="10" fill="#6b7d94">反馈事件（exposed / revealed / dismissed / sent）回流 → 排序 + 报表</text>
+        <rect x="860" y="60" width="200" height="86" rx="8" fill="#e6f6f4" stroke="#b6e4df"/>
+        <text x="960" y="82" text-anchor="middle" font-size="12" font-weight="700" fill="#131c2e">推荐效果报表</text>
+        <text x="960" y="100" text-anchor="middle" font-size="10" fill="#6b7d94">GET /resources/stats</text>
+        <text x="960" y="116" text-anchor="middle" font-size="10" fill="#6b7d94">采纳率 / 发送率</text>
+        <text x="960" y="132" text-anchor="middle" font-size="10" fill="#b42323">CRM 无视图 ✗</text>
+      </g>
+    </svg>
+    <div class="cap">图 1 · 主链路现状。绿框=已存在且可用；红字=本方案要修的断点（证据见 §3）</div>
+  </div>
+
+  <h3>2.2 关键锚点（动代码前先认门）</h3>
+  <table>
+    <tr><th style="width:210px">环节</th><th>位置</th><th>现状要点</th></tr>
+    <tr><td>知识资产 CRUD</td><td><code>server.ts:13695-13836</code></td><td>draft / review / published 三态；<code>canManageTraining</code> 控发布；access 接口只加 <code>accessCount</code>，<b>不记埋点</b></td></tr>
+    <tr><td>可见性</td><td><code>server.ts:1713-1727</code>、<code>resource-hub.ts:194-201</code></td><td>两处都要求 <code>teamId === actor.teamId</code>；兜底值 <code>'all'</code> 导致孤儿资料双处不可见</td></tr>
+    <tr><td>四源采集</td><td><code>resource-hub.ts:325-342</code></td><td>每源按 updatedAt 倒序截 <code>MAX_SCAN_PER_SOURCE=400</code>（:31），<b>截断无提示</b></td></tr>
+    <tr><td>四路打分</td><td><code>resource-hub.ts:419-539</code></td><td>lexical 0.52 / structured 0.2 / semantic 0.16 / vector 0.12；淘汰阈值 <code>score&gt;0.01</code>（:530）</td></tr>
+    <tr><td>reveal 唯一出口</td><td><code>resource-hub.ts:561-619</code></td><td>file 源无 <code>sourceUrl</code> 或 <code>legacy</code> → <code>no_link</code>（409）；knowledge 源返回内联正文</td></tr>
+    <tr><td>埋点写入</td><td><code>server.ts:19951</code>（exposed）、<code>:20002</code>（revealed）、<code>:20021</code>（反馈三态）</td><td>旁路写，失败不影响主流程；<code>resource_retrieval_events</code> 保留 90 天</td></tr>
+    <tr><td>效果报表</td><td><code>server.ts:20040-20090</code></td><td>adoptionRate = accepted / max(1, revealed)；sendRate = sent / max(1, revealed)；Top 50</td></tr>
+    <tr><td>插件编排</td><td><code>resource-recommend-service.ts</code></td><td>召回（≤300ms）与 CLI 复排（10-60s）分层，复排失败自动降级；模型臆造的 id 一律丢弃</td></tr>
+    <tr><td>扩展面板</td><td><code>agent.js:857-921</code></td><td>「复制链接/看正文」→ reveal；「已发给客户」→ sent；「没帮助」→ dismissed；<b>accepted 无发送点</b></td></tr>
+    <tr><td>训练库</td><td><code>training-library-service.ts</code></td><td>qa 双门槛命中；snippet ≤6 / policy ≤10 <b>全量注入零相关性过滤</b>（:223-224）；importFromProfile <b>直接建 enabled 条目</b>（:188-205）</td></tr>
+    <tr><td>命中计数</td><td><code>auto-chat-service.ts:710-713</code></td><td>全项目唯一调用点（自动回复通道）；推荐回复 / 资料建议路径不记</td></tr>
+    <tr><td>向量通道</td><td><code>resource-hub.ts:842-891</code></td><td><code>saveEmbeddings</code> <b>无任何调用方</b>，<code>resource_embeddings</code> 永远空表 → recommend 的向量分支（server.ts:19922-19948）走不到</td></tr>
+    <tr><td>迁移基建</td><td><code>mysql-store.ts:2197-2270</code></td><td><code>migrateMysqlSchema</code> 顺序调 <code>ensureXxxSchema</code>；<code>ensureColumn</code>(:6078)/<code>widenColumn</code>(:6093)/<code>ensureIndex</code>(:6104) 可复用；双库流程 <code>db:migrate:dev</code> → <code>db:migrate:personal</code> → parity</td></tr>
+    <tr><td>插件迁移</td><td><code>mysql-migrate.ts</code> / <code>migrate.ts</code></td><td>版本化迁移，当前最新 v15（training_library）；下一版 v16；sqlite 与 mysql <b>两份都要写</b></td></tr>
+  </table>
+</section>
+
+<!-- ============================ §3 问题 ============================ -->
+<section id="s3">
+  <h2><span class="no">§3</span>问题清单（14 项闭环断点）</h2>
+  <p class="lead">按四个闭环分组。每项都带代码证据与用户可感知的影响——不是「风格不好」，是「链路在这里断了」。</p>
+
+  <h3>A · 录入闸断点</h3>
+  <table>
+    <tr><th style="width:52px">编号</th><th style="width:230px">问题</th><th>证据与影响</th></tr>
+    <tr><td><b>G1</b></td><td>类目/标签自由文本，无受控词表</td><td><code>knowledgeAssetInputSchema</code>（server.ts:1758）对 category 只做非空校验；前端是普通输入框（prototype-api.ts:24527、24533）。同类资料散成「产品知识 / 产品资料 / 产品文档」多个类目，检索时 idf 分母被稀释，报表也按类目聚不起来。</td></tr>
+    <tr><td><b>G2</b></td><td>无重复检测</td><td>同标题、同 URL 可反复入库（POST 无任何查重，server.ts:13700-13735）。训练库早有指纹幂等（training-library-service.ts:56-63、116-119），知识资产没抄这道工序。</td></tr>
+    <tr><td><b>G3</b></td><td><code>team_id='all'</code> 孤儿资料谁都看不到</td><td>schema 默认 <code>'all'</code>（schema.mysql.sql:434），而 <code>canSeeKnowledgeAsset</code>（server.ts:1713-1719）与 <code>collectKnowledgeAssets</code>（resource-hub.ts:197-202）都要求 <code>teamId===actor.teamId</code> 且平台身份被 <code>isPlatformIdentity</code> 排除 → 兜底值反而双处不可见。此前实测 4 条里 3 条不可见。</td></tr>
+    <tr><td><b>G4</b></td><td>无质量检查、无归档、无版本线性化</td><td>status 只有 draft/review/published（types.ts:1006）；过期版本只能物理删除（DELETE，server.ts:13826）；标题=文件名、无说明、无标签、无链接的资料与好资料在推荐里同权。</td></tr>
+  </table>
+
+  <h3>B · 检索闸断点</h3>
+  <table>
+    <tr><th style="width:52px">编号</th><th style="width:230px">问题</th><th>证据与影响</th></tr>
+    <tr><td><b>G5</b></td><td><code>hasExternalLink</code> 算出来了但从不参与召回</td><td>resource-hub.ts:215 算出该字段，<code>scoreHubResources</code> 全程不读 → 无链接的 legacy 资料照样占推荐位；用户点「复制链接」必得 409 no_link（server.ts:19993）。扩展只能把按钮藏掉（resources.js:165），候选位已被浪费。</td></tr>
+    <tr><td><b>G6</b></td><td>400 行静默截断</td><td><code>MAX_SCAN_PER_SOURCE=400</code>（resource-hub.ts:31、330-333），第 401 份起不进候选集，界面与 warnings 均无提示——资料越多，「新资料反而推不到」越明显。</td></tr>
+    <tr><td><b>G7</b></td><td>词法分按「全部查询词 idf 之和」归一，长会话无区分度</td><td>resource-hub.ts:433 取查询词<b>全量</b> idf 之和作分母，:457 归一。长会话查询词 20 个时，命中 1 个高权词的资料 lexical≈0.05，挤在淘汰阈值 0.01 附近——此前实测曝光均分 0.041（区间 0.017–0.10），候选之间拉不开。</td></tr>
+    <tr><td><b>G8</b></td><td>dismissed 从不参与排序，UI 承诺是空的</td><td>扩展「没帮助」按钮提示「下次会排后面」（agent.js:912），但打分只读 <code>sentCounts</code>（resource-hub.ts:482-487）。反向风险：<code>customerResourceKeys</code> 把 <code>revealed</code> 也算进「该客户此前收到过同类资料」+0.5（:463-467、:751-763），同会话内已看过的资料反而加权；且文案说「收到过」与实际「查看过」不符。</td></tr>
+    <tr><td><b>G9</b></td><td>向量通道空转</td><td><code>saveEmbeddings</code> 无调用方 → <code>resource_embeddings</code> 永远空表；recommend 的向量分支（server.ts:19922-19945）只有调用方传 <code>queryVector</code> 且仓库有向量才生效，而两端都不满足 → 权重表里的 vector 0.12 是死重，「语义」实际只剩业务词典展开。</td></tr>
+  </table>
+
+  <h3>C · 反馈闸断点</h3>
+  <table>
+    <tr><th style="width:52px">编号</th><th style="width:230px">问题</th><th>证据与影响</th></tr>
+    <tr><td><b>G10</b></td><td><code>accepted</code> 事件没有任何界面产生，采纳率恒 0</td><td>扩展只发 dismissed / sent（agent.js:898-921）；crm.js:270 的 accepted 只是兜底分支；CRM 侧无资源交互界面 → <code>adoptionRate = accepted/max(1,revealed)</code>（server.ts:20065）结构上永远是 0%，报表「采纳率」一列是死列，扩展 options 卡（options.js:263）照显示。</td></tr>
+    <tr><td><b>G11</b></td><td>文件中心「打开资料」不记埋点</td><td><code>POST /api/knowledge/assets/:id/access</code>（server.ts:13795-13824）只加 <code>accessCount</code>，不写 <code>resource_retrieval_events</code> → 业务员在 CRM 内的查看完全不进报表，exposed/revealed 只反映扩展侧行为。</td></tr>
+    <tr><td><b>G12</b></td><td>反馈不回流排序</td><td><code>eventStats</code> 只喂报表（server.ts:20047），<code>scoreHubResources</code> 不用采纳率/发送率 → 「曝光 20 次 0 采纳」的资料不会被降权，下次照样推。</td></tr>
+    <tr><td><b>G13</b></td><td>训练库：导入即启用、口径全量注入、命中计数半条链</td><td>① <code>importFromProfile</code> 直接建 <code>enabled</code> 条目（training-library-service.ts:188-205），档案样本（含时间戳/附件名/截断半句）无人工确认就进提示词；② <code>resolve()</code> 的 snippet/policy 按列表顺序取前 6/10，零相关性过滤（:223-224）——污染最快入口；③ <code>recordHits</code> 只有自动回复一个调用点，推荐回复路径不记，hit_count 永远偏低；④ 报表只有扩展 options 一张小卡，CRM 内无视图。</td></tr>
+    <tr><td><b>G14</b></td><td>埋点表只增不减：90 天保留期是空头支票</td><td><code>pruneEvents</code>（resource-hub.ts:834）实现了但<b>全项目无调用方</b>，没有任何定时任务触发——<code>resource_retrieval_events</code> 无限增长，eventStats 的全表 GROUP BY 会越来越慢，反馈回流（P3-2）还没做就背着一个膨胀的表。server.ts 已有定时器先例（reminderRuleSchedulerTimer:26077、aiEngineRecoveryTimer:7858），照抄即可。</td></tr>
+  </table>
+
+  <div class="note warn"><b>共同根因：</b>这套系统的「写侧」（录入、埋点、接口）建得相当完整，但「读侧的三道加工」——入库校验、召回过滤、反馈回流——基本空缺。表现就是用户看到的「资料很多、推荐很糊、说不清哪份有用」。</div>
+</section>
+
+<!-- ============================ §4 总设计 ============================ -->
+<section id="s4">
+  <h2><span class="no">§4</span>方案总设计：三闸两池</h2>
+  <p class="lead">不是重写，是补齐三道加工。每道闸都对应 §3 的一组断点，每个池都有明确的进入条件与权重。</p>
+
+  <div class="svgbox">
+    <svg viewBox="0 0 1080 300" style="width:100%;max-width:1040px;display:block;margin:0 auto" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="ar2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" stroke="#94a3b6" stroke-width="1.2"/></marker></defs>
+      <g font-family="-apple-system,PingFang SC,sans-serif">
+        <rect x="20" y="120" width="130" height="60" rx="8" fill="#f8fafc" stroke="#dbe3ee"/>
+        <text x="85" y="145" text-anchor="middle" font-size="12" font-weight="700" fill="#131c2e">录入</text>
+        <text x="85" y="163" text-anchor="middle" font-size="10" fill="#6b7d94">文件中心 / 档案导入</text>
+        <path d="M150 150 H195" stroke="#94a3b6" stroke-width="1.2" marker-end="url(#ar2)"/>
+        <rect x="197" y="86" width="180" height="128" rx="10" fill="#eef0ff" stroke="#c9cdfa" stroke-width="1.4"/>
+        <text x="287" y="110" text-anchor="middle" font-size="13" font-weight="700" fill="#131c2e">闸一 · 入库闸</text>
+        <text x="287" y="130" text-anchor="middle" font-size="10.5" fill="#37445b">受控词表（类目必选 / 标签建议）</text>
+        <text x="287" y="147" text-anchor="middle" font-size="10.5" fill="#37445b">指纹查重（同 URL 拦截）</text>
+        <text x="287" y="164" text-anchor="middle" font-size="10.5" fill="#37445b">质量四项（标题/说明/标签/链接）</text>
+        <text x="287" y="181" text-anchor="middle" font-size="10.5" fill="#37445b">team_id 固化 + 孤儿修复</text>
+        <text x="287" y="200" text-anchor="middle" font-size="10" fill="#b42323">修 G1 G2 G3 G4</text>
+        <path d="M377 150 H422" stroke="#94a3b6" stroke-width="1.2" marker-end="url(#ar2)"/>
+        <rect x="424" y="60" width="230" height="180" rx="10" fill="#e6f6f4" stroke="#b6e4df" stroke-width="1.4"/>
+        <text x="539" y="84" text-anchor="middle" font-size="13" font-weight="700" fill="#131c2e">闸二 · 检索闸</text>
+        <text x="539" y="104" text-anchor="middle" font-size="10.5" fill="#37445b">可达性过滤（点了能拿到东西）</text>
+        <text x="539" y="121" text-anchor="middle" font-size="10.5" fill="#37445b">截断可见化（warnings 上报）</text>
+        <text x="539" y="138" text-anchor="middle" font-size="10.5" fill="#37445b">生命周期过滤（archived 排除）</text>
+        <text x="539" y="155" text-anchor="middle" font-size="10.5" fill="#37445b">dismissed 降权 / 查看史修正</text>
+        <text x="539" y="172" text-anchor="middle" font-size="10.5" fill="#37445b">词法归一化修复（开关默认关）</text>
+        <text x="539" y="192" text-anchor="middle" font-size="10" fill="#b42323">修 G5 G6 G7 G8 G9</text>
+        <text x="539" y="212" text-anchor="middle" font-size="10" fill="#6b7d94">核心池 ×1.0（verified）</text>
+        <text x="539" y="228" text-anchor="middle" font-size="10" fill="#6b7d94">长尾池 ×0.5（未校订）</text>
+        <path d="M654 150 H699" stroke="#94a3b6" stroke-width="1.2" marker-end="url(#ar2)"/>
+        <rect x="701" y="86" width="170" height="128" rx="10" fill="#fdf6e3" stroke="#eedfb4" stroke-width="1.4"/>
+        <text x="786" y="110" text-anchor="middle" font-size="13" font-weight="700" fill="#131c2e">闸三 · 反馈闸</text>
+        <text x="786" y="130" text-anchor="middle" font-size="10.5" fill="#37445b">accepted 埋点（复制成功）</text>
+        <text x="786" y="147" text-anchor="middle" font-size="10.5" fill="#37445b">CRM 打开资料记 revealed</text>
+        <text x="786" y="164" text-anchor="middle" font-size="10.5" fill="#37445b">采纳率回流加权/降权</text>
+        <text x="786" y="181" text-anchor="middle" font-size="10.5" fill="#37445b">CRM 报表视图（新增）</text>
+        <text x="786" y="200" text-anchor="middle" font-size="10" fill="#b42323">修 G10 G11 G12 G13</text>
+        <path d="M786 214 V260 H120" stroke="#94a3b6" stroke-width="1.2" stroke-dasharray="4 3" fill="none" marker-end="url(#ar2)"/>
+        <text x="450" y="278" text-anchor="middle" font-size="10.5" fill="#6b7d94">治理回流：报表 → 待补链接清单 / 低采纳降权 / 词表合并 / 归档 → 回到录入</text>
+        <rect x="901" y="60" width="160" height="180" rx="10" fill="#f8fafc" stroke="#dbe3ee"/>
+        <text x="981" y="84" text-anchor="middle" font-size="12.5" font-weight="700" fill="#131c2e">消费端</text>
+        <text x="981" y="106" text-anchor="middle" font-size="10.5" fill="#37445b">扩展右侧面板</text>
+        <text x="981" y="123" text-anchor="middle" font-size="10.5" fill="#37445b">（相关文档卡）</text>
+        <text x="981" y="146" text-anchor="middle" font-size="10.5" fill="#37445b">插件自动回复</text>
+        <text x="981" y="163" text-anchor="middle" font-size="10.5" fill="#37445b">（训练库语料）</text>
+        <text x="981" y="186" text-anchor="middle" font-size="10.5" fill="#37445b">CRM 资源中心</text>
+        <text x="981" y="203" text-anchor="middle" font-size="10.5" fill="#37445b">（目录 + 报表）</text>
+        <path d="M871 150 H899" stroke="#94a3b6" stroke-width="1.2" marker-end="url(#ar2)"/>
+      </g>
+    </svg>
+    <div class="cap">图 2 · 三闸两池总设计。闸二内含两池分层；底部虚线是治理回流（让闭环真正转起来）</div>
+  </div>
+
+  <h3>4.1 两池的进入条件与权重（不设硬上限）</h3>
+  <table>
+    <tr><th>池</th><th>进入条件</th><th>权重</th><th>说明</th></tr>
+    <tr><td><b>核心池</b></td><td>published 且 <code>verified=1</code>（发布/编辑时管理端勾选「已校订」）</td><td>score × 1.0</td><td>人工校订过 = 团队认可的口径，理应排前面</td></tr>
+    <tr><td><b>长尾池</b></td><td>published 且未校订</td><td>score × 0.5</td><td>仍然可被推荐（精确命中时），只是排在核心池之后</td></tr>
+  </table>
+  <div class="note"><b>为什么不再设「上限 200」这类红线：</b>MAX_SCAN_PER_SOURCE=400 已经证明，硬上限的失败方式是<b>静默截断</b>——第 201 份资料消失且无人知道。本方案用「权重 + 反馈淘汰」代替硬上限：低采纳资料被降权（G12），过期资料被归档（G4），死条目进清理清单（G13）——让该沉下去的自然沉下去，不设看不见的天花板。</div>
+
+  <h3>4.2 与既有设计文档的关系</h3>
+  <p>docs/RESOURCE-HUB-DESIGN.md 的「外链唯一出口」「埋点旁路」「memory 档可测」等纪律全部保留并延伸；docs/RESOURCE-FEEDBACK-REPORT-DESIGN.md 的报表口径（分母都是 revealed）保留，本方案补上它缺的「accepted 从哪来」（G10）与「回流排序」（G12）。docs/FILE-CENTER-DEVELOPMENT.md 的百度网盘边界（只存链接、不抓取）不变。</p>
+</section>
+
+<!-- ============================ §5 数据模型 ============================ -->
+<section id="s5">
+  <h2><span class="no">§5</span>数据模型变更</h2>
+  <p class="lead">全部为增量。CRM 侧走 <code>ensureXxxSchema</code>，插件侧走版本化迁移 v16——sqlite 与 mysql 两份都要写，双库同步按铁律执行。</p>
+
+  <h3>5.1 CRM 后端（backend）</h3>
+  <table>
+    <tr><th style="width:200px">变更</th><th style="width:300px">定义</th><th>落点与注意</th></tr>
+    <tr><td>新表 <code>knowledge_vocabulary</code></td><td><code>id, team_id, type('category'|'tag'), value, normalized, enabled, usage_count, created_at, updated_at</code>，UNIQUE(team_id, type, normalized)</td><td>新增 <code>ensureKnowledgeGovernanceSchema(pool)</code> 挂进 <code>migrateMysqlSchema</code>（mysql-store.ts:2243 <code>ensureResourceHubSchema</code> 之后）；schema.mysql.sql 同步建表。迁移时把现有 distinct category / tags <b>种子进词表</b>（enabled=1）——否则老资料第一天就被新校验拦死。</td></tr>
+    <tr><td><code>knowledge_assets</code> 加列 <code>verified</code></td><td><code>TINYINT NOT NULL DEFAULT 0</code></td><td>同一 ensure 函数里 <code>ensureColumn</code>。默认 0（未校订）——存量资料不会因迁移悄悄变成核心池。</td></tr>
+    <tr><td><code>status</code> 增加 <code>'archived'</code></td><td>类型 <code>"published"|"draft"|"review"|"archived"</code>（types.ts:1006）</td><td>VARCHAR(40) 无需 widen。<code>collectKnowledgeAssets</code> 的 <code>status==="published"</code> 天然排除 archived；前端筛选下拉加「已归档」。</td></tr>
+    <tr><td>孤儿数据修复</td><td><code>UPDATE knowledge_assets SET team_id = &lt;owner 团队&gt; WHERE team_id='all' OR team_id IS NULL</code></td><td>参照 <code>repairProspectRunExecutionSnapshotIntegrity</code> 先例写成 repair 函数，返回修复条数进迁移日志。<b>owner 已删除、查不到团队的</b> → 保持原值但记入「孤儿清单」（管理端可见可手改），不静默跳过。</td></tr>
+    <tr><td>不建表：重复检测</td><td>应用层按 <code>normalize(sourceUrl)</code> + teamId 现算</td><td>与训练库指纹同思想但不建表：knowledgeAssets 在内存 store 里，现算成本为零，还避免第二处真相。</td></tr>
+  </table>
+
+  <h3>5.2 插件（whatsapp-plugin）</h3>
+  <table>
+    <tr><th style="width:200px">变更</th><th style="width:300px">定义</th><th>落点与注意</th></tr>
+    <tr><td><code>training_library_entries</code> 加列 <code>status</code></td><td><code>VARCHAR(16) NOT NULL DEFAULT 'active'</code>（mysql）/ <code>text NOT NULL DEFAULT 'active'</code>（sqlite）</td><td>mysql-migrate.ts 新增 <code>version:16</code>；migrate.ts（sqlite）同步 v16；<code>TrainingLibraryEntry</code> 类型（shared/types.ts）加字段；repository 的 save / list / fingerprint 查询带 status。<b>存量 45 条默认 active</b>——只让新导入的进 candidate，否则自动回复会突然没语料（自审第二轮关键修订）。</td></tr>
+  </table>
+
+  <div class="note"><b>双库同步顺序（铁律，每次结构变更都走一遍）：</b>改码 → <code>npm run db:migrate:dev</code> → <code>npm run db:migrate:personal</code> → <code>goodjob-db-parity.sh</code>。全程只用 dev 档，禁连 <code>goodjob_crm*</code> / <code>goodjob_web</code>。</div>
+</section>
+
+<!-- ============================ §6 接口 ============================ -->
+<section id="s6">
+  <h2><span class="no">§6</span>接口设计</h2>
+  <p class="lead">新增 7 个端点、变更 5 个。全部沿用现有鉴权与命名风格；权限口径与文件中心现有一致。</p>
+
+  <h3>6.1 新增（CRM）</h3>
+  <table>
+    <tr><th style="width:300px">端点</th><th style="width:120px">权限</th><th>说明</th></tr>
+    <tr><td><code>GET /api/knowledge/vocabulary?type=</code></td><td>requireAuth</td><td>词表列表（含 usage_count、enabled）。type = category | tag，缺省全量。</td></tr>
+    <tr><td><code>POST /api/knowledge/vocabulary</code></td><td>training.manage</td><td>新增词条（value, type）。已存在（同 normalized）则返回既有条，不报错。</td></tr>
+    <tr><td><code>PATCH /api/knowledge/vocabulary/:id</code></td><td>training.manage</td><td>改名 / 停用 / 启用。停用后老资料保留原值但不再作为新建议。</td></tr>
+    <tr><td><code>POST /api/knowledge/vocabulary/merge</code></td><td>training.manage</td><td><b>合并词条</b>：{fromId, toValue} → 批量把资料的 category/tags 旧值改成新值，停用旧词条，返回受影响资料数。破坏性操作，前端必须二次确认（confirmAction 模式，列后果）。</td></tr>
+    <tr><td><code>POST /api/knowledge/assets/batch</code></td><td>training.manage</td><td>批量动作：{ids, action: 'publish'|'archive'|'set-category'|'add-tags', payload}。逐条校验可见性，返回 {ok, failed:[{id,reason}]}——部分失败不整批回滚。</td></tr>
+    <tr><td><code>PATCH /api/knowledge/assets/:id/archive</code></td><td>编辑权</td><td>归档。archived 不进采集、不进目录，详情页仍可查看。</td></tr>
+    <tr><td><code>GET /api/knowledge/assets/governance</code></td><td>requireAuth</td><td>治理看数：待补链接数 / 质量待补项分布 / 孤儿资料数 / 近 30 天推荐效果摘要（内部转调 eventStats）。供文件中心指标卡与资源中心报表共用。</td></tr>
+  </table>
+
+  <h3>6.2 变更（CRM）</h3>
+  <table>
+    <tr><th style="width:300px">端点</th><th>变更</th></tr>
+    <tr><td><code>POST /api/knowledge/assets</code></td><td>① category 必须命中词表 → 否则 400 并返回 <code>{suggestions:[]}</code>；② tags 不在词表的<b>自动建词条</b>（enabled=1）并进 warnings（自由标签但可治理）；③ 同 team 同 normalized(sourceUrl) 已存在 → 409 <code>{duplicateOf:id}</code>；同 title → 200 + warning；④ body 增可选 <code>verified</code>（仅 training.manage 可置 1）。</td></tr>
+    <tr><td><code>PATCH /api/knowledge/assets/:id</code></td><td>同上的词表/查重校验（编辑路径）；body 增 <code>verified</code>。<b>非管理角色编辑把自己的资料打回 review</b> 的现有逻辑保留（server.ts:13771）。</td></tr>
+    <tr><td><code>PATCH /api/knowledge/assets/:id/publish</code></td><td>发布时：① 同 title+category 已有 published → 旧的自动 archived（版本线性化）；② 返回 qualityFlags（标题&lt;6 字 / 无说明 / 无标签 / 无链接），前端弹「待补项」提示但允许继续。</td></tr>
+    <tr><td><code>POST /api/knowledge/assets/:id/access</code></td><td>现有逻辑不变，<b>补一条 revealed 埋点</b>（旁路，ownerId/teamId 取 req.user）——修 G11。</td></tr>
+    <tr><td><code>POST /api/agent/resources/recommend</code></td><td>① 采集后按<b>可达性规则</b>过滤（见下方规则表，reveal 路径不过滤——「没链接」要返回 409 而不是 404）；② <code>collectHubResources</code> 增补截断元信息，响应 <code>warnings</code> 带「文件中心有 X 份资料因更新过早未进入候选」；③ scoring 增 <code>dismissedKeys</code> 与 <code>feedback</code>（近 30 天采纳摘要，仓库读失败不影响检索）；④ 词法归一化修复走开关 <code>RESOURCE_LEXICAL_V2</code>（默认关，P3 验证后开）。</td></tr>
+    <tr><td><code>GET /api/agent/resources</code>（目录）</td><td>新增可选参数 <code>reachable=1</code>：传了才按可达性规则过滤。缺省不过滤——CRM 资源中心的目录 Tab 要能看到「待补链接」资料（那是治理对象）；插件面板的目录检索（search 路径）传 <code>reachable=1</code>，别把没链接的资料摆给业务员。</td></tr>
+    <tr><td><code>GET /api/agent/resources/stats</code></td><td>不变（报表数据源）；前端资源中心视图消费它，另加 <code>?days=7|30</code> 切换（已支持 1-90）。</td></tr>
+  </table>
+
+  <h4>可达性规则（推荐位只给「点了能拿到东西」的资料）</h4>
+  <table>
+    <tr><th style="width:120px">源</th><th style="width:330px">规则</th><th>理由</th></tr>
+    <tr><td>file</td><td>必须有 <code>sourceUrl</code> 且 <code>sourceType !== 'legacy'</code></td><td>否则 reveal 必返 <code>no_link</code>（server.ts:19993），用户点下去就是一句报错</td></tr>
+    <tr><td>skill</td><td>必须有 <code>downloadUrl</code></td><td>同上（resource-hub.ts:590）</td></tr>
+    <tr><td>knowledge</td><td><code>inlineContent</code> 非空</td><td>知识条目靠内联正文交付，空正文等于没内容</td></tr>
+    <tr><td>product</td><td>恒过</td><td>产品卡本身（名称/型号）就是可推荐内容；无描述时 reveal 返回空正文，面板提示「该产品暂无详情」，不算断链</td></tr>
+  </table>
+
+  <h3>6.3 插件与扩展</h3>
+  <table>
+    <tr><th style="width:300px">端点 / 位置</th><th>变更</th></tr>
+    <tr><td>插件 <code>GET /api/v1/resources/stats</code></td><td>不变（透传）。</td></tr>
+    <tr><td>插件训练库路由（app.ts:1071-1118）</td><td>list 增 <code>status</code> 过滤参数（默认 active；管理页可传 all 看候选池）；新增 <code>POST /api/v1/training-library/confirm</code> {ids, action:'confirm'|'drop'}（批量确认/丢弃，一次 ≤20）。</td></tr>
+    <tr><td>扩展 <code>crm.js:265</code> recordResourceFeedback</td><td>不变（action 已有 accepted 分支）。</td></tr>
+    <tr><td>扩展 <code>agent.js:857-895</code> revealAndCopy</td><td>复制成功分支与 inline 展示分支各补一次 <code>sendFeedback(resource,'accepted')</code>——修 G10。</td></tr>
+    <tr><td>扩展 <code>options.js:245-294</code> 报表卡</td><td>加「没帮助」计数（dismissed），让卡片五类事件齐全。</td></tr>
+  </table>
+</section>
+
+<!-- ============================ §7 前端 ============================ -->
+<section id="s7">
+  <h2><span class="no">§7</span>前端设计（CRM）</h2>
+  <p class="lead">两件事：改造文件中心（#knowledge），新增资源中心视图（#resources）。所有新样式遵守既定规范，不另起炉灶。</p>
+
+  <h3>7.1 文件中心改造（view#knowledge）</h3>
+  <table>
+    <tr><th style="width:200px">位置</th><th>改造</th></tr>
+    <tr><td>指标卡（index.html:29739）</td><td>四卡改：可见资料 / 已发布 / <b>待补链接</b> / <b>质量待补</b>。字级按右上文字规范：标签 11px/500 #6b7d94、数值 20px/700 #131c2e；0 值不上色。</td></tr>
+    <tr><td>类目面板（prototype-api.ts:24457-24465）</td><td>数据源从「资料里出现过的类目」改为<b>词表</b>（GET /api/knowledge/vocabulary）；面板底部加「词表管理」入口（training.manage 可见）。</td></tr>
+    <tr><td>添加/编辑弹窗（prototype-api.ts:24521-24538）</td><td>① 类目输入框 → 下拉（词表内 + 「+ 建议新类目」）；② 标签输入 → chips（词表提示、回车成片、超上限提示）；③ URL 失焦即查重，撞库给警示 + 「查看已有资料」链接；④ 新增「质量检查」折叠区：标题长度 / 说明 / 标签 / 链接 四项实时打勾；⑤ 全部遵守输入框规范（字号三档、Hint #94a3b6 聚焦消失、圆角 6px）。</td></tr>
+    <tr><td>列表（prototype-api.ts:24469-24481）</td><td>加多选列（checkbox）；选中后出批量操作条（发布 / 归档 / 改类目 / 加标签）；行内「待补链接」徽章（legacy 且无 URL）。</td></tr>
+    <tr><td>详情面板（prototype-api.ts:24485-24502）</td><td>加质量徽章与 verified 徽章；发布按钮旁显示 qualityFlags 待补项；archived 资料显示归档原因与时间。</td></tr>
+    <tr><td>反馈</td><td>所有操作（保存/发布/归档/批量/合并词条）均有 toast + 按钮 loading；失败给原因。不接受静默无响应。</td></tr>
+  </table>
+
+  <h3>7.2 资源中心视图（新增 view#resources）</h3>
+  <table>
+    <tr><th style="width:200px">区块</th><th>内容</th></tr>
+    <tr><td>导航入口</td><td>「资料维护」同级加「资源中心」（data-view="resources"）。</td></tr>
+    <tr><td>目录 Tab</td><td>四源目录：搜索 + 源筛选 + 类目筛选；卡片显示标题/类目/来源/相关度理由；「取链接」走 reveal（CRM 内首次消费 reveal 出口，权限与扩展一致）。</td></tr>
+    <tr><td>报表 Tab</td><td>消费 <code>GET /api/agent/resources/stats</code>：totals 五类事件 + 采纳率/发送率；Top 50 表格（资料 / 曝光 / 查看 / 采纳 / 没帮助 / 发送 / 采纳率）；7/30 天切换；空团队显示「最近还没有资料被推荐过」而非全 0 假数据。</td></tr>
+    <tr><td>治理 Tab</td><td>消费 <code>GET /api/knowledge/assets/governance</code>：待补链接清单（可直接跳编辑）、孤儿资料清单、质量待补分布。这是治理闭环的「维护动作」入口。</td></tr>
+  </table>
+  <div class="note"><b>规范遵守（自审第二轮补）：</b>新 view 的统计块选择器补进 <code>&lt;style id="head-text-refine"&gt;</code> 分组，表单控件补进 <code>&lt;style id="input-refine"&gt;</code> 分组；两个样式块都在 body 末尾，新视图的内联 &lt;style&gt; 若与它们冲突，以规范为准。截图取景用 CDP 读 <code>el.closest('.view').id</code> 判类。</div>
+</section>
+
+<!-- ============================ §8 插件扩展 ============================ -->
+<section id="s8">
+  <h2><span class="no">§8</span>插件与扩展设计</h2>
+  <h3>8.1 插件（whatsapp-plugin）</h3>
+  <table>
+    <tr><th style="width:220px">位置</th><th>改造</th></tr>
+    <tr><td>training-library-service.ts <code>resolve()</code></td><td>① 只取 <code>status='active'</code> 且 enabled 的条目；② snippet 按查询相关度排序后取 Top 6（现在是无脑前 6 条——修 G13②）；policy 保持全量（硬约束）但超上限时 warnings 提示。</td></tr>
+    <tr><td>training-library-service.ts <code>importFromProfile()</code></td><td>新建条目 <code>status='candidate'</code>、enabled=0（候选不进提示词）；返回结果带 candidateIds 供前端跳确认。</td></tr>
+    <tr><td>TrainingPage.tsx 训练库区</td><td>① 「候选确认」区：一次 20 条，显示清洗后的问/答，勾选确认（→active）或丢弃；② 条目列表加 source/status/hitCount 展示（已有 hitCount，补 status）；③ 「命中体检」保留；④ 死条目建议：hitCount=0 且创建超 90 天 → 列表置顶提示「建议清理」。</td></tr>
+    <tr><td>auto-chat-service.ts compose() / app.ts suggest 路径</td><td><code>compose()</code> 在 <code>loadLibrary</code>（:537）之后补 <code>recordHits</code>（与 :712 同款 fire-and-forget）——<code>handleInbound</code> 已有，compose 是漏的那条；修 G13③。</td></tr>
+  </table>
+  <h3>8.2 扩展（whatsapp-web-translator）</h3>
+  <table>
+    <tr><th style="width:220px">位置</th><th>改造</th></tr>
+    <tr><td>agent.js revealAndCopy</td><td>复制链接成功 → <code>sendFeedback(resource,'accepted')</code>；inline 正文展示 → 同样 accepted（看到了正文也是一种采纳）。</td></tr>
+    <tr><td>options.js 报表卡</td><td>补「没帮助」计数；未登录仍整块隐藏，不出假数据（纪律不变）。</td></tr>
+    <tr><td>resources.js</td><td>不变（白名单投影纪律保留）。</td></tr>
+  </table>
+</section>
+
+<!-- ============================ §9 闭环 ============================ -->
+<section id="s9">
+  <h2><span class="no">§9</span>四大功能闭环</h2>
+  <p class="lead">「功能闭环」的定义：每条链都能回答五个问题——什么触发、发生什么、记下什么、影响什么、在哪看见。五个问题都有答案，才算闭环。</p>
+
+  <div class="loop">
+    <div class="loop-head"><b>闭环 1 · 录入闭环</b><span>修 G1 G2 G3 G4 · 主要落点 P1</span></div>
+    <div class="loop-body">
+      <div class="flow">
+        <div class="node"><b>录入</b><span>词表约束类目、chips 标签、失焦查重、质量四项实时勾选</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><b>审核</b><span>draft/review；发布时 qualityFlags 待补项提示，可强制继续</span></div>
+        <div class="arrow">→</div>
+        <div class="node new"><b>发布</b><span>published + verified 勾选；同题旧版自动 archived</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><b>进池</b><span>核心池（verified ×1.0）/ 长尾池（×0.5）</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><b>可见</b><span>目录/推荐/报表三处都能看到它</span></div>
+      </div>
+      <p class="small"><b>闭环判据：</b>新资料从录入到出现在推荐候选 ≤ 1 次发布点击；类目不再出现同义不同形（词表受控 + 合并工具）；重复 URL 在录入时就被拦（409 + 指向既有条目）；过期版本自动归档不占推荐位。</p>
+    </div>
+  </div>
+
+  <div class="loop">
+    <div class="loop-head"><b>闭环 2 · 推荐闭环</b><span>修 G5 G6 G7 G8 G9 · 落点 P0 + P3</span></div>
+    <div class="loop-body">
+      <div class="flow">
+        <div class="node"><b>会话</b><span>扩展读现场对话，插件转 CRM</span></div>
+        <div class="arrow">→</div>
+        <div class="node new"><b>召回</b><span>可达性过滤 + 截断 warnings + 四路打分（含两池权重）</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><b>复排</b><span>CLI 挑 1-3 份 + 写人话理由（失败自动降级）</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><b>行动</b><span>复制链接 / 看正文 / 已发给客户 / 没帮助</span></div>
+        <div class="arrow">→</div>
+        <div class="node new"><b>回流</b><span>accepted/sent/dismissed → 加权/降权 → 下次排序</span></div>
+      </div>
+      <p class="small"><b>闭环判据：</b>「没帮助」点下去，下次同会话该资料排名可测地下降（dismissedKeys 降权，回测断言）；无链接资料不再进推荐位（可达性过滤，断言候选全部 canReveal 或有 inlineContent）；截断发生时用户看得到 warnings；长会话查询下 Top1 与 Top5 分差 ≥ 0.05（lexical 修复后新增区分度断言）。</p>
+    </div>
+  </div>
+
+  <div class="loop">
+    <div class="loop-head"><b>闭环 3 · 训练沉淀闭环</b><span>修 G13 · 落点 P1 + P2</span></div>
+    <div class="loop-body">
+      <div class="flow">
+        <div class="node"><b>归档</b><span>会话归档 → 档案提炼（风格 + 问答样本）</span></div>
+        <div class="arrow">→</div>
+        <div class="node new"><b>候选池</b><span>导入 = candidate（不进提示词、不启用）</span></div>
+        <div class="arrow">→</div>
+        <div class="node new"><b>人工确认</b><span>批量 20 条 ≈ 2 分钟；确认 → active</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><b>检索</b><span>qa 双门槛；snippet 按相关度取 Top6</span></div>
+        <div class="arrow">→</div>
+        <div class="node new"><b>计数</b><span>自动回复 + 推荐回复双路径 recordHits</span></div>
+        <div class="arrow">→</div>
+        <div class="node new"><b>清理</b><span>0 命中超 90 天 → 建议清理清单</span></div>
+      </div>
+      <p class="small"><b>闭环判据：</b>导入的档案样本不直接进提示词（resolve 断言只取 active）；候选条目在训练页可搜索、可批量确认；snippet 注入条数 ≤6 且按相关度排序（回测断言）；两条回复路径都写 hit_count；死条目在界面置顶可一键清理。</p>
+    </div>
+  </div>
+
+  <div class="loop">
+    <div class="loop-head"><b>闭环 4 · 治理闭环</b><span>修 G10 G11 G12 · 落点 P0 + P1 + P2</span></div>
+    <div class="loop-body">
+      <div class="flow">
+        <div class="node new"><b>埋点齐全</b><span>accepted 有来源；CRM 打开资料也记 revealed</span></div>
+        <div class="arrow">→</div>
+        <div class="node new"><b>报表</b><span>CRM 资源中心报表 Tab（五类事件 + 采纳率）</span></div>
+        <div class="arrow">→</div>
+        <div class="node new"><b>自动处置</b><span>曝光≥20 且 0 采纳 → score ×0.5 降权</span></div>
+        <div class="arrow">→</div>
+        <div class="node new"><b>人工处置</b><span>待补链接清单 / 归档 / 词表合并 / 清理死条目</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><b>指标变化</b><span>下次报表可见（维护动作的效果可度量）</span></div>
+      </div>
+      <p class="small"><b>闭环判据：</b>采纳率一列有真实非零数据（复制链接即 accepted，e2e 走一遍点按钮→报表计数 +1）；CRM 内能查到每份资料的曝光/查看/采纳/发送；降权规则有单测（造 20 exposed + 0 accepted → 分数减半）；治理 Tab 的三个清单都能点进对应维护动作；埋点表每日清理（G14），报表随数据增长变快而不是变慢。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ §10 分期 ============================ -->
+<section id="s10">
+  <h2><span class="no">§10</span>分期实施计划</h2>
+  <p class="lead">P0 不改表结构、当天可验；P1 动双库；P2 做界面；P3 动排序（带开关与回滚）。每项都写了改动文件与验收标准。</p>
+
+  <h3>P0 · 断点修复（不改表结构）<span class="tag t-p0">当天可验</span></h3>
+  <table>
+    <tr><th style="width:36px">#</th><th style="width:260px">事项</th><th>改动文件</th><th style="width:300px">验收标准</th></tr>
+    <tr><td>0-1</td><td>team_id 孤儿数据修复 + 兜底逻辑修（G3）</td><td>mysql-store.ts（repair 函数）、resource-hub.ts:199、server.ts:1715</td><td>迁移日志报告修复 N 条；修复后该资料在文件中心与推荐中均可见；owner 查不到的进孤儿清单而非静默跳过</td></tr>
+    <tr><td>0-2</td><td>可达性过滤（G5）</td><td>server.ts recommend 路由 + resource-hub.ts（抽 <code>reachableGate</code> 纯函数）+ 插件 crm-resources.ts list 传 <code>reachable=1</code></td><td>回测断言：recommend 候选 100% 满足可达性规则；构造一条 legacy 无链接资料 → 不进 recommend 候选、但目录（不带 reachable）仍可见；reveal 对该资料仍返 409 no_link（不是 404）</td></tr>
+    <tr><td>0-3</td><td>截断 warnings（G6）</td><td>resource-hub.ts（返回 truncated 元信息）、server.ts:19868 响应</td><td>造 401 份文件源资料 → recommend 响应 warnings 含「X 份未进入候选」</td></tr>
+    <tr><td>0-4</td><td>accepted 埋点（G10）</td><td>扩展 agent.js revealAndCopy 两分支</td><td>e2e/单测：点「复制链接」→ feedback action=accepted 上报；报表 accepted +1</td></tr>
+    <tr><td>0-5</td><td>access 接口补 revealed 埋点（G11）</td><td>server.ts:13795-13824</td><td>CRM 内打开资料 → resource_retrieval_events 新增一条 revealed；埋点失败不影响 access 返回</td></tr>
+    <tr><td>0-6</td><td>埋点每日清理定时器（G14）</td><td>server.ts（照 reminderRuleSchedulerTimer:26077 模式加 pruneResourceEventsTimer）</td><td>定时器每天触发一次 <code>pruneEvents(90)</code>；单测直接调 pruneEvents 验证窗口过滤；日志记录删除条数；计时器可随进程启停清理</td></tr>
+  </table>
+
+  <h3>P1 · 三闸主体（双库迁移）<span class="tag t-p1">需 migrate:dev → personal → parity</span></h3>
+  <table>
+    <tr><th style="width:36px">#</th><th style="width:260px">事项</th><th>改动文件</th><th style="width:300px">验收标准</th></tr>
+    <tr><td>1-1</td><td>词表 + 入库受控 + 查重（G1 G2）</td><td>mysql-store.ts ensureKnowledgeGovernanceSchema、schema.mysql.sql、server.ts 资产路由、prototype-api.ts 弹窗</td><td>类目不在词表 → 400 带建议；同 URL 重复 → 409 带 duplicateOf；迁移后现有 distinct 类目/标签全部种子进词表（断言种子数 = 原 distinct 数）</td></tr>
+    <tr><td>1-2</td><td>archived + 版本线性化 + verified + 两池权重（G4）</td><td>types.ts、server.ts publish/PATCH/batch、resource-hub.ts 权重</td><td>发布同题第二版 → 旧版自动 archived；verified=1 的资料在同分下排在未校订前（单测构造同分对比）</td></tr>
+    <tr><td>1-3</td><td>dismissed 降权 + 查看史文案修正（G8）</td><td>resource-hub.ts customerResourceKeys 拆 dismissed / scoring 加 dismissedKeys</td><td>单测：同会话 dismissed 过的资料结构化分降 0.3；文案改「该客户此前查看过同类资料」</td></tr>
+    <tr><td>1-4</td><td>训练库候选池 + snippet 相关性 + recordHits 补齐（G13）</td><td>插件 mysql-migrate.ts / migrate.ts v16、training-library-service.ts、TrainingPage.tsx、app.ts</td><td>resolve 只取 active；导入产物 status=candidate 且不进提示词（回测）；snippet 注入按相关度排序（构造 8 条 snippet 断言取到最相关的 6 条）；两条回复路径都 bump hit_count</td></tr>
+  </table>
+
+  <h3>P2 · 界面（CRM 前端 + 插件训练页）<span class="tag t-p2">随 P1 之后</span></h3>
+  <table>
+    <tr><th style="width:36px">#</th><th style="width:260px">事项</th><th>改动文件</th><th style="width:300px">验收标准</th></tr>
+    <tr><td>2-1</td><td>文件中心改造（指标卡/词表面板/弹窗质量检查/批量条/详情徽章）</td><td>index.html（#knowledge 区块）、prototype-api.ts renderKnowledge* 系列</td><td>self-test 覆盖词表/查重/batch 纯函数逻辑；截图巡检四主题下新控件符合 input-refine / head-text-refine；所有操作有 toast + loading</td></tr>
+    <tr><td>2-2</td><td>资源中心视图（目录 / 报表 / 治理三 Tab）</td><td>index.html 新 view、prototype-api.ts 新 render 系列、导航入口、mysql/repository 层 60s 缓存摘要</td><td>报表 Tab 数据与 /stats 一致；治理 Tab 三清单可跳转维护动作；空团队不出假数据；eventStats 走缓存（连续两次打开只一次 GROUP BY，单测断言）</td></tr>
+    <tr><td>2-3</td><td>插件训练页候选确认区 + 死条目建议</td><td>TrainingPage.tsx、api.ts</td><td>一次确认 ≤20 条；确认后条目立即可被回复检索到；死条目置顶提示</td></tr>
+  </table>
+
+  <h3>P3 · 排序质量（开关 + 回测）<span class="tag t-p3">风险最高，放最后</span></h3>
+  <table>
+    <tr><th style="width:36px">#</th><th style="width:260px">事项</th><th>改动文件</th><th style="width:300px">验收标准</th></tr>
+    <tr><td>3-1</td><td>词法归一化修复（G7）</td><td>resource-hub.ts scoreHubResources + <code>RESOURCE_LEXICAL_V2</code> 开关</td><td>开关默认关；回测脚本对比新旧两版 Top5 重合度与分差；现有 resource-hub-test 全绿；新断言：20 词长查询下 Top1-Top5 分差 ≥ 0.05；确认后默认开</td></tr>
+    <tr><td>3-2</td><td>反馈回流加权/降权（G12）</td><td>resource-hub.ts scoring 加 feedback 选项（消费 P2-2 已落地的 60s 缓存摘要，不写第二份）</td><td>单测：revealed≥20 且 accepted=0 → score ×0.5；accepted≥5 且 revealed≥5 → ×1.15 封顶；仓库读失败时检索照常（旁路）</td></tr>
+    <tr><td>3-3</td><td>向量通道决策（G9）</td><td>server.ts recommend 向量分支</td><td>二选一，先决策再动手：① 关闭假通道（useVector 缺省 false + 文档标注权重 0.12 暂不生效）；② 实现 backfill（需先确认 embedding 凭据通道）。<b>在凭据未落实前按 ① 执行</b>，不留「看起来能用」的死代码</td></tr>
+  </table>
+</section>
+
+<!-- ============================ §11 测试 ============================ -->
+<section id="s11">
+  <h2><span class="no">§11</span>测试方案</h2>
+  <p class="lead">先红后绿：每个验收标准都落到具体测试文件与断言。已有测试全绿是前置条件，不是可选项。</p>
+  <table>
+    <tr><th style="width:300px">测试文件</th><th>新增 / 调整断言</th></tr>
+    <tr><td><code>backend/src/knowledge-assets-test.ts</code></td><td>词表校验（400 + suggestions）、查重（409 + duplicateOf）、archive、版本线性化、batch 部分失败、verified 权限、access 埋点、孤儿 repair 函数</td></tr>
+    <tr><td><code>backend/src/resource-hub-test.ts</code></td><td>可达性过滤、截断 meta、dismissed 降权、两池同分排序、feedback 加权/降权（含仓库失败旁路）、lexical 新旧双算对比（开关两侧）、pruneEvents 窗口过滤</td></tr>
+    <tr><td><code>whatsapp-plugin/tests/training-library.test.ts</code></td><td>resolve 只取 active、导入产物为 candidate、snippet 相关度排序、recordHits 两条路径</td></tr>
+    <tr><td><code>whatsapp-plugin/tests/resource-recommend.test.ts</code></td><td>accepted 透传、stats 透传不变</td></tr>
+    <tr><td><code>frontend/src/self-test.ts</code></td><td>词表/chips/查重提示/batch 的纯函数部分；新增 UI 不改既有 174 项</td></tr>
+    <tr><td>扩展 <code>tests/parity.test.mjs</code>、<code>resources.test.mjs</code></td><td>accepted 发送条件（复制成功 / inline 展示）；options 报表卡渲染 dismissed</td></tr>
+    <tr><td>e2e（frontend/tests）</td><td>文件中心：录入→查重警示→发布→批量归档全流程；资源中心：报表 Tab 数字与接口一致</td></tr>
+  </table>
+  <div class="note"><b>回归底线：</b>backend <code>-test.ts</code> 全绿、前端 self-test 174 项不降、插件测试套件全绿、扩展单测（parity 298 / twotier 35）全绿。任一批红，当期事项不回滚上游。</div>
+</section>
+
+<!-- ============================ §12 风险 ============================ -->
+<section id="s12">
+  <h2><span class="no">§12</span>风险与回滚</h2>
+  <table>
+    <tr><th style="width:200px">风险</th><th style="width:340px">应对</th><th>回滚方式</th></tr>
+    <tr><td>词表强制校验把用户挡在门外</td><td>迁移时把现有 distinct 类目/标签种子进词表；新类目走「+ 建议新类目」仍可创建（自动进词表）</td><td>词表校验降级为 warning（配置开关），资料照常存</td></tr>
+    <tr><td>孤儿数据修复改错团队</td><td>repair 前先 SELECT 预览条数与分布；只改 dev 档；owner 查不到的进清单不动</td><td>修复写迁移日志（before/after team_id 可反推）；极端情况从 database-backups 恢复</td></tr>
+    <tr><td>lexical 修复改变排序、影响推荐体感</td><td>开关默认关；回测脚本对比新旧 Top5 重合度；灰度观察一个周期再默认开</td><td>环境变量一键关回旧算法，零发布成本</td></tr>
+    <tr><td>降权规则把新资料摁死</td><td>降权需 revealed≥20 才生效（新资料达不到阈值）；加权封顶 1.15</td><td>阈值走常量，调参即回滚程度</td></tr>
+    <tr><td>训练库候选池让自动回复突然没语料</td><td>存量条目 status 默认 active，只有新导入进 candidate</td><td>迁移默认值即回滚（新列 DEFAULT 'active'）</td></tr>
+    <tr><td>插件迁移 v16 只写了一份</td><td>sqlite（migrate.ts）与 mysql（mysql-migrate.ts）两份都写、都测；test 档用内存/sqlite</td><td>迁移版本号未写入 schema_migrations 即未生效，补齐即可</td></tr>
+    <tr><td>feedback 回流让 recommend 变慢</td><td>eventStats 聚合结果按 team 缓存 60s（MySQL 仓库实现内）；读失败走旁路不影响检索</td><td>缓存键即开关，清缓存/关开关均可</td></tr>
+  </table>
+</section>
+
+<!-- ============================ §13 自审 ============================ -->
+<section id="s13">
+  <h2><span class="no">§13</span>三轮自审记录</h2>
+  <p class="lead">三轮都对着真实代码审，不是措辞润色。每轮记录审了什么、发现什么、改了什么。共修订 20 处。</p>
+
+  <div class="audit">
+    <div class="audit-head"><b>第一轮 · 数据模型与接口一致性</b><span>方法：逐条把方案里的表字段/接口/迁移位置与源码对照</span></div>
+    <div class="audit-body">
+      <div class="finding"><span class="fno">F1-1</span><b>词表原本设计成全局表</b> —— 与「团队隔离」铁律冲突：A 团队的「认证资料」类目不该出现在 B 团队下拉里。<b>修订：</b>词表改团队级（team_id 列 + UNIQUE(team_id,type,normalized)），迁移时以团队为单位种子化。</div>
+      <div class="finding"><span class="fno">F1-2</span><b>孤儿修复原本写「统一改成 owner 的团队」</b> —— owner 被删后查不到团队，这条 UPDATE 会把 team_id 写成 NULL，资料照样不可见，且无人知道。<b>修订：</b>查得到团队的才修；查不到的进「孤儿清单」（治理 Tab 可见、可手改），repair 函数返回两类计数。</div>
+      <div class="finding"><span class="fno">F1-3</span><b>verified 原本默认 true</b> —— 迁移后存量资料全部变成核心池，两池分层当场失效。<b>修订：</b>DEFAULT 0，核心池只认「迁移后人工勾选过」的资料。</div>
+      <div class="finding"><span class="fno">F1-4</span><b>词表强制校验原本对 PATCH 也硬拦</b> —— 老资料一编辑就被 400 挡住，用户以为系统坏了。<b>修订：</b>硬拦只对 POST/PATCH 的新值生效，且提供「建议新类目」出口；存量读取链路完全不受影响。</div>
+      <div class="finding"><span class="fno">F1-5</span><b>「新增 status=archived」原本没查筛选与文案链路</b> —— 实测 <code>knowledgeStatusText</code>（prototype-api.ts:24425-24427）对未知状态会 fallthrough 成「草稿」，archived 资料会显示成草稿；前端状态下拉也没有该选项。<b>修订：</b>补查三处：knowledgeStatusText 加 archived 分支、状态下拉加「已归档」、详情页显示归档信息；collect 的 <code>status==="published"</code> 天然兼容（无需改）。</div>
+      <div class="finding fixed"><span class="fno">F1-6</span><b>迁移位置核实</b> —— 确认 CRM 用 <code>ensureXxxSchema</code> 顺序调用（mysql-store.ts:2229-2245）+ ensureColumn/widenColumn/ensureIndex 可复用；插件迁移版本化且 sqlite/mysql 双份（mysql-migrate.ts v15 为最新，下一版 v16）。方案中的迁移写法与现有基建完全对齐，无需新造机制。</div>
+    </div>
+  </div>
+
+  <div class="audit">
+    <div class="audit-head"><b>第二轮 · 功能闭环完整性</b><span>方法：沿四个闭环各走一遍「触发→动作→记录→生效→可见」，专找断头路</span></div>
+    <div class="audit-body">
+      <div class="finding"><span class="fno">F2-1</span><b>accepted 埋点原本只写了「复制链接成功」</b> —— 「看正文」（inline）分支漏了：知识条目没有外链，用户看完正文也是一种采纳，否则 knowledge 源的采纳率永远是 0。<b>修订：</b>revealAndCopy 的 inline 分支同样发 accepted。</div>
+      <div class="finding"><span class="fno">F2-2</span><b>CRM 内「打开资料」原本没进埋点</b> —— 报表只看扩展侧行为，业务员在 CRM 的查看完全不计入，revealed 口径残缺。<b>修订：</b>access 接口补一条 revealed 埋点（旁路写）。</div>
+      <div class="finding"><span class="fno">F2-3</span><b>训练库候选池原本没定义存量处置</b> —— 若把存量 45 条一并标 candidate，自动回复当晚就没语料可用。<b>修订：</b>迁移 DEFAULT 'active'，只有 importFromProfile 新建的进候选池；候选条目在训练页<b>可搜索</b>（默认筛选 active，切「全部」可见候选），不是看不见的死数据。</div>
+      <div class="finding"><span class="fno">F2-4</span><b>「合并词条」原本只有想法没有接口</b> —— 治理闭环里「维护动作」缺了抓手。<b>修订：</b>补 <code>POST /api/knowledge/vocabulary/merge</code>（批量改资料 + 停用旧词条 + 返回影响数），前端 confirmAction 列后果。</div>
+      <div class="finding"><span class="fno">F2-5</span><b>recordHits 原本只写了「推荐回复路径」一句</b> —— 顺着调用链全查一遍，实际情况更细：CRM auto-chat-service.ts:712 有（自动回复通道）；插件侧 <code>handleInbound</code>（自动回复，auto-chat-service.ts:706-713）有，但 <code>compose()</code>（推荐回复 + 资料，被 <code>/v1/auto-chat/suggest</code> 调用，app.ts:1222）在 :537 <code>loadLibrary</code> 之后<b>没有</b> recordHits——正是用户天天点的面板路径；插件 <code>/v1/resources/search</code>（面板初值目录检索）是纯目录，不该记 exposed。<b>修订：</b>三条路径的记/不记及理由写进 §8.1，compose 的 recordHits 与 loadLibrary 同款 fire-and-forget。</div>
+      <div class="finding"><span class="fno">F2-6</span><b>dismissed 降权原本没防「刷新吞点击」</b> —— 扩展既有教训：自动刷新可能在用户点下去那一刻返回。降权走「同会话 dismissedKeys」而非硬过滤，刷新不清 dismissed（agent.js:676 已有此纪律），两者不冲突。<b>修订：</b>确认降权为软权重，不回列表硬删。</div>
+      <div class="finding fixed"><span class="fno">F2-7</span><b>报表视图权限核实</b> —— /api/agent/resources/stats 是 requireAuth + teamId 口径，CRM 新视图直接复用即可，不需要新权限点；未登录/空团队由前端出引导文案，不出全 0 假数据（沿用 options.js:243 纪律）。</div>
+      <div class="finding"><span class="fno">F2-8</span><b>治理闭环漏了「表本身的生命周期」</b> —— 原本只盯着资料的生命周期，没查埋点表的：<code>pruneEvents</code> 实现了但无调用方（resource-hub.ts:834，全项目零调用），事件表无限增长，P3 的反馈回流还没做就先背一个膨胀的表。<b>修订：</b>新增 G14 与 P0-0-6（每日 prune 定时器，照 reminderRuleSchedulerTimer:26077 先例），把「保留期」从注释变成真跑的东西。</div>
+    </div>
+  </div>
+
+  <div class="audit">
+    <div class="audit-head"><b>第三轮 · 可测性与落地可行性</b><span>方法：把每条验收标准改写成「能跑的命令/能断言的数字」，查与铁律的冲突</span></div>
+    <div class="audit-body">
+      <div class="finding"><span class="fno">F3-1</span><b>lexical 修复原本没有回滚手段</b> —— 它是核心排序变更，直接改行为等于把推荐体感当赌注。<b>修订：</b>加 <code>RESOURCE_LEXICAL_V2</code> 开关，默认关；回测脚本先对比新旧 Top5 重合度与分差；断言「20 词长查询下 Top1-Top5 分差 ≥ 0.05」；观察一个周期再默认开。回滚 = 关环境变量。</div>
+      <div class="finding"><span class="fno">F3-2</span><b>向量 backfill 原本排在 P1</b> —— 一查发现 <code>saveEmbeddings</code> 全项目无调用方，且 embedding 调用需要 AI 网关凭据，落实前无法验收。<b>修订：</b>降级为 P3 决策项：先关闭假通道（useVector 缺省 false + 注释标注 0.12 权重暂不生效），凭据通道落实后再评估 backfill。<b>不留「看起来能用」的死代码。</b></div>
+      <div class="finding"><span class="fno">F3-3</span><b>验收标准原本有「效果更好」类不可测表述</b> —— 全部改写为数字断言（分差 ≥0.05、降权 ×0.5、候选 100% 可达、种子数 = distinct 数、20 条批量确认等），并落到具体测试文件（§11）。</div>
+      <div class="finding"><span class="fno">F3-4</span><b>前端改造原本没查规范冲突</b> —— 新视图若自建字号/圆角，会重演「78 条规则各写各的」。<b>修订：</b>明确新统计块选择器补进 head-text-refine 分组、新控件补进 input-refine 分组，样式块都在 body 末尾；截图取景用 CDP 读 closest('.view').id 判类。</div>
+      <div class="finding"><span class="fno">F3-5</span><b>双库顺序与铁律对齐核实</b> —— 每个 P1 事项都标注「改码 → db:migrate:dev → db:migrate:personal → goodjob-db-parity.sh」；禁用 app:personal、禁连 goodjob_crm*/goodjob_web；测试档用内存/sqlite（CRM_STORE=memory 与 -test.ts 已有先例）。</div>
+      <div class="finding fixed"><span class="fno">F3-6</span><b>「P0 不改表」承诺核实</b> —— 逐项核对：0-1 是数据修复（repair 函数，不动结构）、0-2/0-3 纯计算、0-4/0-5 是埋点、0-6 是定时器。确认 P0 六项均不触发迁移，当天可验的说法成立。</div>
+      <div class="finding"><span class="fno">F3-7</span><b>「资源中心视图」原被写成「改造」，实际是从零新建</b> —— grep 证实 CRM 前端对 <code>/api/agent/resources</code> <b>零消费</b>（prototype-api.ts 无任何调用），目录/报表/治理三个 Tab 全是新代码；另核实插件 <code>ResourceHubClient.list()</code>（crm-resources.ts:169-188）现传 5 个参数，CRM 侧加可选 <code>reachable</code> 向后兼容、插件搜索路径显式传 1。<b>修订：</b>P2-2 按「新建视图」排期，并在 §7.2 注明这是 CRM 内首次消费 reveal 出口（权限口径与扩展一致，团队隔离天然成立）。</div>
+      <div class="finding"><span class="fno">F3-8</span><b>eventStats 缓存原排在 P3，但 P2 的治理看数先消费它</b> —— 治理 Tab 每次打开是全表 GROUP BY，P3 才加缓存等于中间好几个版本都在裸跑。<b>修订：</b>缓存摘要（repository 层、team 维度、60s）提前到 P2-2 与治理端点一起落地，P3-2 的反馈回流直接复用同一缓存，不写第二份。</div>
+    </div>
+  </div>
+
+  <h3>13.4 三轮修订汇总（v1 → v3）</h3>
+  <table>
+    <tr><th style="width:60px">轮次</th><th style="width:90px">修订数</th><th>最关键的一条</th></tr>
+    <tr><td>第一轮</td><td>6 处</td><td>词表改团队级 + 孤儿「查不到owner进清单」+ verified 默认 0（F1-1/2/3）</td></tr>
+    <tr><td>第二轮</td><td>8 处</td><td>训练库存量条目默认 active，只有新导入进候选池——否则自动回复当晚没语料（F2-3）；埋点表无清理机制（F2-8）</td></tr>
+    <tr><td>第三轮</td><td>6 处</td><td>lexical 修复加开关默认关 + 向量降级为「先关假通道」（F3-1/2）；缓存提前到 P2（F3-8）</td></tr>
+  </table>
+
+  <div class="note"><b>自审未覆盖、需用户裁决的三件事：</b>① 「已校订（verified）」由谁勾选——建议发布人自勾 + 管理端可改，你是否认可；② 资源中心新视图放导航「资料维护」同级，还是收进资料维护页内的 Tab；③ 词表是否要做成后台可配置（即本方案的词表管理弹窗）——这会多一个小管理界面，但是治理闭环的抓手，建议做。</div>
+</section>
+
+</div></div>
+</body>
+</html>

@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>06 · 数据仪表</title>
+<link rel="stylesheet" href="base.css">
+<style>
+  :root { --paper:#f4f5f3; --line:#e3e7e2; }
+  body { background:var(--paper); }
+  .stage { padding:24px 30px 44px; }
+  .dash { max-width:1390px; }
+
+  .head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:16px; }
+  .head h1 { margin:0; font-size:18px; font-weight:700; color:var(--ink); }
+  .head h1 small { margin-left:8px; font-family:var(--mono); font-size:9px; font-weight:400; letter-spacing:.12em; color:var(--faint); }
+  .head p { margin:5px 0 0; font-size:11px; color:var(--muted); }
+  .head .right { display:flex; align-items:center; gap:8px; }
+  .seg { display:flex; padding:2px; border:1px solid var(--line); border-radius:6px; background:#fff; }
+  .seg button { height:21px; padding:0 10px; border:0; border-radius:4px; background:transparent; font-size:10px; color:var(--muted); cursor:pointer; }
+  .seg button.on { background:var(--ink); color:#fff; }
+
+  .kpis { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:12px; }
+  .k { padding:12px 13px 10px; border:1px solid var(--line); border-radius:9px; background:#fff; }
+  .k span { display:block; font-size:9.5px; color:var(--muted); }
+  .k b { display:block; margin-top:5px; font-size:22px; font-weight:700; line-height:1; letter-spacing:-.02em; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .k b small { font-size:12px; font-weight:500; color:var(--muted); }
+  .k .row { display:flex; align-items:center; gap:5px; margin-top:7px; font-size:9px; color:var(--muted); }
+  .k .dl { font-weight:600; }
+  .k .dl.up { color:var(--brand); } .k .dl.dn { color:var(--green); }
+  .k svg { display:block; width:100%; height:20px; margin-top:6px; }
+
+  .grid { display:grid; grid-template-columns:minmax(0,2.05fr) minmax(0,1fr); gap:12px; }
+  .card { border:1px solid var(--line); border-radius:10px; background:#fff; }
+  .card-h { display:flex; align-items:center; gap:8px; padding:12px 15px 0; }
+  .card-h h2 { margin:0; font-size:10.5px; font-weight:700; letter-spacing:.06em; color:var(--ink); }
+  .card-h .lg { margin-left:auto; display:flex; gap:12px; font-size:9px; color:var(--muted); }
+  .card-h .lg i { display:inline-block; width:7px; height:2px; margin-right:4px; vertical-align:middle; background:var(--brand); }
+
+  .bigchart { display:flex; flex-direction:column; padding-bottom:8px; }
+  .bigchart .val { display:flex; align-items:baseline; gap:9px; padding:10px 15px 0; }
+  .bigchart .val b { font-size:27px; font-weight:700; letter-spacing:-.02em; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .bigchart .val span { font-size:9.5px; color:var(--muted); }
+  .bigchart .val em { font-style:normal; padding:1px 5px; border-radius:4px; background:var(--brand-tint); color:var(--brand-deep); font-size:9px; font-weight:600; }
+  .bigchart svg { display:block; width:100%; flex:1; min-height:186px; }
+  .axis { display:flex; justify-content:space-between; padding:2px 15px 6px; font-family:var(--mono); font-size:8.5px; color:var(--faint); }
+
+  .side { display:grid; gap:12px; }
+  .goalcard { padding:14px 15px; }
+  .goalcard h2 { margin:0; font-size:10.5px; font-weight:700; letter-spacing:.06em; color:var(--ink); }
+  .donuts { display:flex; justify-content:space-between; margin-top:14px; }
+  .dn { position:relative; width:86px; text-align:center; }
+  .dn .c { position:relative; width:86px; height:86px; border-radius:50%; background:conic-gradient(var(--brand) 0 var(--p), #eceee9 var(--p) 100%); display:grid; place-items:center; }
+  .dn .c::before { content:""; position:absolute; width:66px; height:66px; border-radius:50%; background:#fff; }
+  .dn .c b { position:relative; font-size:15px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .dn span { display:block; margin-top:6px; font-size:9px; color:var(--muted); }
+  .dn span b { display:block; font-size:9.5px; color:var(--ink); }
+  .goalnote { margin-top:12px; padding-top:10px; border-top:1px solid var(--line-soft); font-size:9.5px; line-height:1.6; color:var(--muted); }
+  .goalnote b { color:var(--brand); }
+
+  .stage-time { padding:0 0 12px; }
+  .st-row { display:grid; grid-template-columns:66px 1fr 36px; gap:9px; align-items:center; padding:7px 15px; }
+  .st-row .n { font-size:9.5px; color:var(--text); }
+  .st-row .t { height:5px; border-radius:100px; background:#f0f2ee; overflow:hidden; }
+  .st-row .t i { display:block; height:100%; border-radius:100px; background:#c6d4cc; }
+  .st-row:first-of-type .t i { background:var(--brand); }
+  .st-row .v { text-align:right; font-family:var(--mono); font-size:8.5px; color:var(--muted); }
+
+  .bottom { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,.95fr); gap:12px; margin-top:12px; }
+  .chan { padding-bottom:12px; }
+  .chan-row { padding:8px 15px 0; }
+  .chan-top { display:flex; justify-content:space-between; font-size:9.5px; color:var(--text); }
+  .chan-top b { font-variant-numeric:tabular-nums; color:var(--ink); }
+  .chan-bar { display:flex; height:8px; margin-top:4px; border-radius:2px; overflow:hidden; background:#f1f3ef; }
+  .chan-bar i { display:block; height:100%; }
+
+  table.tt { width:100%; border-collapse:collapse; margin-top:8px; }
+  table.tt th { padding:5px 15px; text-align:left; font-family:var(--mono); font-size:8px; font-weight:500; letter-spacing:.1em; color:var(--faint); border-bottom:1px solid var(--line-soft); }
+  table.tt td { padding:7px 15px; border-bottom:1px solid var(--line-soft); font-size:10px; color:var(--text); }
+  table.tt tr:last-child td { border-bottom:0; }
+  table.tt td.r { text-align:right; font-variant-numeric:tabular-nums; color:var(--ink); font-weight:600; }
+  .pill { display:inline-block; padding:1px 5px; border-radius:3px; background:var(--green-tint); color:var(--green); font-size:8.5px; font-weight:600; }
+
+  .rate-mini { padding-bottom:10px; }
+  .rm { display:flex; align-items:baseline; justify-content:space-between; padding:7px 15px; border-bottom:1px solid var(--line-soft); font-size:10px; }
+  .rm:last-child { border-bottom:0; }
+  .rm span { font-family:var(--mono); font-size:9px; color:var(--muted); }
+  .rm b { font-variant-numeric:tabular-nums; color:var(--ink); }
+  .rm em { font-style:normal; font-family:var(--mono); font-size:8px; width:44px; text-align:right; }
+
+  @media (max-width:1180px) { .kpis { grid-template-columns:repeat(2,1fr); } .grid, .bottom { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" id="rail"></aside>
+  <main class="stage">
+    <div class="wrap dash">
+      <header class="head">
+        <div>
+          <h1>经营数据<small>PERFORMANCE / OCT 2026</small></h1>
+          <p>数据更新于 01:06 · 统计口径：本人业务 + 团队公海</p>
+        </div>
+        <div class="right">
+          <div class="seg"><button>近 7 天</button><button class="on">近 30 天</button><button>本季</button></div>
+          <button class="chip" style="cursor:pointer">导出 CSV</button>
+        </div>
+      </header>
+
+      <div class="kpis">
+        <div class="k">
+          <span>成交金额</span><b>$412<small>k</small></b>
+          <div class="row"><span class="dl up">▲ 12.4%</span><span>环比上月</span></div>
+          <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,16 L12,14 L24,15 L36,11 L48,12 L60,8 L72,9 L84,5 L100,3" fill="none" stroke="#be123c" stroke-width="1.2"/></svg>
+        </div>
+        <div class="k">
+          <span>加权管道</span><b>$1.24<small>M</small></b>
+          <div class="row"><span class="dl up">▲ 6.1%</span><span>12 单在跟</span></div>
+          <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,15 L12,16 L24,12 L36,13 L48,9 L60,11 L72,7 L84,8 L100,4" fill="none" stroke="#9fb0a6" stroke-width="1.2"/></svg>
+        </div>
+        <div class="k">
+          <span>赢单率</span><b>31<small>%</small></b>
+          <div class="row"><span class="dl dn">▼ 2.0pt</span><span>报价→成交</span></div>
+          <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,6 L12,8 L24,7 L36,10 L48,9 L60,12 L72,11 L84,13 L100,14" fill="none" stroke="#9fb0a6" stroke-width="1.2"/></svg>
+        </div>
+        <div class="k">
+          <span>平均客单</span><b>$34.3<small>k</small></b>
+          <div class="row"><span class="dl up">▲ 3.2%</span><span>12 单成交</span></div>
+          <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,14 L12,13 L24,14 L36,10 L48,11 L60,7 L72,8 L84,6 L100,5" fill="none" stroke="#be123c" stroke-width="1.2"/></svg>
+        </div>
+        <div class="k">
+          <span>平均周期</span><b>37<small> 天</small></b>
+          <div class="row"><span class="dl dn">▼ 4 天</span><span>较上季</span></div>
+          <svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,5 L12,7 L24,8 L36,7 L48,10 L60,9 L72,12 L84,11 L100,13" fill="none" stroke="#9fb0a6" stroke-width="1.2"/></svg>
+        </div>
+      </div>
+
+      <div class="grid">
+        <section class="card bigchart">
+          <div class="card-h">
+            <h2>累计成交金额</h2>
+            <div class="lg"><span><i></i>本月</span><span><i style="background:#c9d6cf"></i>上月</span><span><i style="background:#d9e0b8"></i>目标线</span></div>
+          </div>
+          <div class="val"><b>$412,000</b><span>目标 $600,000</span><em>69%</em></div>
+          <svg viewBox="0 0 700 186" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#be123c" stop-opacity=".16"/><stop offset="1" stop-color="#be123c" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <g stroke="#eef1ed" stroke-width="1">
+              <line x1="0" y1="40" x2="700" y2="40"/><line x1="0" y1="80" x2="700" y2="80"/><line x1="0" y1="120" x2="700" y2="120"/><line x1="0" y1="160" x2="700" y2="160"/>
+            </g>
+            <path d="M0,186 L0,168 L54,158 L108,150 L162,138 L216,132 L270,116 L324,108 L378,96 L432,88 L486,70 L540,62 L594,48 L648,40 L700,32 L700,186 Z" fill="url(#area)"/>
+            <path d="M0,176 L54,170 L108,166 L162,160 L216,156 L270,150 L324,146 L378,142 L432,138 L486,132 L540,128 L594,124 L648,120 L700,116" fill="none" stroke="#c9d6cf" stroke-width="1.4" stroke-dasharray="3 3"/>
+            <line x1="0" y1="26" x2="700" y2="26" stroke="#b9c39a" stroke-width="1" stroke-dasharray="4 3"/>
+            <path d="M0,168 L54,158 L108,150 L162,138 L216,132 L270,116 L324,108 L378,96 L432,88 L486,70 L540,62 L594,48 L648,40 L700,32" fill="none" stroke="#be123c" stroke-width="2" stroke-linejoin="round"/>
+            <circle cx="700" cy="32" r="3.4" fill="#be123c"/>
+          </svg>
+          <div class="axis"><span>09-24</span><span>09-30</span><span>10-06</span><span>10-12</span><span>10-18</span><span>10-23</span></div>
+        </section>
+
+        <div class="side">
+          <section class="card goalcard">
+            <h2>目标达成</h2>
+            <div class="donuts">
+              <div class="dn"><div class="c" style="--p:69%"><b>69%</b></div><span>金额<b>$412k / $600k</b></span></div>
+              <div class="dn"><div class="c" style="--p:41%;background:conic-gradient(#0e7490 0 41%,#eceee9 41% 100%)"><b>41%</b></div><span>单量<b>5 / 12 单</b></span></div>
+            </div>
+            <div class="goalnote">时间进度 74%，金额落后 <b>5 个点</b>；需在剩余 8 天再签 <b>$188k</b>。</div>
+          </section>
+
+          <section class="card stage-time">
+            <div class="card-h"><h2>阶段平均停留</h2><span class="lg">天</span></div>
+            <div style="height:8px"></div>
+            <div class="st-row"><span class="n">线索→有效</span><div class="t"><i style="width:36%"></i></div><span class="v">2.1</span></div>
+            <div class="st-row"><span class="n">有效→报价</span><div class="t"><i style="width:58%"></i></div><span class="v">4.8</span></div>
+            <div class="st-row"><span class="n">报价→谈判</span><div class="t"><i style="width:100%"></i></div><span class="v">11.4</span></div>
+            <div class="st-row"><span class="n">谈判→成交</span><div class="t"><i style="width:84%"></i></div><span class="v">9.6</span></div>
+            <div class="st-row"><span class="n">整体周期</span><div class="t"><i style="width:100%;background:#9fb0a6"></i></div><span class="v">37</span></div>
+          </section>
+        </div>
+      </div>
+
+      <div class="bottom">
+        <section class="card chan">
+          <div class="card-h"><h2>线索来源</h2><span class="lg">156 条</span></div>
+          <div class="chan-row"><div class="chan-top"><span>官网表单</span><b>58</b></div><div class="chan-bar"><i style="width:100%;background:#be123c"></i></div></div>
+          <div class="chan-row"><div class="chan-top"><span>海关数据</span><b>41</b></div><div class="chan-bar"><i style="width:71%;background:#c8617d"></i></div></div>
+          <div class="chan-row"><div class="chan-top"><span>展会</span><b>28</b></div><div class="chan-bar"><i style="width:48%;background:#0e7490"></i></div></div>
+          <div class="chan-row"><div class="chan-top"><span>老客转介</span><b>19</b></div><div class="chan-bar"><i style="width:33%;background:#5f9c85"></i></div></div>
+          <div class="chan-row"><div class="chan-top"><span>社媒 / 其他</span><b>10</b></div><div class="chan-bar"><i style="width:17%;background:#b9c4bc"></i></div></div>
+        </section>
+
+        <section class="card">
+          <div class="card-h"><h2>Top 产品线</h2><span class="lg">按金额</span></div>
+          <table class="tt">
+            <thead><tr><th>产品</th><th>成交</th><th style="text-align:right">金额</th><th style="text-align:right">毛利</th></tr></thead>
+            <tbody>
+              <tr><td>计价秤 T 系列</td><td><span class="pill">5 单</span></td><td class="r">$168k</td><td class="r">27.4%</td></tr>
+              <tr><td>精密天平 B 系列</td><td><span class="pill">3 单</span></td><td class="r">$112k</td><td class="r">31.2%</td></tr>
+              <tr><td>台秤 H 系列</td><td><span class="pill">2 单</span></td><td class="r">$86k</td><td class="r">22.8%</td></tr>
+              <tr><td>称重配件</td><td><span class="pill">2 单</span></td><td class="r">$46k</td><td class="r">34.1%</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="card rate-mini">
+          <div class="card-h"><h2>今日汇率</h2><span class="lg">01:06</span></div>
+          <div style="height:6px"></div>
+          <div class="rm"><span>USD/CNY</span><b>6.6743</b><em style="color:var(--green)">-0.18%</em></div>
+          <div class="rm"><span>EUR/CNY</span><b>7.8142</b><em style="color:var(--brand)">+0.06%</em></div>
+          <div class="rm"><span>GBP/CNY</span><b>8.9610</b><em style="color:var(--brand)">+0.11%</em></div>
+          <div class="rm"><span>JPY/CNY</span><b>0.0441</b><em style="color:var(--green)">-0.03%</em></div>
+          <div class="rm"><span>AUD/CNY</span><b>4.4318</b><em style="color:var(--brand)">+0.09%</em></div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="shell.js"></script>
+</body>
+</html>

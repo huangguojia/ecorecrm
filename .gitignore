@@ -1,0 +1,43 @@
+.env
+.env.*.local
+.data/
+backups/
+*.dump
+*.db
+*.sqlite
+*.sql.gz
+node_modules/
+dist/
+test-results/
+playwright-report/
+*.log
+backend/.wwebjs_auth/
+backend/uploads/
+# 文件中心本体字节（默认根目录 storage/，可由 GOODJOB_FILE_ROOT 改到外部磁盘/云盘）
+storage/
+dist-packages/
+
+# Local build/runtime artifacts and packaged binaries
+.build-windows-portable/
+.runtime-cache/
+.cache/
+.vite/
+coverage/
+*.tsbuildinfo
+*.zip
+*.tar.gz
+*.tgz
+
+# Local browser/session state and generated uploads
+.wwebjs_auth/
+.data/
+*.key
+
+# OS metadata and full database exports
+.DS_Store
+*.full.sql
+
+# 数据库备份与本地导出
+database-backups/
+uploads/
+backend/uploads/

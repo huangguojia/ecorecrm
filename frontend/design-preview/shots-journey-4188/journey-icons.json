@@ -1,0 +1,301 @@
+{
+ "base": "http://127.0.0.1:4188/",
+ "opened": {
+  "ok": true,
+  "rowIndex": 0,
+  "rowText": "Focus Automation System"
+ },
+ "hover": {
+  "shadow": "rgb(238, 240, 255) 0px 0px 0px 4px, rgba(16, 33, 31, 0.24) 0px 3px 9px -3px",
+  "transform": "matrix(1.12, 0, 0, 1.12, 0, 0)",
+  "bg": "rgb(180, 83, 9)"
+ },
+ "notes": {
+  "types": [
+   "call",
+   "email",
+   "whatsapp",
+   "wechat",
+   "meeting",
+   "note",
+   "created",
+   "updated",
+   "stage",
+   "follow_up",
+   "quote",
+   "sample",
+   "negotiation",
+   "payment",
+   "document",
+   "won",
+   "lost",
+   "archived"
+  ]
+ },
+ "dump": {
+  "ok": true,
+  "rect": {
+   "x": 1061,
+   "y": 762.171875,
+   "w": 599,
+   "h": 97
+  },
+  "count": 7,
+  "items": [
+   {
+    "label": "创建商机",
+    "date": "08-19",
+    "latest": false,
+    "visible": true,
+    "dotText": "",
+    "hasSvg": true,
+    "dotW": 36,
+    "dotH": 36,
+    "cx": 1089,
+    "cy": 800,
+    "svgW": 17,
+    "svgH": 17,
+    "color": "rgb(14, 116, 144)",
+    "bg": "rgb(255, 255, 255)",
+    "borderColor": "rgb(14, 116, 144)",
+    "borderW": "1px",
+    "fill": "none",
+    "stroke": "rgb(14, 116, 144)",
+    "strokeW": "1.9px",
+    "brandGlyph": false,
+    "svg": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"></circle><path d=\"M12 8.5v7M8.5 12h7\"></path></svg>"
+   },
+   {
+    "label": "阶段变化",
+    "date": "08-19",
+    "latest": false,
+    "visible": true,
+    "dotText": "",
+    "hasSvg": true,
+    "dotW": 36,
+    "dotH": 36,
+    "cx": 1147,
+    "cy": 800,
+    "svgW": 17,
+    "svgH": 17,
+    "color": "rgb(99, 102, 241)",
+    "bg": "rgb(255, 255, 255)",
+    "borderColor": "rgb(99, 102, 241)",
+    "borderW": "1px",
+    "fill": "none",
+    "stroke": "rgb(99, 102, 241)",
+    "strokeW": "1.9px",
+    "brandGlyph": false,
+    "svg": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M5 3v18\"></path><path d=\"M5 4h13l-2.5 4L18 12H5\"></path></svg>"
+   },
+   {
+    "label": "报价记录",
+    "date": "08-19",
+    "latest": false,
+    "visible": true,
+    "dotText": "",
+    "hasSvg": true,
+    "dotW": 36,
+    "dotH": 36,
+    "cx": 1205,
+    "cy": 800,
+    "svgW": 17,
+    "svgH": 17,
+    "color": "rgb(180, 83, 9)",
+    "bg": "rgb(255, 255, 255)",
+    "borderColor": "rgb(180, 83, 9)",
+    "borderW": "1px",
+    "fill": "none",
+    "stroke": "rgb(180, 83, 9)",
+    "strokeW": "1.9px",
+    "brandGlyph": false,
+    "svg": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 3h8l10 10-8 8L3 11z\"></path><circle cx=\"7.5\" cy=\"7.5\" r=\"1.5\"></circle></svg>"
+   },
+   {
+    "label": "单据记录",
+    "date": "08-19",
+    "latest": false,
+    "visible": true,
+    "dotText": "",
+    "hasSvg": true,
+    "dotW": 36,
+    "dotH": 36,
+    "cx": 1263,
+    "cy": 800,
+    "svgW": 17,
+    "svgH": 17,
+    "color": "rgb(180, 83, 9)",
+    "bg": "rgb(255, 255, 255)",
+    "borderColor": "rgb(180, 83, 9)",
+    "borderW": "1px",
+    "fill": "none",
+    "stroke": "rgb(180, 83, 9)",
+    "strokeW": "1.9px",
+    "brandGlyph": false,
+    "svg": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8z\"></path><path d=\"M14 3v5h5\"></path><path d=\"M9 13.5h6M9 17h4\"></path></svg>"
+   },
+   {
+    "label": "报价记录",
+    "date": "08-25",
+    "latest": false,
+    "visible": true,
+    "dotText": "",
+    "hasSvg": true,
+    "dotW": 36,
+    "dotH": 36,
+    "cx": 1321,
+    "cy": 800,
+    "svgW": 17,
+    "svgH": 17,
+    "color": "rgb(180, 83, 9)",
+    "bg": "rgb(255, 255, 255)",
+    "borderColor": "rgb(180, 83, 9)",
+    "borderW": "1px",
+    "fill": "none",
+    "stroke": "rgb(180, 83, 9)",
+    "strokeW": "1.9px",
+    "brandGlyph": false,
+    "svg": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 3h8l10 10-8 8L3 11z\"></path><circle cx=\"7.5\" cy=\"7.5\" r=\"1.5\"></circle></svg>"
+   },
+   {
+    "label": "报价记录",
+    "date": "10-12",
+    "latest": false,
+    "visible": true,
+    "dotText": "",
+    "hasSvg": true,
+    "dotW": 36,
+    "dotH": 36,
+    "cx": 1379,
+    "cy": 800,
+    "svgW": 17,
+    "svgH": 17,
+    "color": "rgb(180, 83, 9)",
+    "bg": "rgb(255, 255, 255)",
+    "borderColor": "rgb(180, 83, 9)",
+    "borderW": "1px",
+    "fill": "none",
+    "stroke": "rgb(180, 83, 9)",
+    "strokeW": "1.9px",
+    "brandGlyph": false,
+    "svg": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 3h8l10 10-8 8L3 11z\"></path><circle cx=\"7.5\" cy=\"7.5\" r=\"1.5\"></circle></svg>"
+   },
+   {
+    "label": "单据记录",
+    "date": "10-12",
+    "latest": true,
+    "visible": true,
+    "dotText": "",
+    "hasSvg": true,
+    "dotW": 36,
+    "dotH": 36,
+    "cx": 1437,
+    "cy": 800,
+    "svgW": 17,
+    "svgH": 17,
+    "color": "rgb(255, 255, 255)",
+    "bg": "rgb(180, 83, 9)",
+    "borderColor": "rgb(180, 83, 9)",
+    "borderW": "1px",
+    "fill": "none",
+    "stroke": "rgb(255, 255, 255)",
+    "strokeW": "1.9px",
+    "brandGlyph": false,
+    "svg": "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8z\"></path><path d=\"M14 3v5h5\"></path><path d=\"M9 13.5h6M9 17h4\"></path></svg>"
+   }
+  ],
+  "raw": 3830
+ },
+ "checks": [
+  {
+   "name": "有节点渲染",
+   "pass": true,
+   "detail": "7"
+  },
+  {
+   "name": "无 emoji 文本残留",
+   "pass": true,
+   "detail": "[\"\"]"
+  },
+  {
+   "name": "每个圆点内都有 svg",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "name": "描边图标 fill=none",
+   "pass": true,
+   "detail": "[\"none\"]"
+  },
+  {
+   "name": "描边颜色 = 节点色",
+   "pass": true,
+   "detail": "[\"rgb(14, 116, 144)|rgb(14, 116, 144)\",\"rgb(99, 102, 241)|rgb(99, 102, 241)\",\"rgb(180, 83, 9)|rgb(180, 83, 9)\"]"
+  },
+  {
+   "name": "描边粗细 1.9px",
+   "pass": true,
+   "detail": "[\"1.9px\"]"
+  },
+  {
+   "name": "圆点边框 1.5px",
+   "pass": true,
+   "detail": "[\"1px\"]"
+  },
+  {
+   "name": "圆点尺寸 36px",
+   "pass": true,
+   "detail": "36x36"
+  },
+  {
+   "name": "图标尺寸 17px",
+   "pass": true,
+   "detail": "[\"17x17\"]"
+  },
+  {
+   "name": "最新节点恰好 1 个",
+   "pass": true,
+   "detail": "1"
+  },
+  {
+   "name": "最新节点实心",
+   "pass": true,
+   "detail": "rgb(180, 83, 9)"
+  },
+  {
+   "name": "其余节点白底",
+   "pass": true,
+   "detail": "[\"rgb(255, 255, 255)\"]"
+  },
+  {
+   "name": "节点已入场(visible)",
+   "pass": true,
+   "detail": "0 个未 visible"
+  },
+  {
+   "name": "最新节点 hover 有光环",
+   "pass": true,
+   "detail": "rgb(238, 240, 255) 0px 0px 0px 4px, rgba(16, 33, 31, 0.24) 0px 3px 9px -3px"
+  },
+  {
+   "name": "最新节点 hover 放大",
+   "pass": true,
+   "detail": "matrix(1.12, 0, 0, 1.12, 0, 0)"
+  },
+  {
+   "name": "同一 label 图标一致",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "name": "不同 label 图标不重复",
+   "pass": true,
+   "detail": "4/4（label：创建商机 / 阶段变化 / 报价记录 / 单据记录）"
+  },
+  {
+   "name": "板覆盖 18 种类型且无缺失",
+   "pass": true,
+   "detail": "18 种"
+  }
+ ]
+}

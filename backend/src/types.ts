@@ -1,0 +1,4999 @@
+import type { AgentGoalSpec } from "./agent-goal.js";
+
+export type Role = "sales" | "manager" | "admin" | "super_admin";
+
+export type AgentRisk = "read" | "draft" | "write" | "external";
+export type AgentStepStatus = "ready" | "needs_confirmation" | "queued" | "running" | "done" | "failed" | "skipped";
+export type AgentRunStatus = "planning" | "awaiting_confirmation" | "running" | "paused" | "waiting_user" | "completed" | "failed" | "cancelled";
+export type AgentEventType = "plan" | "step" | "approval" | "result" | "error" | "assistant";
+
+export interface AgentRunRecord {
+  id: string;
+  conversationId: string;
+  ownerId: string;
+  teamId: string;
+  goal: string;
+  goalSpec?: AgentGoalSpec;
+  summary: string;
+  status: AgentRunStatus;
+  iteration: number;
+  maxIterations: number;
+  progress: number;
+  currentAction: string;
+  stopReason: string;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+}
+
+export interface AgentRunStepRecord {
+  id: string;
+  key: string;
+  dependsOn: string[];
+  runId: string;
+  ownerId: string;
+  teamId: string;
+  tool: string;
+  risk: AgentRisk;
+  status: AgentStepStatus;
+  title: string;
+  input: Record<string, unknown>;
+  result?: Record<string, unknown>;
+  error?: string;
+  signature: string;
+  approvedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgentRunEventRecord {
+  id: string;
+  runId: string;
+  ownerId: string;
+  teamId: string;
+  type: AgentEventType;
+  message: string;
+  createdAt: string;
+}
+
+export interface AgentMissionCheckpointRecord {
+  id: string;
+  runId: string;
+  ownerId: string;
+  teamId: string;
+  iteration: number;
+  status: AgentRunStatus;
+  reason: string;
+  stateHash: string;
+  snapshot: {
+    run: AgentRunRecord;
+    steps: AgentRunStepRecord[];
+    events: AgentRunEventRecord[];
+  };
+  createdAt: string;
+}
+
+export type AgentMemoryType = "user_preference" | "company_knowledge" | "customer_memory" | "team_playbook";
+export type AgentMemoryStatus = "proposed" | "active" | "archived";
+export type AgentMemoryScope = "personal" | "team" | "customer" | "company";
+
+export interface AgentMemoryRecord {
+  id: string;
+  ownerId: string;
+  teamId: string;
+  type: AgentMemoryType;
+  scope: AgentMemoryScope;
+  subjectId: string;
+  title: string;
+  content: string;
+  sourceType: "crm" | "manual" | "agent" | "playbook";
+  sourceId: string;
+  status: AgentMemoryStatus;
+  confidence: number;
+  expiresAt: string;
+  lastUsedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AgentKnowledgeKind = "system" | "module" | "workflow" | "policy" | "field" | "playbook" | "failure_case";
+export type AgentKnowledgeScope = "system" | "team" | "company";
+export type AgentKnowledgeStatus = "draft" | "review" | "published" | "archived";
+export type AgentKnowledgeSourceType = "system_file" | "manual" | "agent_feedback" | "distillation";
+export type AgentKnowledgeTrustLevel = "system" | "reviewed" | "candidate";
+
+export interface AgentKnowledgeDocument {
+  id: string;
+  ownerId: string;
+  teamId: string;
+  kind: AgentKnowledgeKind;
+  scope: AgentKnowledgeScope;
+  module: string;
+  title: string;
+  summary: string;
+  content: string;
+  keywords: string[];
+  roles: Role[];
+  permissionCodes: string[];
+  toolRefs: string[];
+  successCriteria: string[];
+  failureCases: string[];
+  sourceType: AgentKnowledgeSourceType;
+  sourceId: string;
+  status: AgentKnowledgeStatus;
+  trustLevel: AgentKnowledgeTrustLevel;
+  version: string;
+  revision: number;
+  checksum: string;
+  publishedBy: string;
+  publishedAt: string;
+  usageCount: number;
+  lastUsedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AgentTriggerEventType = "lead_overdue" | "customer_reply" | "stalled_deal" | "next_action_due" | "health_decline" | "communication_unread" | "prospect_completed";
+export type AgentTriggerMode = "notify" | "internal" | "approval";
+export type AgentTriggerRuleStatus = "active" | "paused";
+
+export interface AgentTriggerRuleRecord {
+  id: string;
+  ownerId: string;
+  teamId: string;
+  name: string;
+  eventType: AgentTriggerEventType;
+  mode: AgentTriggerMode;
+  status: AgentTriggerRuleStatus;
+  intervalMinutes: number;
+  thresholdDays: number;
+  healthBelow: number;
+  maxPerScan: number;
+  lastScanAt: string;
+  lastTriggeredAt: string;
+  nextScanAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgentTriggerEventRecord {
+  id: string;
+  ruleId: string;
+  ownerId: string;
+  teamId: string;
+  factKey: string;
+  entityType: "lead" | "customer" | "deal" | "communication" | "prospect_run";
+  entityId: string;
+  title: string;
+  message: string;
+  missionRunId: string;
+  status: "mission_created" | "skipped" | "failed";
+  createdAt: string;
+}
+
+export type AgentModelCallPurpose = "planning" | "evaluation";
+export interface AgentModelCallRecord {
+  id: string;
+  runId: string;
+  ownerId: string;
+  teamId: string;
+  purpose: AgentModelCallPurpose;
+  configId: string;
+  provider: string;
+  model: string;
+  routeIndex: number;
+  success: boolean;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: number;
+  latencyMs: number;
+  error: string;
+  createdAt: string;
+}
+
+export interface AgentEvaluationRunRecord {
+  id: string;
+  ownerId: string;
+  teamId: string;
+  version: string;
+  passed: number;
+  total: number;
+  results: Array<{ id: string; name: string; passed: boolean; detail: string }>;
+  createdAt: string;
+}
+
+export type OutreachSequenceChannel = "email" | "communication";
+export type OutreachSequenceStatus = "active" | "paused" | "completed" | "stopped" | "cancelled" | "failed";
+
+export interface OutreachSequenceStepSnapshot {
+  index: number;
+  delayHours: number;
+  subject: string;
+  body: string;
+  status: "pending" | "sending" | "sent" | "skipped" | "failed";
+  scheduledAt: string;
+  sentAt: string;
+  error: string;
+}
+
+export interface OutreachSequence {
+  id: string;
+  missionRunId: string;
+  approvalStepId: string;
+  ownerId: string;
+  teamId: string;
+  entityType: "customer" | "lead";
+  entityId: string;
+  entityName: string;
+  recipient: string;
+  channel: OutreachSequenceChannel;
+  accountId: string;
+  status: OutreachSequenceStatus;
+  currentStep: number;
+  maxSends: number;
+  steps: OutreachSequenceStepSnapshot[];
+  approvedBy: string;
+  approvedAt: string;
+  nextExecutionAt: string;
+  lastSentAt: string;
+  stopReason: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CustomerMaintenanceWatchStatus = "active" | "paused" | "cancelled" | "error";
+
+export interface CustomerMaintenanceRuleSnapshot {
+  intervalHours: number;
+  inactivityDays: number;
+  healthBelow: number;
+  includeOverdueReminder: boolean;
+  includeMissingNextAction: boolean;
+  grades: CustomerGrade[];
+  maxTodosPerRun: number;
+}
+
+export interface CustomerMaintenanceFinding {
+  customerId: string;
+  customerName: string;
+  dealId: string;
+  reasonCodes: string[];
+  reason: string;
+  priority: "high" | "medium" | "normal";
+  triggerKey: string;
+  playbookActivationId?: string;
+  playbookName?: string;
+  playbookAction?: string;
+}
+
+export interface CustomerMaintenanceWatch {
+  id: string;
+  missionRunId: string;
+  approvalStepId: string;
+  ownerId: string;
+  teamId: string;
+  name: string;
+  status: CustomerMaintenanceWatchStatus;
+  rules: CustomerMaintenanceRuleSnapshot;
+  nextRunAt: string;
+  lastRunAt: string;
+  lastMatchedCount: number;
+  lastCreatedCount: number;
+  lastSkippedCount: number;
+  totalCreatedCount: number;
+  lastFindings: CustomerMaintenanceFinding[];
+  lastError: string;
+  approvedBy: string;
+  approvedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SalesDistillationStatus = "draft" | "published";
+
+export interface SalesDistillationMetrics {
+  customerCount: number;
+  leadCount: number;
+  activeDealCount: number;
+  wonDealCount: number;
+  wonAmount: number;
+  followupCount: number;
+  completedTodoCount: number;
+  reportCount: number;
+}
+
+export interface SalesDistillationPlaybookItem {
+  stage: string;
+  action: string;
+  evidence: string;
+  /** W6 · 可选的客户等级定向：缺省视为通配（对所有等级生效），向后兼容旧数据 */
+  targetGrades?: Array<"A" | "B" | "C" | "D">;
+}
+
+export interface SalesDistillation {
+  id: string;
+  sourceUserId: string;
+  sourceUserName: string;
+  teamId: string;
+  periodDays: number;
+  metrics: SalesDistillationMetrics;
+  patterns: string[];
+  playbook: SalesDistillationPlaybookItem[];
+  coachingActions: string[];
+  modelLabel: string;
+  status: SalesDistillationStatus;
+  createdBy: string;
+  createdAt: string;
+  publishedBy?: string;
+  publishedAt?: string;
+  trainingRunId?: string;
+  version?: number;
+  maturity?: SalesTrainingMaturity;
+  evaluationScore?: number;
+  sampleCount?: number;
+}
+
+export type SalesTrainingStatus = "queued" | "collecting" | "cleaning" | "labeling" | "training" | "evaluating" | "awaiting_review" | "published" | "paused" | "failed" | "cancelled";
+export type SalesTrainingMaturity = "observation" | "trial" | "production" | "stable";
+export type SalesTrainingSampleLabel = "positive" | "negative" | "neutral";
+
+export interface SalesTrainingSample {
+  id: string;
+  entityType: "customer" | "lead" | "deal";
+  entityId: string;
+  title: string;
+  market: string;
+  stage: string;
+  outcome: string;
+  label: SalesTrainingSampleLabel;
+  included: boolean;
+  activityCount: number;
+  todoCount: number;
+  evidenceIds: string[];
+  summary: string;
+  managerNote: string;
+}
+
+export interface SalesTrainingRound {
+  id: string;
+  index: number;
+  name: string;
+  status: "pending" | "running" | "completed" | "failed";
+  summary: string;
+  startedAt: string;
+  completedAt: string;
+}
+
+export interface SalesTrainingEvaluation {
+  coverage: number;
+  balance: number;
+  traceability: number;
+  strategy: number;
+  safety: number;
+  overall: number;
+  passed: boolean;
+  blockers: string[];
+}
+
+export interface SalesTrainingEvent {
+  id: string;
+  stage: SalesTrainingStatus;
+  message: string;
+  createdAt: string;
+}
+
+export interface SalesTrainingRun {
+  id: string;
+  sourceUserId: string;
+  sourceUserName: string;
+  teamId: string;
+  createdBy: string;
+  parentRunId: string;
+  version: number;
+  periodDays: number;
+  status: SalesTrainingStatus;
+  resumeStatus: SalesTrainingStatus;
+  progress: number;
+  currentAction: string;
+  maturity: SalesTrainingMaturity;
+  metrics: SalesDistillationMetrics;
+  sampleStats: { source: number; valid: number; rejected: number; positive: number; negative: number; neutral: number; holdout: number };
+  samples: SalesTrainingSample[];
+  rounds: SalesTrainingRound[];
+  events: SalesTrainingEvent[];
+  patterns: string[];
+  playbook: SalesDistillationPlaybookItem[];
+  coachingActions: string[];
+  evaluation: SalesTrainingEvaluation;
+  modelLabel: string;
+  candidateDistillationId: string;
+  error: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string;
+  publishedAt: string;
+}
+
+export interface SalesPlaybookActivation {
+  id: string;
+  distillationId: string;
+  ownerId: string;
+  teamId: string;
+  status: "active" | "paused";
+  applicationCount: number;
+  taskCount: number;
+  lastUsedAt: string;
+  activatedBy: string;
+  activatedAt: string;
+  updatedAt: string;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  role: Role;
+  teamId: string;
+  avatar: string;
+  status: "active" | "disabled";
+  authVersion?: number;
+  /** 账号有效期截止时间（ISO 字符串；空 = 永久有效）。过期后登录与既有会话都会被拒。 */
+  expiresAt?: string;
+  outboundEmail?: string;
+  emailSenderName?: string;
+  emailSignature?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpSecure?: boolean;
+  smtpUser?: string;
+  smtpPassword?: string;
+  hasSmtpPassword?: boolean;
+  imapHost?: string;
+  imapPort?: number;
+  imapSecure?: boolean;
+  imapUser?: string;
+  imapPassword?: string;
+  hasImapPassword?: boolean;
+  mailCredentialMigrationRequired?: boolean;
+  inboundSyncEnabled?: boolean;
+  lastInboundSyncAt?: string;
+  lastInboundSyncStatus?: "ok" | "error" | "";
+  lastInboundSyncError?: string;
+  lastInboundUid?: number;
+  inboundUidValidity?: string;
+  lastDevelopmentEmailAt?: string;
+  lastDevelopmentEmailTo?: string;
+  lastDevelopmentEmailSubject?: string;
+  reportNote?: string;
+  theme?: string;
+}
+
+export interface SessionUser {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  iamPermissions?: Record<string, Array<"self" | "org_unit" | "org_subtree" | "tenant" | "public_pool">>;
+  iamRoleNames?: string[];
+  iamSource?: "iam" | "legacy_compatibility" | "platform";
+  iamDataScope?: {
+    permissionCode: string;
+    tenantWide: boolean;
+    ownerIds: string[];
+  };
+  teamId: string;
+  avatar: string;
+  authVersion: number;
+  outboundEmail?: string;
+  emailSenderName?: string;
+  emailSignature?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpSecure?: boolean;
+  smtpUser?: string;
+  hasSmtpPassword?: boolean;
+  imapHost?: string;
+  imapPort?: number;
+  imapSecure?: boolean;
+  imapUser?: string;
+  hasImapPassword?: boolean;
+  inboundSyncEnabled?: boolean;
+  lastInboundSyncAt?: string;
+  lastInboundSyncStatus?: "ok" | "error" | "";
+  lastInboundSyncError?: string;
+  lastInboundUid?: number;
+  inboundUidValidity?: string;
+  lastDevelopmentEmailAt?: string;
+  lastDevelopmentEmailTo?: string;
+  lastDevelopmentEmailSubject?: string;
+  theme?: string;
+}
+
+export interface CompanyProfile {
+  teamId: string;
+  companyName: string;
+  website: string;
+  productSummary: string;
+  address: string;
+  phone: string;
+  email: string;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export type DocumentAssetPlacementHorizontal = "template" | "left" | "center" | "right";
+export type DocumentAssetPlacementVertical = "template" | "top" | "middle" | "bottom";
+
+export interface DocumentAssetPlacement {
+  horizontal: DocumentAssetPlacementHorizontal;
+  vertical: DocumentAssetPlacementVertical;
+  offsetX: number;
+  offsetY: number;
+  scale: number;
+}
+
+export const defaultDocumentAssetPlacement: DocumentAssetPlacement = {
+  horizontal: "template",
+  vertical: "template",
+  offsetX: 0,
+  offsetY: 0,
+  scale: 100
+};
+
+export function normalizeDocumentAssetPlacement(value: unknown): DocumentAssetPlacement {
+  const parsed = typeof value === "string" ? (() => { try { return JSON.parse(value) as unknown; } catch { return {}; } })() : value;
+  const source = parsed && typeof parsed === "object" ? parsed as Partial<DocumentAssetPlacement> : {};
+  const horizontal = ["template", "left", "center", "right"].includes(String(source.horizontal))
+    ? source.horizontal as DocumentAssetPlacementHorizontal
+    : defaultDocumentAssetPlacement.horizontal;
+  const vertical = ["template", "top", "middle", "bottom"].includes(String(source.vertical))
+    ? source.vertical as DocumentAssetPlacementVertical
+    : defaultDocumentAssetPlacement.vertical;
+  const offsetX = Math.max(-200, Math.min(200, Number.isFinite(Number(source.offsetX)) ? Math.round(Number(source.offsetX)) : 0));
+  const offsetY = Math.max(-200, Math.min(200, Number.isFinite(Number(source.offsetY)) ? Math.round(Number(source.offsetY)) : 0));
+  const scale = Math.max(50, Math.min(150, Number.isFinite(Number(source.scale)) ? Math.round(Number(source.scale)) : 100));
+  return { horizontal, vertical, offsetX, offsetY, scale };
+}
+
+/**
+ * 同一张 Logo 在不同单据模板里的位置与大小各存一套。
+ * 键是「模板风格:单据类型」（如 custom-b:PI / custom-b:PO），
+ * 没有单独调过的模板回落到 logoPlacement（Excel 导出用的通用值）。
+ */
+export type DocumentLogoPlacements = Record<string, DocumentAssetPlacement>;
+
+export const documentLogoPlacementKeyPattern = /^[a-z0-9-]{1,24}:[A-Z]{1,12}$/;
+
+export function normalizeDocumentLogoPlacements(value: unknown): DocumentLogoPlacements {
+  const parsed = typeof value === "string" ? (() => { try { return JSON.parse(value) as unknown; } catch { return {}; } })() : value;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+  const result: DocumentLogoPlacements = {};
+  let count = 0;
+  for (const [key, placement] of Object.entries(parsed as Record<string, unknown>)) {
+    if (count >= 16) break;
+    if (!documentLogoPlacementKeyPattern.test(key)) continue;
+    if (!placement || typeof placement !== "object") continue;
+    result[key] = normalizeDocumentAssetPlacement(placement);
+    count += 1;
+  }
+  return result;
+}
+
+export interface DocumentLetterhead {
+  id: string;
+  teamId: string;
+  name: string;
+  companyName: string;
+  address: string;
+  phone: string;
+  email: string;
+  website: string;
+  bankInfo: string;
+  contact: string;
+  taxNo: string;
+  logoUrl: string;
+  logoPlacement?: DocumentAssetPlacement;
+  logoPlacements?: DocumentLogoPlacements;
+  matchCountries: string[];
+  matchCurrencies: string[];
+  matchDocumentTypes: TradeDocument["type"][];
+  matchPriority: number;
+  stampId: string;
+  signatureId: string;
+  isDefault: boolean;
+  enabled: boolean;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface DocumentStamp {
+  id: string;
+  teamId: string;
+  name: string;
+  imageUrl: string;
+  placement?: DocumentAssetPlacement;
+  isDefault: boolean;
+  enabled: boolean;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface DocumentSignature {
+  id: string;
+  teamId: string;
+  name: string;
+  signerName: string;
+  signerTitle: string;
+  imageUrl: string;
+  isDefault: boolean;
+  enabled: boolean;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface DocumentLetterheadSnapshot {
+  name: string;
+  companyName: string;
+  address: string;
+  phone: string;
+  email: string;
+  website: string;
+  bankInfo: string;
+  contact: string;
+  taxNo: string;
+  logoUrl: string;
+  logoPlacement?: DocumentAssetPlacement;
+  logoPlacements?: DocumentLogoPlacements;
+}
+
+export interface DocumentStampSnapshot {
+  name: string;
+  imageUrl: string;
+  placement?: DocumentAssetPlacement;
+}
+
+export interface DocumentSignatureSnapshot {
+  name: string;
+  signerName: string;
+  signerTitle: string;
+  imageUrl: string;
+}
+
+export interface DocumentDefaultProfile {
+  teamId: string;
+  seller: string;
+  brandMarkText: string;
+  sellerAddress: string;
+  sellerContact: string;
+  sellerPhone: string;
+  sellerEmail: string;
+  sellerWebsite: string;
+  sellerTaxNo: string;
+  bankInfo: string;
+  currency: string;
+  incoterm: string;
+  paymentTerm: string;
+  shippingMethod: string;
+  portLoading: string;
+  validityDays: number;
+  notes: string;
+  language: TradeDocument["language"];
+  templateStyle: TradeDocument["templateStyle"];
+  letterheadId: string;
+  stampId: string;
+  signatureId: string;
+  includeProductImages: boolean;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface TeamSystemSettings {
+  teamId: string;
+  requireDocumentExcelApproval: boolean;
+  productCategories?: string[];
+  ocrProviderConfigEncrypted?: string;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export type CustomerGrade = "A" | "B" | "C" | "D";
+export type CustomerLifecycleStatus = "open" | "won";
+
+export interface Customer {
+  id: string;
+  company: string;
+  country: string;
+  contact: string;
+  whatsapp?: string;
+  wechat?: string;
+  otherNotes?: string;
+  ownerId: string;
+  teamId: string;
+  stage: string;
+  amount: number;
+  health: number;
+  source?: string;
+  grade?: CustomerGrade;
+  lifecycleStatus?: CustomerLifecycleStatus;
+  wonAt?: string;
+  wonByDealId?: string;
+  nextReminder: string;
+  wecomBound: boolean;
+  billingName: string;
+  companyFullName?: string;
+  billingAddress: string;
+  documentContact: string;
+  contactRemark?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  defaultPortDischarge: string;
+  defaultIncoterm: string;
+  defaultPaymentTerm: string;
+  poolStatus?: "owned" | "public";
+  previousOwnerId?: string;
+  releasedBy?: string;
+  releasedAt?: string;
+  releaseReason?: string;
+  claimedAt?: string;
+  ownershipVersion?: number;
+}
+
+export interface CustomerOwnershipEvent {
+  id: string;
+  customerId: string;
+  teamId: string;
+  fromOwnerId: string;
+  toOwnerId: string;
+  action: "released" | "claimed";
+  reason: string;
+  operatorId: string;
+  createdAt: string;
+}
+
+export interface CustomerOwnershipMutationInput {
+  action: "release" | "claim";
+  customerId: string;
+  actorId: string;
+  actorRole: Role;
+  actorTeamId: string;
+  reason?: string;
+  expectedVersion?: number;
+  occurredAt: string;
+  authorization?: {
+    canRelease: boolean;
+    canClaim: boolean;
+  };
+}
+
+export interface CustomerOwnershipMutationResult {
+  customer: Customer;
+  event: CustomerOwnershipEvent;
+  cancelledTodoIds: string[];
+}
+
+export type CustomerActivityType = "call" | "email" | "whatsapp" | "wechat" | "meeting" | "note";
+
+export interface CustomerActivity {
+  id: string;
+  customerId: string;
+  type: CustomerActivityType;
+  content: string;
+  operatorId: string;
+  nextReminder: string;
+  createdAt: string;
+  /**
+   * 最近一次编辑时间。从未编辑过则为 undefined（老数据也是）。
+   *
+   * 为什么要有这两个字段：WhatsApp 自动同步会**自动**写入跟进记录，
+   * 人修正它是常态。没有留痕就分不清「机器写的」和「人改过的」，
+   * 出问题时无法追溯——而自动写入恰恰是最需要能追溯的那一类数据。
+   */
+  updatedAt?: string;
+  /** 最近一次编辑人。注意与 `operatorId`（**记录创建人**）是两回事。 */
+  editedBy?: string;
+}
+
+export interface CustomerAcquisitionSourceEvent {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  customerId: string;
+  leadId: string;
+  leadSourceEventId: string;
+  prospectId: string;
+  organizationId: string;
+  sourceChannel: string;
+  sourceCampaign: string;
+  sourceUrl: string;
+  mode: "create_new" | "link_existing";
+  processingKeyHash: string;
+  requestHash: string;
+  createdAt: string;
+}
+
+export type CustomerIntelligenceStatus =
+  | "pending"
+  | "accepted"
+  | "rejected";
+
+export type CustomerIntelligenceFieldKey =
+  | "company"
+  | "country"
+  | "contact"
+  | "documentContact";
+
+export interface CustomerIntelligenceField {
+  key: CustomerIntelligenceFieldKey;
+  label: string;
+  currentValue: string;
+  suggestedValue: string;
+  evidenceSummary: string;
+}
+
+export interface CustomerIntelligenceSuggestion {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  customerId: string;
+  prospectCandidateId: string;
+  tenantProspectId?: string;
+  organizationId?: string;
+  leadId?: string;
+  sourceEventId?: string;
+  sourceLabel: string;
+  sourceUrl: string;
+  suggestedFields: CustomerIntelligenceField[];
+  website: string;
+  business: string;
+  contactInfo: string;
+  evidenceSummary: string;
+  evidenceRefs: string[];
+  payloadHash: string;
+  status: CustomerIntelligenceStatus;
+  acceptedFields: CustomerIntelligenceFieldKey[];
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewNote?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type LeadStatus = "new" | "following" | "converted" | "invalid";
+export type LeadActivityType = "call" | "wechat" | "whatsapp" | "linkedin" | "email" | "meeting" | "note" | "stage" | "system";
+export type LeadSourceType = "outbound" | "inbound" | "offline" | "referral" | "import";
+
+export interface Lead {
+  id: string;
+  company: string;
+  contact: string;
+  country: string;
+  email: string;
+  phone: string;
+  wechat: string;
+  source: string;
+  intent: string;
+  stage: string;
+  status: LeadStatus;
+  ownerId: string;
+  teamId: string;
+  estimatedAmount: number;
+  nextFollowAt: string;
+  lastActivityAt: string;
+  remark: string;
+  /** Original customer inquiry text, kept separately from internal remarks. */
+  inquiryContent?: string;
+  convertedCustomerId: string;
+  convertedDealId: string;
+  sourceType: LeadSourceType;
+  sourceChannel: string;
+  sourceCampaign: string;
+  externalId: string;
+  sourceUrl: string;
+  createdAt: string;
+  deletedAt?: string;
+  /** 最近一次客户邮件回复时间（IMAP 监听自动写入，用于列表绿色图标与 stopOnReply） */
+  lastEmailReplyAt?: string;
+  deletedReason?: string;
+  deletedBy?: string;
+  purgeAt?: string;
+  statusBeforeDelete?: LeadStatus;
+}
+
+export interface LeadSourceEvent {
+  id: string;
+  leadId: string;
+  sourceType: LeadSourceType;
+  channel: string;
+  campaign: string;
+  externalId: string;
+  sourceUrl: string;
+  occurredAt: string;
+  receivedAt: string;
+  rawPayload: string;
+  ownerId: string;
+  teamId: string;
+}
+
+export interface LeadActivity {
+  id: string;
+  leadId: string;
+  type: LeadActivityType;
+  content: string;
+  operatorId: string;
+  nextFollowAt: string;
+  createdAt: string;
+}
+
+export interface WhatsAppMessage {
+  id: string;
+  customerId: string;
+  direction: "inbound" | "outbound";
+  content: string;
+  contentTranslated: string;
+  mediaUrl: string;
+  status: string;
+  waMessageId: string;
+  createdAt: string;
+}
+
+export interface WhatsAppBinding {
+  id: string;
+  customerId: string;
+  phoneNumber: string;
+  waProfileName: string;
+  lastMessageAt: string;
+  unreadCount: number;
+  createdAt: string;
+  bindingMode?: "web-scan" | "twilio-api" | "manual";  // 绑定模式
+  userId?: string;  // 绑定此账号的用户ID（web-scan 模式用）
+  sessionData?: string;  // WhatsApp Web 会话数据（web-scan 模式用）
+  twilioPhoneNumber?: string;  // Twilio 分配的号码（twilio-api 模式用）
+  connectionStatus?: "connected" | "disconnected" | "qr-pending" | "error";  // 连接状态
+  lastConnectedAt?: string;  // 最后连接时间
+}
+
+export interface Todo {
+  id: string;
+  title: string;
+  type: "customer" | "knowledge" | "exam" | "ocr" | "other";
+  priority: "high" | "medium" | "normal";
+  status?: "pending" | "in_progress";
+  pinState?: "top" | "bottom" | "";
+  sortOrder?: number;
+  dueAt: string;
+  ownerId: string;
+  teamId: string;
+  related: string;
+  done: boolean;
+  impactAmount?: number;
+  createdAt?: string;
+  historyAt?: string;
+  customerId?: string;
+  dealId?: string;
+  reminderRuleId?: string;
+  triggerKey?: string;
+  snoozedFrom?: string;
+  snoozeReason?: string;
+  snoozeCount?: number;
+  snoozedBy?: string;
+  completedAt?: string;
+  completedBy?: string;
+  completionResult?: string;
+  leadId?: string;
+  prospectCandidateId?: string;
+  tenantProspectId?: string;
+  outreachChannel?: ProspectOutreachChannel;
+  touchpointId?: string;
+  cancelledAt?: string;
+  cancellationReason?: string;
+}
+
+export interface PlanTask {
+  id: string;
+  title: string;
+  phase: string;
+  category: string;
+  priority: "high" | "medium" | "normal";
+  status: "planned" | "active" | "done" | "cancelled";
+  dueAt: string;
+  target: string;
+  description: string;
+  customerId?: string;
+  leadId?: string;
+  dealId?: string;
+  completionResult?: string;
+  completedAt?: string;
+  cancellationReason?: string;
+  cancelledAt?: string;
+  rescheduledFrom?: string;
+  rescheduledAt?: string;
+  rescheduleReason?: string;
+  ownerId: string;
+  teamId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlanTemplate {
+  id: string;
+  section: "knowledge" | "persona" | "execution";
+  title: string;
+  summary: string;
+  output: string;
+  badge: string;
+  badgeTone: string;
+  phase: string;
+  category: string;
+  priority: "high" | "medium" | "normal";
+  target: string;
+  description: string;
+  sortOrder: number;
+  ownerId: string;
+  teamId: string;
+  updatedAt: string;
+}
+
+export interface KnowledgeAsset {
+  id: string;
+  title: string;
+  category: string;
+  status: "published" | "draft" | "review" | "archived";
+  ownerId: string;
+  teamId?: string;
+  version: string;
+  sourceType?: "external_url" | "baidu_share" | "legacy";
+  sourceUrl?: string;
+  shareCode?: string;
+  fileType?: "pdf" | "word" | "excel" | "image" | "video" | "archive" | "link" | "other";
+  description?: string;
+  tags?: string[];
+  accessCount?: number;
+  /** 人工校订标记（两池分层：核心池 verified ×1.0 / 长尾池 ×0.5）。默认 false。 */
+  verified?: boolean;
+  /** 归档原因（人工归档 / 批量归档 / 版本线性化覆盖），仅 status=archived 时有意义。 */
+  archivedReason?: string;
+  lastAccessedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SkillResource {
+  id: string;
+  name: string;
+  category: string;
+  version: string;
+  summary: string;
+  usageGuide: string;
+  trainingGuide: string;
+  optimizationAdvice: string;
+  acquisitionInstructions: string;
+  downloadUrl: string;
+  extractionCode: string;
+  tags: string[];
+  author: string;
+  license: string;
+  status: "draft" | "published" | "archived";
+  ownerId: string;
+  teamId: string;
+  accessCount: number;
+  lastAccessedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Exam {
+  id: string;
+  title: string;
+  category: string;
+  status: "published" | "draft" | "scheduled" | "closed";
+  passRate: number;
+  questionCount: number;
+  durationMinutes?: number;
+  passScore?: number;
+  targetRole?: "all" | "sales" | "manager";
+  instructions?: string;
+  startAt?: string;
+  endAt?: string;
+  maxAttempts?: number;
+  allowReview?: boolean;
+  publishedAt?: string;
+  closedAt?: string;
+  ownerId?: string;
+  teamId?: string;
+  updatedAt?: string;
+}
+
+export interface ExamQuestion {
+  id: string;
+  examId?: string;
+  category: string;
+  stem: string;
+  options: string[];
+  answerIndex: number;
+  answerIndexes?: number[];
+  questionType?: "single" | "multiple";
+  tags?: string[];
+  explanation: string;
+  difficulty: "easy" | "medium" | "hard";
+  ownerId?: string;
+  teamId?: string;
+  updatedAt?: string;
+}
+
+export interface ExamQuestionLink {
+  examId: string;
+  questionId: string;
+  sortOrder: number;
+}
+
+export interface ExamAssignment {
+  id: string;
+  examId: string;
+  userId: string;
+  assignedById: string;
+  teamId: string;
+  status: "pending" | "in_progress" | "submitted" | "passed" | "failed";
+  attemptCount: number;
+  bestScore: number;
+  latestAttemptId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExamSnapshot {
+  examId: string;
+  questions: ExamQuestion[];
+  rules: {
+    durationMinutes: number;
+    passScore: number;
+    maxAttempts: number;
+    allowReview: boolean;
+  };
+  createdAt: string;
+}
+
+export interface ExamAttempt {
+  id: string;
+  examId: string;
+  userId: string;
+  score: number;
+  passed: boolean;
+  answers: Record<string, number | number[]>;
+  correctCount: number;
+  totalQuestions: number;
+  status?: "in_progress" | "submitted" | "auto_submitted";
+  startedAt?: string;
+  expiresAt?: string;
+  updatedAt?: string;
+  submittedAt: string;
+}
+
+export interface OcrJob {
+  id: string;
+  status: "waiting" | "uploaded" | "recognized" | "synced" | "failed";
+  confidence: number;
+  fields: Record<string, string>;
+  batchId?: string;
+  sourceFileName?: string;
+  errorMessage?: string;
+  createdAt?: string;
+  ownerId: string;
+  teamId: string;
+}
+
+export type ProspectStatus = "preview" | "contactable" | "contacted" | "synced" | "excluded";
+
+export type ProspectOutreachChannel = "email" | "whatsapp" | "call";
+
+export type ProspectTouchpointDirection = "outbound" | "inbound";
+
+export type ProspectReplyClassification =
+  | "clear_demand"
+  | "interested_nurture"
+  | "referral"
+  | "no_current_demand"
+  | "rejected"
+  | "unsubscribed"
+  | "bounced"
+  | "auto_unknown";
+
+export type ProspectOutreachState =
+  | "uncontacted"
+  | "awaiting_reply"
+  | "replied"
+  | "suppressed"
+  | "contact_invalid";
+
+export interface ProspectTouchpoint {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  prospectCandidateId: string;
+  tenantProspectId?: string;
+  organizationId?: string;
+  leadId?: string;
+  customerId?: string;
+  channel: ProspectOutreachChannel;
+  direction: ProspectTouchpointDirection;
+  contactValue: string;
+  subject: string;
+  content: string;
+  replyClassification?: ProspectReplyClassification;
+  requestId: string;
+  occurredAt: string;
+  createdAt: string;
+  messageId?: string;
+  eventType?: ProspectTouchpointEventType;
+}
+
+export type ProspectTouchpointEventType = "send" | "open" | "click" | "reply" | "bounce";
+
+export type OutboundEmailEntityType =
+  | "prospect_candidate"
+  | "lead"
+  | "customer"
+  | "unknown";
+
+/**
+ * 开发信发送台账：以 Message-ID 为主键把"发出去的每一封邮件"登记下来，
+ * 供打开/点击追踪端点与 IMAP 回信监听反向定位业务对象，形成回流闭环。
+ */
+export interface OutboundEmailLog {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  messageId: string;
+  entityType: OutboundEmailEntityType;
+  entityId: string;
+  to: string;
+  subject: string;
+  source: string;
+  sequenceId?: string;
+  executionId?: string;
+  requestId?: string;
+  payloadHash?: string;
+  dispatchStatus?: "pending" | "sent" | "uncertain";
+  dispatchError?: string;
+  sentAt: string;
+  openCount?: number;
+  clickCount?: number;
+  firstOpenedAt?: string;
+  lastOpenedAt?: string;
+  lastClickedAt?: string;
+  lastClickedUrl?: string;
+  repliedAt?: string;
+  bouncedAt?: string;
+  createdAt: string;
+}
+
+/**
+ * W4 · 发信批次：把「选中 N 个候选 → 冻结 → 一次放行」落成可审计实体。
+ * 批次是合规形态：approve 必须先冻结载荷（frozenPayload/frozenHash）再入队；
+ * 冻结后 items 不可再改，改动需 cancel 后重建。
+ */
+export type ProspectOutreachBatchStatus =
+  | "draft" | "approved" | "paused" | "completed" | "cancelled";
+
+/**
+ * 客户开发阶段（canonical 定义放这里，避免 types → outreach-journey 的类型循环；
+ * outreach-journey.ts 的 `OutreachJourneyStageKey` 是它的别名）。
+ * 每个取值的含义见 outreach-journey.ts 的 STAGE_META。
+ */
+export type OutreachStageKey =
+  | "not_contacted"
+  | "first_touch_sent"
+  | "following_up"
+  | "replied_interested"
+  | "replied_negative"
+  | "bounced"
+  | "converted";
+
+export interface ProspectOutreachBatchPolicy {
+  /** 每个自然日、每个发件账号的最大发送数 */
+  dailyLimit: number;
+  /** 相邻两步的间隔小时数 */
+  stepIntervalHours: number;
+  /** 发送窗口（本地小时，含起点不含终点） */
+  sendWindowStartHour: number;
+  sendWindowEndHour: number;
+  /** 候选回复后自动停止该候选剩余步骤 */
+  stopOnReply: boolean;
+  /** 每 N 封切换到「发件邮箱池」里的下一个邮箱（0/缺省 = 不轮换，只用主发件邮箱） */
+  rotateMailboxEvery?: number;
+  /**
+   * 目标还没有背调留档时，是否允许后台补跑一次背调、再据此重写正文。
+   * 缺省 true（=「先背调、再写」自动补）。关掉则只用阶段蓝图兜底成稿。
+   */
+  autoResearch?: boolean;
+}
+
+/** 发件邮箱池：一个账号可登记多个 SMTP 发件邮箱，方案按数量轮换使用（密码加密落库） */
+export interface SenderMailbox {
+  id: string;
+  ownerId: string;
+  teamId: string;
+  label: string;
+  /** 发件邮箱（From 地址） */
+  email: string;
+  /** 发件人显示名（空 = 沿用账号的发件人名称） */
+  fromName: string;
+  smtpHost: string;
+  smtpPort: number;
+  smtpSecure: boolean;
+  smtpUser: string;
+  /** 内存中为明文；落库为 mail-v1 密文 */
+  smtpPassword: string;
+  /** 可选：已发送归档用 IMAP 覆盖；空 = 从 SMTP 主机名推导 */
+  imapHost: string;
+  imapPort: number;
+  imapUser: string;
+  imapPassword: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  // ── 邮件中心：收件同步状态（sender_mailboxes 同表扩列，不另建账号体系）──
+  /** 是否参与定时收件同步 */
+  syncEnabled?: boolean;
+  /** 同步间隔（分钟），默认 60 */
+  syncIntervalMinutes?: number;
+  lastSyncAt?: string;
+  /** idle | running | ok | partial | error */
+  lastSyncStatus?: string;
+  lastSyncError?: string;
+  lastSyncScanned?: number;
+  lastSyncSaved?: number;
+  /** folder -> 增量游标 */
+  syncCursor?: Record<string, { uidValidity: string; lastUid: number }>;
+}
+
+export interface ProspectOutreachBatchStep {
+  index: number;
+  delayHours: number;
+  subject: string;
+  body: string;
+  status: "pending" | "sending" | "sent" | "failed" | "skipped";
+  scheduledAt: string;
+  sentAt: string;
+  error: string;
+  /** 发这一封时收件人所处的开发阶段（= 该用哪份阶段蓝图）；历史数据没有此字段 */
+  stageKey?: OutreachStageKey;
+  stageLabel?: string;
+}
+
+export interface ProspectOutreachBatchItem {
+  id: string;
+  candidateId: string;
+  /** targetType=lead 时记录对应线索 id */
+  leadId?: string;
+  /** 方案手动名单模式的来源类型（批次不发此字段；缺省 = candidate） */
+  entityType?: ProspectOutreachPlanEntryType;
+  company: string;
+  recipient: string;
+  /** ready=进冻结快照；skipped=不合格（带原因）；removed=用户勾选移除 */
+  status: "ready" | "skipped" | "removed" | "sending" | "sent" | "failed" | "stopped";
+  skipReason: string;
+  steps: ProspectOutreachBatchStep[];
+  sentAt: string;
+  convertedLeadId: string;
+  /**
+   * ── 阶段感知发信（2026-10-06）──
+   * 下面这些字段都落在 items_json / policy_json 里，属于 JSON 载荷扩展，
+   * **不需要数据库迁移**；缺省时按「未推导阶段」处理，向后兼容历史批次。
+   */
+  /** 这条目标「此刻处在哪个开发阶段」——决定本次序列从哪一封接着发 */
+  stageKey?: OutreachStageKey;
+  stageLabel?: string;
+  /** derived=由触达记录自动推导；manual=业务员在界面上临时改过 */
+  stageSource?: "derived" | "manual";
+  /** 本条依据的背调留档（id + 评分），界面上用来展示「凭什么是这封信」 */
+  researchId?: string;
+  researchScore?: number;
+  /**
+   * 正文补写进度：
+   *   pending = 后台还要补背调 / 用引擎重写，此时**不允许发送**（避免把半成品发出去）
+   *   ready   = 已是最终形态（模板或引擎产物）
+   *   failed  = 补写失败，但正文可用（阶段模板版），照常可发
+   */
+  letterStatus?: "pending" | "ready" | "failed";
+  /** 置为 pending 的时间；发送端据此做兜底（补写长时间没完成就不能永远卡住整批） */
+  letterPendingAt?: string;
+  /** 后台补写尝试次数；超过上限就保留现有正文、标记 failed，不再反复重试 */
+  letterAttempts?: number;
+  /** 正文出具方：固定模板 / AI 模型名 / 本机 CLI 名 */
+  letterEngine?: string;
+  /** 一句话依据（如「依据：背调（…）、3 个可引用的应用角度」） */
+  letterBasis?: string;
+  /** 补写失败或降级的原因 */
+  letterNote?: string;
+}
+
+export type ProspectOutreachBatchTargetType = "candidate" | "lead";
+
+export interface ProspectOutreachBatch {
+  id: string;
+  ownerId: string;
+  teamId: string;
+  status: ProspectOutreachBatchStatus;
+  /** 发送对象类型：candidate=搜客候选（默认，向后兼容）；lead=正式线索 */
+  targetType?: ProspectOutreachBatchTargetType;
+  policy: ProspectOutreachBatchPolicy;
+  items: ProspectOutreachBatchItem[];
+  counts: { total: number; frozen: number; skipped: number };
+  /** 冻结的发送载荷（approve 时一次性写入，之后只读） */
+  frozenPayload: {
+    approvedAt: string;
+    approvedBy: string;
+    items: Array<{
+      itemId: string;
+      candidateId: string;
+      recipient: string;
+      steps: Array<{ index: number; subject: string; body: string }>;
+    }>;
+  } | null;
+  frozenHash: string;
+  approvedBy: string;
+  approvedAt: string;
+  pauseReason: string;
+  nextSendAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 自动发送方案（长期后台任务）：配置目标筛选 + 频率，后台线程按节奏
+ * 持续从候选池取人、按序列投递，可作为独立任务启停/查看进度/回流状态。
+ * 目标明细复用 ProspectOutreachBatchItem（含 convertedLeadId 回流）。
+ */
+export type ProspectOutreachPlanStatus = "running" | "paused" | "stopped" | "completed";
+
+/** 手动名单里的目标来源类型 */
+export type ProspectOutreachPlanEntryType = "candidate" | "lead" | "customer";
+
+export interface ProspectOutreachPlanEntry {
+  entityType: ProspectOutreachPlanEntryType;
+  entityId: string;
+}
+
+export interface ProspectOutreachPlanTarget {
+  /** 国家白名单（精确匹配，空 = 不限） */
+  countries: string[];
+  /** 公司/业务关键词（子串匹配，空 = 不限） */
+  keyword: string;
+  /** 方案总目标人数上限（含不合格跳过占位） */
+  maxTargets: number;
+  /** 目标模式：rules=按国家/关键词筛候选池（默认，兼容老数据）；manual=显式名单 */
+  mode?: "rules" | "manual";
+  /** manual 模式的显式名单（按勾选顺序投递） */
+  entries?: ProspectOutreachPlanEntry[];
+}
+
+export interface ProspectOutreachPlan {
+  id: string;
+  ownerId: string;
+  teamId: string;
+  name: string;
+  target: ProspectOutreachPlanTarget;
+  policy: ProspectOutreachBatchPolicy;
+  /** 自定义每步邮件内容（缺省/空 = 用系统默认序列模板）；subject/body 支持 {{company}} {{contact}} {{country}} 占位 */
+  steps?: Array<{ subject: string; body: string }>;
+  /** 已入场目标（含跳过占位），按入场顺序 */
+  items: ProspectOutreachBatchItem[];
+  status: ProspectOutreachPlanStatus;
+  pauseReason: string;
+  /** 下一次允许发送的时间（ISO） */
+  nextRunAt: string;
+  lastRunAt: string;
+  /** 最近一次 tick 的人类可读状态（后台线程在做什么） */
+  lastMessage: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProcurementEvidenceType =
+  | "quote_request"
+  | "product_requirement"
+  | "quantity"
+  | "sample_request"
+  | "purchase_timeline"
+  | "target_price"
+  | "certification"
+  | "delivery"
+  | "project_tender"
+  | "manual_confirmation";
+
+export type ProcurementSignalStatus =
+  | "needs_review"
+  | "confirmed"
+  | "dismissed"
+  | "expired";
+
+export interface ProcurementSignal {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  prospectCandidateId: string;
+  tenantProspectId?: string;
+  organizationId?: string;
+  leadId?: string;
+  customerId?: string;
+  sourceTouchpointId: string;
+  sourceType: "buyer_reply" | "manual" | "provider";
+  evidenceTypes: ProcurementEvidenceType[];
+  evidenceSummary: string;
+  product: string;
+  specification: string;
+  quantity: number;
+  quantityType: "unknown" | "sample" | "trial" | "forecast" | "order";
+  targetPrice: number;
+  currency: string;
+  priceBasis: string;
+  deliveryRequirement: string;
+  certificationRequirement: string;
+  purchaseTimeline: string;
+  projectName: string;
+  buyerRole: string;
+  nextAction: string;
+  confidence: number;
+  status: ProcurementSignalStatus;
+  observedAt: string;
+  validUntil: string;
+  dismissedReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type DealRecommendationStatus =
+  | "generated"
+  | "dismissed"
+  | "linked_existing_deal"
+  | "converted_by_user"
+  | "expired";
+
+export interface DealRecommendation {
+  id: string;
+  signalId: string;
+  teamId: string;
+  ownerId: string;
+  prospectCandidateId: string;
+  tenantProspectId?: string;
+  organizationId?: string;
+  leadId?: string;
+  customerId?: string;
+  suggestedTitle: string;
+  suggestedProduct: string;
+  suggestedQuantity: number;
+  suggestedUnitPrice: number;
+  suggestedAmount: number;
+  currency: string;
+  initialStage: "询盘";
+  nextAction: string;
+  nextActionAt: string;
+  expectedCloseAt: string;
+  reasonCodes: string[];
+  missingFields: string[];
+  evidenceRefs: string[];
+  recommendationScore: number;
+  duplicateDealIds: string[];
+  status: DealRecommendationStatus;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewReason?: string;
+  linkedDealId?: string;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AcquisitionOutcome = "won" | "lost";
+
+export interface AcquisitionOutcomeFeedback {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  dealId: string;
+  customerId: string;
+  leadId: string;
+  prospectCandidateId: string;
+  tenantProspectId: string;
+  organizationId: string;
+  campaignId: string;
+  campaignVersion: number;
+  strategyId: string;
+  runId: string;
+  providerCodes: string[];
+  icpAssessmentId: string;
+  icpPolicyId: string;
+  outcome: AcquisitionOutcome;
+  amount: number;
+  currency: string;
+  reasonCategory: string;
+  reason: string;
+  closedAt: string;
+  attributionConfidence: number;
+  attributionReasonCodes: string[];
+  payloadHash: string;
+  createdAt: string;
+}
+
+export type ProspectStrategySuggestionType =
+  | "refine_targeting_keywords"
+  | "increase_provider_priority"
+  | "decrease_provider_priority"
+  | "review_icp_exclusions"
+  | "review_icp_weights";
+
+export type ProspectStrategySuggestionStatus =
+  | "pending"
+  | "accepted"
+  | "rejected";
+
+export interface ProspectStrategySuggestion {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  campaignId: string;
+  campaignVersion: number;
+  strategyId: string;
+  suggestionType: ProspectStrategySuggestionType;
+  sampleMetrics: Record<string, unknown>;
+  proposedAdjustments: Record<string, unknown>;
+  rationale: string;
+  reasonCodes: string[];
+  sampleFrom: string;
+  sampleTo: string;
+  payloadHash: string;
+  status: ProspectStrategySuggestionStatus;
+  reviewedBy: string;
+  reviewedAt: string;
+  reviewNote: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProviderEvidenceSnapshot {
+  providerId: string;
+  providerRecordId: string;
+  officialWebsite: string;
+  sourceUrl: string;
+  recordType: string;
+  fetchedAt: string;
+  payloadHash: string;
+  evidenceSummary: string;
+  matchedFields: string[];
+  adapterVersion: string;
+  catalogPolicyVersion: string;
+  sourceLevel: string;
+  fieldAuthority?: Partial<Record<string, ProviderFieldAuthorityLevel>>;
+  retentionPolicyRef: string;
+}
+
+export type ProspectIdentityAuthorityProvider =
+  | "gleif"
+  | "companies_house"
+  | "sec_edgar"
+  | "fr_company_search";
+
+export type ProspectIdentityBootstrapStage =
+  | "validation"
+  | "campaign"
+  | "provider"
+  | "identity"
+  | "coverage"
+  | "binding";
+
+export interface ProspectIdentityBootstrapEvent {
+  id: string;
+  sequence: number;
+  stage: ProspectIdentityBootstrapStage;
+  status: "completed" | "failed";
+  label: string;
+  detail: string;
+  createdAt: string;
+}
+
+export interface ProspectIdentityBootstrapAttempt {
+  id: string;
+  version: "prospect-identity-bootstrap-v1";
+  requestIdHash: string;
+  providerId: ProspectIdentityAuthorityProvider;
+  registrationNumber: string;
+  normalizedIdentifier: string;
+  taskStatus: "running" | "ended";
+  outcome:
+    | "pending"
+    | "linked"
+    | "not_found"
+    | "identity_conflict"
+    | "failed";
+  campaignId: string;
+  campaignVersion: number;
+  strategyId: string;
+  runId: string;
+  sourceCandidateId: string;
+  sourceRawRecordId: string;
+  sourceHitId: string;
+  resolutionId: string;
+  conflictId: string;
+  organizationId: string;
+  tenantProspectId: string;
+  errorCode: string;
+  errorMessage: string;
+  events: ProspectIdentityBootstrapEvent[];
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  endedAt: string;
+}
+
+export type WebsiteProbeStage =
+  | "queued"
+  | "dns"
+  | "robots"
+  | "head"
+  | "body"
+  | "contact_page"
+  | "ai_extract"
+  | "evidence"
+  | "completed"
+  | "failed";
+
+export interface WebsiteProbeEvent {
+  id: string;
+  sequence: number;
+  stage: WebsiteProbeStage;
+  status: "started" | "completed" | "skipped" | "failed";
+  message: string;
+  metrics: Record<string, string | number | boolean | null>;
+  createdAt: string;
+}
+
+export interface WebsiteProbeEvidence {
+  canonicalDomain: string;
+  pageTitle: string;
+  language: string;
+  organizationName: string;
+  legalName: string;
+  addressCountry: string;
+  businessCategory: string;
+  publicContactEmail: string;
+  publicContactPhones?: string[];
+  publicContactNames?: Array<{ name: string; title: string }>;
+  aiStructuredContacts?: ExtractedWebsiteContact[];
+  sourceUrl: string;
+  payloadHash: string;
+  observedAt: string;
+}
+
+export interface WebsiteProbeAttempt {
+  id: string;
+  candidateId: string;
+  teamId: string;
+  ownerId: string;
+  domain: string;
+  sourceUrl: string;
+  purpose: "company_evidence_enrichment";
+  accessMode: "controlled_probe";
+  policyVersion:
+    | "website-probe-policy-v1"
+    | "website-probe-policy-v2"
+    | "website-probe-policy-v3"
+    | "website-probe-policy-v4-foreign-only"
+    | "website-probe-policy-v5-foreign-only";
+  status: "queued" | "running" | "completed" | "failed";
+  outcome:
+    | "pending"
+    | "evidence_found"
+    | "no_evidence"
+    | "robots_denied"
+    | "unreachable"
+    | "policy_blocked"
+    | "rate_limited"
+    | "circuit_open"
+    | "interrupted";
+  robotsDecision: "pending" | "allowed" | "denied" | "unavailable";
+  httpStatus: number;
+  responseBytes: number;
+  redirected: boolean;
+  evidence: WebsiteProbeEvidence | null;
+  events: WebsiteProbeEvent[];
+  failureCode: string;
+  failureMessage: string;
+  startedAt: string;
+  completedAt: string;
+  createdAt: string;
+}
+
+export type ProviderFieldAuthorityLevel =
+  | "official"
+  | "corroborated"
+  | "discovery"
+  | "assisted";
+
+export type ProspectVerificationCheckStatus =
+  | "passed"
+  | "partial"
+  | "unverified"
+  | "manual_required";
+
+export interface ProspectVerificationCheck {
+  code: string;
+  label: string;
+  status: ProspectVerificationCheckStatus;
+  summary: string;
+  source: string;
+  checkedAt: string;
+}
+
+export interface ProspectVerificationReport {
+  level: "L0" | "L1" | "L2" | "L3" | "L4" | "L5";
+  levelLabel: string;
+  conclusion: string;
+  generatedAt: string;
+  crawlerFree: boolean;
+  accessMode: "reference_only" | "controlled_probe";
+  checks: ProspectVerificationCheck[];
+}
+
+export interface ProspectSearchReportSource {
+  url: string;
+  title: string;
+  authenticity:
+    | "official"
+    | "registry"
+    | "reputable_directory"
+    | "search_result"
+    | "weak";
+  verifiedFields: string[];
+  finding: string;
+}
+
+export interface ProspectSearchReport {
+  summary: string;
+  sourceAuthenticity:
+    | "official_confirmed"
+    | "multi_source_supported"
+    | "single_source_supported"
+    | "weak"
+    | "unknown";
+  verifiedFields: string[];
+  checkedSources: ProspectSearchReportSource[];
+  contactFinding: {
+    status: "source_confirmed" | "missing" | "conflicting" | "unverified";
+    value: string;
+    sourceUrl: string;
+  };
+  nextAction: string;
+}
+
+export interface ProspectScoreComponent {
+  score: number;
+  status: "verified" | "partial" | "unverified" | "blocked";
+  reasonCodes: string[];
+  evidenceRefs: string[];
+}
+
+export interface ProspectScorecard {
+  version: "prospect-scorecard-v1";
+  generatedAt: string;
+  enterpriseConfidence: ProspectScoreComponent;
+  icpMatch: ProspectScoreComponent;
+  contactReadiness: ProspectScoreComponent;
+  actionPriority: ProspectScoreComponent;
+  vqa: {
+    qualified: boolean;
+    reasonCodes: string[];
+  };
+}
+
+export type ProspectContactEvidenceSourceKind =
+  | "source_record"
+  | "contact_provider"
+  | "web_search"
+  | "official_website"
+  | "local_runner"
+  | "manual";
+
+export type ProspectContactEvidenceVerification =
+  | "verified"
+  | "source_confirmed"
+  | "syntax_valid"
+  | "unverified";
+
+// 多来源联系人快照与既有 contactInfo 字符串并存，不自动越过人工触达审核。
+export interface ExtractedWebsiteContact {
+  kind: "company" | "person";
+  name: string;
+  title: string;
+  emails: string[];
+  phones: string[];
+  whatsapp: string[];
+  source: string;
+  sourceLabel?: string;
+  sourceKind?: ProspectContactEvidenceSourceKind;
+  confidence?: number;
+  verificationStatus?: ProspectContactEvidenceVerification;
+  observedAt?: string;
+  reasonCodes?: string[];
+  evidenceExcerpt?: string;
+  corroboratedSources?: Array<{
+    sourceId: string;
+    sourceLabel: string;
+    evidenceUrl: string;
+  }>;
+  evidenceUrl: string;
+}
+
+export type ProspectContactEnrichmentSourceStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "blocked"
+  | "skipped";
+
+export interface ProspectContactEnrichmentSourceResult {
+  id: string;
+  sourceId: string;
+  sourceLabel: string;
+  sourceKind: ProspectContactEvidenceSourceKind;
+  status: ProspectContactEnrichmentSourceStatus;
+  outcome:
+    | "pending"
+    | "contact_found"
+    | "no_contact"
+    | "not_needed"
+    | "not_configured"
+    | "policy_blocked"
+    | "timed_out"
+    | "provider_failed";
+  contactCount: number;
+  message: string;
+  errorCode?: string;
+  retryable?: boolean;
+  retryAfterAt?: string | null;
+  suggestion?: string;
+  taskId?: string;
+  evidenceUrls?: string[];
+  startedAt: string;
+  completedAt: string;
+}
+
+export interface ProspectContactRecommendation {
+  contactName: string;
+  contactTitle: string;
+  channelType: "email" | "phone" | "whatsapp";
+  channelValue: string;
+  sourceId: string;
+  sourceLabel: string;
+  confidence: number;
+  verificationStatus: ProspectContactEvidenceVerification;
+  reason: string;
+}
+
+export interface ProspectContactEnrichmentAttempt {
+  id: string;
+  runId: string;
+  candidateId: string;
+  teamId: string;
+  ownerId: string;
+  status: "queued" | "running" | "completed" | "partial" | "failed";
+  sources: ProspectContactEnrichmentSourceResult[];
+  recommendedContact: ProspectContactRecommendation | null;
+  contactCount: number;
+  summary: string;
+  deadlineAt?: string;
+  lastProgressAt?: string;
+  createdAt: string;
+  startedAt: string;
+  completedAt: string;
+}
+
+export interface ProspectWebsiteDiscoveryCandidate {
+  website: string;
+  title: string;
+  score: number;
+  reasons: string[];
+}
+
+export interface ProspectWebsiteDiscoveryEvent {
+  id: string;
+  stage: "queued" | "source" | "search" | "ranking" | "completed" | "failed";
+  status: "started" | "completed" | "failed";
+  message: string;
+  createdAt: string;
+}
+
+export interface ProspectWebsiteDiscoveryAttempt {
+  id: string;
+  runId: string;
+  candidateId: string;
+  teamId: string;
+  ownerId: string;
+  providerId: string;
+  status: "completed" | "failed";
+  outcome:
+    | "source_provided"
+    | "discovered"
+    | "not_found"
+    | "provider_unavailable"
+    | "provider_failed";
+  query: string;
+  selectedWebsite: string;
+  reasonCode: string;
+  reason: string;
+  candidates: ProspectWebsiteDiscoveryCandidate[];
+  events: ProspectWebsiteDiscoveryEvent[];
+  createdAt: string;
+  completedAt: string;
+}
+
+export interface WebsiteOpportunity {
+  id: string;
+  company: string;
+  business: string;
+  country: string;
+  website: string;
+  contact: string;
+  contactInfo: string;
+  description: string;
+  ownerId: string;
+  teamId: string;
+  status: ProspectStatus;
+  createdAt: string;
+  customerId?: string;
+  dealId?: string;
+  leadId?: string;
+  parseMode?: "rule" | "ai" | "fallback" | "reference";
+  source?: string;
+  sourceLabel?: string;
+  sourceEvidence?: ProviderEvidenceSnapshot[];
+  verificationReport?: ProspectVerificationReport;
+  searchReport?: ProspectSearchReport;
+  scorecard?: ProspectScorecard;
+  confidence?: number;
+  lastDevelopmentEmailAt?: string;
+  lastDevelopmentEmailSubject?: string;
+  lastDevelopmentEmailTo?: string;
+  verifiedAt?: string;
+  statusChangedAt?: string;
+  excludedReason?: string;
+  shortlistedAt?: string;
+  shortlistedBy?: string;
+  shortlistSourceRunId?: string;
+  tenantProspectId?: string;
+  organizationId?: string;
+  coverageClassification?: ProspectCoverageClassification;
+  coverageQueueState?: TenantProspectQueueState;
+  coverageReasonCode?: string;
+  lastTouchpointAt?: string;
+  lastTouchpointChannel?: ProspectOutreachChannel;
+  lastReplyClassification?: ProspectReplyClassification;
+  nextFollowAt?: string;
+  outreachState?: ProspectOutreachState;
+  lastOpenedAt?: string;
+  lastClickedAt?: string;
+  openCount?: number;
+  clickCount?: number;
+  invalidContactChannels?: ProspectOutreachChannel[];
+  websiteProbeAttempts?: WebsiteProbeAttempt[];
+  websiteDiscoveryAttempts?: ProspectWebsiteDiscoveryAttempt[];
+  identityBootstrapAttempts?: ProspectIdentityBootstrapAttempt[];
+  extractedContacts?: ExtractedWebsiteContact[];
+  contactEnrichmentAttempts?: ProspectContactEnrichmentAttempt[];
+}
+
+export type LeadSourceTier = "free" | "byok_free" | "paid";
+
+export type ProviderAccessMode = "api" | "bulk_file" | "website_controlled" | "manual_assisted" | "disabled";
+
+export interface ProviderCatalogItem {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  sourceLevel: string;
+  accessMode: ProviderAccessMode;
+  baseUrl: string;
+  officialDocsUrl: string;
+  capabilities: string[];
+  allowedFields: string[];
+  fieldAuthority?: Record<string, ProviderFieldAuthorityLevel>;
+  licensePolicy: Record<string, unknown>;
+  defaultRatePolicy: Record<string, unknown>;
+  retentionPolicy: Record<string, unknown>;
+  status: "active" | "review" | "disabled";
+  version: string;
+  reviewedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProviderConnection {
+  id: string;
+  providerId: string;
+  scope: "personal" | "team" | "platform";
+  credentialRef: string;
+  configurationEncrypted: string;
+  status: "active" | "disabled" | "error";
+  quotaPolicy: Record<string, unknown>;
+  budgetPolicy: Record<string, unknown>;
+  lastHealthAt: string;
+  lastHealthStatus: "untested" | "passed" | "failed";
+  lastErrorCode: string;
+  lastHealthMessage: string;
+  usage: string;
+  ownerId: string;
+  teamId: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProviderResponseCache {
+  id: string;
+  providerId: string;
+  providerVersion: string;
+  requestFingerprint: string;
+  payloadEncrypted: string;
+  payloadHash: string;
+  fetchedAt: string;
+  expiresAt: string;
+  licenseScope: string;
+  status: "active" | "invalid";
+}
+
+export interface ProviderRequestLog {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  providerId: string;
+  connectionId: string;
+  runId: string;
+  runShardId: string;
+  requestFingerprint: string;
+  endpointCode: string;
+  httpStatus: number;
+  attempt: number;
+  quotaUnits: number;
+  costAmount: number;
+  currency: string;
+  durationMs: number;
+  responseSize: number;
+  errorCode: string;
+  requestedAt: string;
+}
+
+export interface MarketTradeObservation {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  campaignId: string;
+  providerId: string;
+  reporterCountry: string;
+  partnerCountry: string;
+  reporterCode: string;
+  partnerCode: string;
+  tradeFlow: "IMPORT" | "EXPORT";
+  classification: string;
+  commodityCode: string;
+  commodityDescription: string;
+  period: string;
+  tradeValueUsd: number | null;
+  netWeightKg: number | null;
+  quantity: number | null;
+  quantityUnit: string;
+  isAggregate: boolean;
+  suppressed: boolean;
+  statusFlags: string[];
+  rawRecordId: string;
+  payloadHash: string;
+  adapterVersion: string;
+  sourceRevision: string;
+  observedAt: string;
+  createdAt: string;
+}
+
+export type ProspectCampaignStatus =
+  | "draft"
+  | "active"
+  | "paused"
+  | "completed"
+  | "archived";
+
+export interface ProspectCampaignVersionSnapshot {
+  goal: string;
+  products: string[];
+  markets: string[];
+  customerTypes: string[];
+  applicationScenarios: string[];
+  icpRules: string[];
+  exclusionRules: string[];
+  sourceProviderIds: string[];
+}
+
+export interface ProspectCampaign {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  name: string;
+  status: ProspectCampaignStatus;
+  currentVersion: number;
+  revision: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt: string;
+}
+
+export interface ProspectCampaignVersion {
+  id: string;
+  teamId: string;
+  campaignId: string;
+  version: number;
+  snapshot: ProspectCampaignVersionSnapshot;
+  contentHash: string;
+  changeSummary: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export type ProspectCampaignEventType =
+  | "created"
+  | "updated"
+  | "owner_transferred"
+  | "strategy_created"
+  | "version_created"
+  | "status_changed";
+
+export interface ProspectCampaignEvent {
+  id: string;
+  teamId: string;
+  campaignId: string;
+  eventType: ProspectCampaignEventType;
+  actorId: string;
+  requestId: string;
+  fromStatus: ProspectCampaignStatus | "";
+  toStatus: ProspectCampaignStatus | "";
+  fromOwnerId: string;
+  toOwnerId: string;
+  fromVersion: number;
+  toVersion: number;
+  revision: number;
+  reason: string;
+  createdAt: string;
+}
+
+export type ProspectStrategyStatus = "draft" | "approved" | "disabled";
+
+export interface ProspectStrategyQuery {
+  keywordMode: "campaign_products" | "specific";
+  positiveKeywords: string[];
+  synonyms: string[];
+  industryTerms: string[];
+  purchaseScenarioTerms: string[];
+  countryMode: "campaign_markets" | "global" | "specific";
+  countries: string[];
+  languages: string[];
+  customerTypeMode: "campaign_customer_types" | "all" | "specific";
+  customerTypes: string[];
+  exclusionKeywords: string[];
+  exclusionDomains: string[];
+  timeWindow: {
+    mode: "all" | "fixed";
+    from: string;
+    to: string;
+  };
+}
+
+export interface ProspectStrategyProviderPlanItem {
+  providerId: string;
+  priority: number;
+  pageLimit: number;
+  resultLimit: number;
+  budgetLimit: number | null;
+  currency: string;
+}
+
+export interface ProspectStrategy {
+  id: string;
+  teamId: string;
+  campaignId: string;
+  campaignVersion: number;
+  name: string;
+  status: ProspectStrategyStatus;
+  revision: number;
+  query: ProspectStrategyQuery;
+  providerPlan: ProspectStrategyProviderPlanItem[];
+  queryFingerprint: string;
+  fingerprintVersion: "v1";
+  ownerId: string;
+  createdBy: string;
+  approvedBy: string;
+  approvedAt: string;
+  disabledBy: string;
+  disabledAt: string;
+  disableReason: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProspectStrategyEventType =
+  | "created"
+  | "updated"
+  | "approved"
+  | "disabled"
+  | "owner_transferred";
+
+export interface ProspectStrategyEvent {
+  id: string;
+  teamId: string;
+  campaignId: string;
+  strategyId: string;
+  eventType: ProspectStrategyEventType;
+  actorId: string;
+  requestId: string;
+  fromStatus: ProspectStrategyStatus | "";
+  toStatus: ProspectStrategyStatus;
+  fromRevision: number;
+  toRevision: number;
+  reason: string;
+  createdAt: string;
+}
+
+export type ProspectScheduleFrequency = "daily" | "weekly" | "monthly";
+export type ProspectScheduleStatus = "active" | "paused";
+
+export interface ProspectSchedule {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  campaignId: string;
+  campaignVersion: number;
+  strategyId: string;
+  frequency: ProspectScheduleFrequency;
+  status: ProspectScheduleStatus;
+  timezone: string;
+  nextRunAt: string;
+  lastRunAt: string;
+  lastRunId: string;
+  lastPlannedAt: string;
+  lastFailureCode: string;
+  lastFailureReason: string;
+  recurringCostApproved: boolean;
+  revision: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProspectSearchRunStatus =
+  | "queued"
+  | "running"
+  | "pause_requested"
+  | "paused"
+  | "cancel_requested"
+  | "cancelled"
+  | "succeeded"
+  | "succeeded_empty"
+  | "partial_success"
+  | "failed";
+
+export type ProspectRunShardStatus =
+  | "queued"
+  | "running"
+  | "retry_scheduled"
+  | "pause_requested"
+  | "paused"
+  | "cancel_requested"
+  | "cancelled"
+  | "succeeded"
+  | "succeeded_empty"
+  | "partial_success"
+  | "failed";
+
+export interface ProspectResolvedQuerySnapshot {
+  positiveKeywords: string[];
+  synonyms: string[];
+  industryTerms: string[];
+  purchaseScenarioTerms: string[];
+  countries: string[];
+  languages: string[];
+  customerTypes: string[];
+  exclusionKeywords: string[];
+  exclusionDomains: string[];
+  timeWindow: {
+    mode: "all" | "fixed";
+    from: string;
+    to: string;
+  };
+}
+
+export interface ProspectRunProviderSnapshot {
+  providerCode: string;
+  position: number;
+  priority: number;
+  pageLimit: number;
+  resultLimit: number;
+  budgetLimit: number | null;
+  currency: string;
+  adapterVersion: string;
+  contractVersion: string;
+  catalogVersion: string;
+  capabilities: string[];
+  accessMode: ProviderAccessMode;
+}
+
+export interface ProspectSearchQueryPlanMetadata {
+  source: "super_search";
+  plannerVersion: string;
+  missionId: string;
+  roundNo: number;
+  theme: string;
+  planningMode?: "rules" | "ai_enhanced";
+  fingerprint: string;
+  providerQueriesFingerprint?: string;
+}
+
+export interface ProspectSearchQueryCell {
+  market: string;
+  language: string;
+  customerType: string;
+  queryTheme: string;
+  providerId: string;
+  queryText: string;
+  fingerprint: string;
+  status: "planned" | "succeeded" | "succeeded_empty" | "partial_success" | "failed" | "cancelled";
+  rawCount?: number;
+  invalidCount?: number;
+  duplicateCount?: number;
+  candidateCount?: number;
+  costAmount?: number;
+  costUnknownCount?: number;
+  currency?: string;
+  errorCode?: string;
+  errorMessage?: string;
+  completedAt?: string;
+}
+
+export interface ProspectRunExecutionSnapshot {
+  contractVersion: "search_run_control_plane_v1";
+  /**
+   * Total accepted-result target for the run. Optional for backwards
+   * compatibility with snapshots created before global quota scheduling.
+   */
+  globalResultLimit?: number;
+  campaign: {
+    id: string;
+    name: string;
+    version: number;
+    contentHash: string;
+    snapshot: ProspectCampaignVersionSnapshot;
+  };
+  strategy: {
+    id: string;
+    name: string;
+    revision: number;
+    fingerprintVersion: "v1";
+    queryFingerprint: string;
+    query: ProspectStrategyQuery;
+  };
+  resolvedQuery: ProspectResolvedQuerySnapshot;
+  providerResolvedQueries?: Record<string, ProspectResolvedQuerySnapshot>;
+  queryPlan?: ProspectSearchQueryPlanMetadata;
+  providerPlan: ProspectRunProviderSnapshot[];
+}
+
+export interface ProspectSearchRun {
+  id: string;
+  teamId: string;
+  campaignId: string;
+  campaignVersion: number;
+  strategyId: string;
+  ownerId: string;
+  status: ProspectSearchRunStatus;
+  revision: number;
+  executionEpoch: number;
+  operationCode: "create_search_run_v1";
+  idempotencyKeyHash: string;
+  requestHash: string;
+  queryFingerprint: string;
+  executionSnapshot: ProspectRunExecutionSnapshot;
+  executionSnapshotHash: string;
+  queueBridgeVersion: "v1" | null;
+  parentRunId: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  pausedAt: string;
+  cancelledAt: string;
+}
+
+export type ProspectSuperSearchStatus =
+  | "queued"
+  | "running"
+  | "paused"
+  | "cancelled"
+  | "succeeded"
+  | "partial_success"
+  | "failed";
+
+export type ProspectSuperSearchDepth = "balanced" | "deep" | "extreme";
+
+export type ProspectDeepMiningRelationType =
+  | "parent_subsidiary"
+  | "brand_distributor"
+  | "buyer_supplier"
+  | "project_owner_contractor"
+  | "procurement_award"
+  | "certified_partner"
+  | "regional_representative"
+  | "contact_channel"
+  | "related_company";
+
+export interface ProspectDeepMiningEvidence {
+  id: string;
+  nodeId: string;
+  candidateId: string;
+  providerId: string;
+  sourceUrl: string;
+  summary: string;
+  queryText: string;
+  authority: ProviderFieldAuthorityLevel;
+  observedAt: string;
+  payloadHash: string;
+}
+
+export interface ProspectDeepMiningNode {
+  id: string;
+  rootCandidateId: string;
+  candidateId: string;
+  parentNodeId: string;
+  company: string;
+  country: string;
+  website: string;
+  depth: number;
+  evidenceIds: string[];
+  enterpriseVerificationScore: number;
+  contactReadinessScore: number;
+  actionPriorityScore: number;
+  verificationStatus: "unverified" | "partial" | "verified" | "blocked";
+  conflict: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProspectDeepMiningEdge {
+  id: string;
+  rootCandidateId: string;
+  fromNodeId: string;
+  toNodeId: string;
+  relationType: ProspectDeepMiningRelationType;
+  confidence: number;
+  evidenceIds: string[];
+  sourceUrls: string[];
+  verified: boolean;
+  conflict: boolean;
+  createdAt: string;
+}
+
+export interface ProspectDeepMiningTask {
+  id: string;
+  rootCandidateId: string;
+  candidateId: string;
+  nodeId: string;
+  parentNodeId: string;
+  depth: number;
+  status: "queued" | "searching" | "verifying" | "completed" | "failed" | "stopped";
+  runId: string;
+  roundNo: number;
+  websiteProbeAttemptId: string;
+  queryText: string;
+  newNodeCount: number;
+  evidenceCount: number;
+  duplicateCount: number;
+  stopReason: string;
+  createdAt: string;
+  startedAt: string;
+  completedAt: string;
+}
+
+export interface ProspectDeepMiningState {
+  version: "prospect-deep-mining-v1";
+  status: "queued" | "searching" | "verifying" | "completed" | "failed";
+  maxDepth: number;
+  maxRootCandidates: number;
+  maxQueries: number;
+  maxWebsiteProbes: number;
+  queriesUsed: number;
+  websiteProbesUsed: number;
+  activeTaskId: string;
+  tasks: ProspectDeepMiningTask[];
+  nodes: ProspectDeepMiningNode[];
+  edges: ProspectDeepMiningEdge[];
+  evidence: ProspectDeepMiningEvidence[];
+  summary: {
+    rootCandidateCount: number;
+    researchedCandidateCount: number;
+    relationCount: number;
+    evidenceCount: number;
+    verifiedCompanyCount: number;
+    contactReadyCount: number;
+    researchReadyCount: number;
+    stoppedTaskCount: number;
+  };
+  stopReason: string;
+  startedAt: string;
+  endedAt: string;
+}
+
+export interface ProspectSuperSearchMission {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  campaignId: string;
+  strategyId: string;
+  status: ProspectSuperSearchStatus;
+  targetCandidateCount: number;
+  maxDurationMinutes: number;
+  depth: ProspectSuperSearchDepth;
+  maxRounds: number;
+  costLimit: number;
+  currency: string;
+  aiMode: "auto" | "off";
+  currentRound: number;
+  currentRunId: string;
+  totalCost: number;
+  rawCount: number;
+  uniqueCount: number;
+  candidateCount: number;
+  reviewReadyCount?: number;
+  vqaCount?: number;
+  pendingCount: number;
+  filteredCount: number;
+  revision: number;
+  startedAt: string;
+  deadlineAt: string;
+  stopReason: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  deepMining?: ProspectDeepMiningState;
+}
+
+export interface ProspectSuperSearchRound {
+  id: string;
+  missionId: string;
+  teamId: string;
+  ownerId: string;
+  roundNo: number;
+  roundKind?: "discovery" | "deep_mining";
+  focusCandidateId?: string;
+  focusNodeId?: string;
+  miningDepth?: number;
+  runId: string;
+  queryPlanSnapshot: ProspectResolvedQuerySnapshot;
+  plannerVersion?: string;
+  planningMode?: "rules" | "ai_enhanced";
+  queryTheme?: string;
+  queryPlanFingerprint?: string;
+  coverageGaps?: string[];
+  queryCells?: ProspectSearchQueryCell[];
+  rawCount: number;
+  uniqueCount: number;
+  candidateCount: number;
+  reviewReadyCount?: number;
+  vqaCount?: number;
+  duplicateCount: number;
+  filteredCount: number;
+  pendingCount: number;
+  duplicateRate: number;
+  yieldRate: number;
+  cost: number;
+  costUnknownCount?: number;
+  costIntegrityStatus?: "complete" | "unknown" | "currency_mismatch";
+  decision: "pending" | "continue" | "converged" | "limit_reached" | "manual_stop" | "failed";
+  decisionReason: string;
+  createdAt: string;
+  completedAt: string;
+}
+
+export interface ProspectSuperSearchEvent {
+  id: string;
+  missionId: string;
+  teamId: string;
+  ownerId: string;
+  sequence: number;
+  type: "created" | "round_started" | "round_completed" | "paused" | "resumed" | "cancelled" | "completed" | "failed"
+    | "ai_planning_started" | "ai_planning_completed" | "ai_planning_fallback"
+    | "deep_mining_started" | "deep_query_started" | "deep_evidence_found"
+    | "deep_relation_found" | "deep_probe_queued" | "deep_probe_completed"
+    | "deep_candidate_converged" | "deep_mining_completed";
+  message: string;
+  metadata?: Record<string, string | number | boolean | null>;
+  createdAt: string;
+}
+
+export interface ProspectRunShard {
+  id: string;
+  teamId: string;
+  runId: string;
+  providerCode: string;
+  position: number;
+  status: ProspectRunShardStatus;
+  pageLimit: number;
+  resultLimit: number;
+  budgetLimit: number | null;
+  currency: string;
+  adapterVersion: string;
+  contractVersion: string;
+  catalogVersion: string;
+  capabilities: string[];
+  accessMode: ProviderAccessMode;
+  hasCursor: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProspectRunEventType =
+  | "created"
+  | "started"
+  | "pause_requested"
+  | "paused"
+  | "resumed"
+  | "cancel_requested"
+  | "cancelled"
+  | "completed"
+  | "failed";
+
+export interface ProspectRunEvent {
+  id: string;
+  teamId: string;
+  runId: string;
+  sequence: number;
+  eventType: ProspectRunEventType;
+  actorId: string;
+  requestId: string;
+  fromStatus: ProspectSearchRunStatus | "";
+  toStatus: ProspectSearchRunStatus;
+  fromRevision: number;
+  toRevision: number;
+  reason: string;
+  createdAt: string;
+}
+
+export interface ProspectRunQueueParentBinding {
+  id: string;
+  teamId: string;
+  runId: string;
+  ownerId: string;
+  jobId: string;
+  jobType: "prospect.orchestrate";
+  parentJobId: "";
+  bridgeVersion: "v1";
+  executionSnapshotHash: string;
+  bindingHash: string;
+  createdAt: string;
+}
+
+export interface ProspectRunQueueChildBinding {
+  id: string;
+  teamId: string;
+  runId: string;
+  shardId: string;
+  ownerId: string;
+  jobId: string;
+  jobType: "prospect.provider.fetch";
+  parentJobId: string;
+  bridgeVersion: "v1";
+  executionSnapshotHash: string;
+  bindingHash: string;
+  createdAt: string;
+}
+
+export type ProspectExecutionLeaseStatus =
+  | "active"
+  | "released"
+  | "expired";
+
+export type ProspectExecutionAttemptStatus =
+  | "claimed"
+  | "request_started"
+  | "succeeded"
+  | "failed"
+  | "request_outcome_unknown"
+  | "cancelled_late";
+
+export type ProspectExecutionCostKind =
+  | "actual"
+  | "estimated"
+  | "unknown";
+
+export type ProspectExecutionEventType =
+  | "kernel_started"
+  | "lease_claimed"
+  | "lease_heartbeat"
+  | "request_started"
+  | "page_accepted"
+  | "retry_scheduled"
+  | "pause_settled"
+  | "cancel_settled"
+  | "lease_recovered"
+  | "shard_completed"
+  | "run_completed";
+
+export interface ProspectExecutionKernelState {
+  id: "search_execution_kernel_v1";
+  kernelEpoch: number;
+  instanceId: string;
+  startedAt: string;
+  updatedAt: string;
+}
+
+export interface ProspectExecutionCheckpoint {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  runId: string;
+  shardId: string;
+  jobId: string;
+  providerCode: string;
+  runEpoch: number;
+  checkpointNo: number;
+  encryptedCursor: string;
+  cursorHash: string;
+  pageSequence: number;
+  totalCallCount: number;
+  checkpointCallCount: number;
+  acceptedCount: number;
+  rawCount: number;
+  invalidCount: number;
+  duplicateCount: number;
+  retryAfterAt: string;
+  lastErrorCode: string;
+  lastErrorMessage: string;
+  partial: boolean;
+  completionReason: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProspectStrategySourcePositionStatus =
+  | "continuable"
+  | "exhausted";
+
+export interface ProspectStrategySourcePosition {
+  id: string;
+  identityHash: string;
+  teamId: string;
+  ownerId: string;
+  campaignId: string;
+  campaignVersion: number;
+  strategyId: string;
+  providerCode: string;
+  queryFingerprint: string;
+  connectionId: string;
+  endpointCode: string;
+  adapterVersion: string;
+  contractVersion: string;
+  catalogVersion: string;
+  timeWindowMode: "all" | "fixed";
+  timeWindowFrom: string;
+  timeWindowTo: string;
+  status: ProspectStrategySourcePositionStatus;
+  encryptedCursor: string;
+  cursorHash: string;
+  sourceRunId: string;
+  sourceShardId: string;
+  sourcePageId: string;
+  sourceCheckpointNo: number;
+  sourcePageSequence: number;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProspectExecutionLease {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  runId: string;
+  shardId: string;
+  jobId: string;
+  kernelEpoch: number;
+  runEpoch: number;
+  fenceToken: number;
+  claimTokenHmac: string;
+  workerId: string;
+  status: ProspectExecutionLeaseStatus;
+  claimedAt: string;
+  heartbeatAt: string;
+  expiresAt: string;
+  deadlineAt: string;
+  requestStartedAt: string;
+  releasedAt: string;
+  releaseReason: string;
+  version: number;
+}
+
+export interface ProspectExecutionAttempt {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  runId: string;
+  shardId: string;
+  jobId: string;
+  leaseId: string;
+  providerCode: string;
+  checkpointNo: number;
+  checkpointCallNo: number;
+  providerAttemptNo: number;
+  status: ProspectExecutionAttemptStatus;
+  requestHash: string;
+  responseHash: string;
+  errorCode: string;
+  errorMessage: string;
+  retryable: boolean;
+  retryAfterAt: string;
+  usageJson: string;
+  costKind: ProspectExecutionCostKind;
+  costAmount: number | null;
+  currency: string;
+  startedAt: string;
+  finishedAt: string;
+  createdAt: string;
+  version: number;
+}
+
+export type ProspectProviderRequestStatus =
+  | "prepared"
+  | "dispatch_started"
+  | "dispatch_confirmed"
+  | "response_received"
+  | "outcome_unknown"
+  | "settled"
+  | "cancelled_late";
+
+export type ProspectProviderRequestSettlementKind =
+  | ""
+  | "success"
+  | "failure"
+  | "cancelled_before_dispatch"
+  | "cancelled_late";
+
+export type ProspectProviderRequestDispatchOperation =
+  | "dispatch"
+  | "query_by_idempotency_key"
+  | "query_by_external_request_id";
+
+export type ProspectProviderRequestDispatchStatus =
+  | "started"
+  | "confirmed"
+  | "response_received"
+  | "outcome_unknown"
+  | "rejected";
+
+export type ProspectProviderAccountingProvenance =
+  | "unknown"
+  | "estimated"
+  | "provider_reported"
+  | "portal_export"
+  | "invoice_confirmed";
+
+export interface ProspectProviderRequestLedger {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  runId: string;
+  shardId: string;
+  jobId: string;
+  originAttemptId: string;
+  checkpointNo: number;
+  logicalRequestNo: number;
+  providerCode: string;
+  connectionId: string;
+  connectionRevision: string;
+  connectionConfigHash: string;
+  endpointCode: string;
+  adapterVersion: string;
+  contractVersion: string;
+  requestSchemaVersion: string;
+  idempotencyKey: string;
+  requestHash: string;
+  encryptedRequestEnvelope: string;
+  requestEvidenceRef: string;
+  status: ProspectProviderRequestStatus;
+  externalRequestId: string;
+  dispatchConfirmationRef: string;
+  encryptedResponseEnvelope: string;
+  responseEvidenceRef: string;
+  responseHash: string;
+  rawResponseHash: string;
+  normalizedResultHash: string;
+  responseAccountingEvidenceHash: string;
+  httpStatus: number | null;
+  providerOutcomeCode: string;
+  settlementKind: ProspectProviderRequestSettlementKind;
+  settlementHash: string;
+  unknownReason: string;
+  errorCode: string;
+  kernelEpochAtPrepare: number;
+  runEpochAtPrepare: number;
+  fenceTokenAtPrepare: number;
+  leaseIdAtPrepare: string;
+  preparedAt: string;
+  dispatchStartedAt: string;
+  dispatchConfirmedAt: string;
+  responseReceivedAt: string;
+  unknownAt: string;
+  settledAt: string;
+  cancelledLateAt: string;
+  updatedAt: string;
+  version: number;
+}
+
+export interface ProspectProviderRequestDispatch {
+  id: string;
+  ledgerId: string;
+  teamId: string;
+  ownerId: string;
+  runId: string;
+  shardId: string;
+  attemptId: string;
+  dispatchNo: number;
+  operation: ProspectProviderRequestDispatchOperation;
+  status: ProspectProviderRequestDispatchStatus;
+  idempotencyKey: string;
+  requestHash: string;
+  replayed: boolean;
+  providerExecuted: boolean;
+  externalRequestId: string;
+  responseHash: string;
+  errorCode: string;
+  startedAt: string;
+  confirmedAt: string;
+  finishedAt: string;
+  version: number;
+}
+
+export interface ProspectProviderRequestEvent {
+  id: string;
+  ledgerId: string;
+  dispatchId: string;
+  attemptId: string;
+  teamId: string;
+  ownerId: string;
+  sequence: number;
+  eventType: ProspectProviderRequestStatus;
+  fromStatus: ProspectProviderRequestStatus | "";
+  toStatus: ProspectProviderRequestStatus;
+  detailHash: string;
+  createdAt: string;
+}
+
+export interface ProspectProviderRequestAttemptBinding {
+  id: string;
+  ledgerId: string;
+  attemptId: string;
+  teamId: string;
+  ownerId: string;
+  bindingNo: number;
+  createdAt: string;
+}
+
+export interface ProspectProviderRequestAccountingEvidence {
+  id: string;
+  ledgerId: string;
+  teamId: string;
+  ownerId: string;
+  sequence: number;
+  provenance: ProspectProviderAccountingProvenance;
+  usageJson: string;
+  costAmount: number | null;
+  currency: string;
+  evidenceRef: string;
+  evidenceHash: string;
+  estimationMethodVersion: string;
+  createdAt: string;
+}
+
+export interface ProspectSourceRawBatch {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  runId: string;
+  shardId: string;
+  jobId: string;
+  attemptId: string;
+  ledgerId: string;
+  pageId: string;
+  providerCode: string;
+  connectionId: string;
+  endpointCode: string;
+  adapterVersion: string;
+  responseSchemaVersion: "fake-provider-source-records-v1";
+  responseHash: string;
+  settlementHash: string;
+  rawArtifactHash: string;
+  recordCount: number;
+  licensePolicy: string;
+  retentionPolicy: string;
+  retentionDays: number;
+  retentionUntil: string;
+  batchHash: string;
+  createdAt: string;
+}
+
+export interface ProspectSourceRawRecord {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  providerCode: string;
+  connectionId: string;
+  endpointCode: string;
+  sourceIdentityHash: string;
+  artifactHash: string;
+  envelopeVersion: "provider-raw-v1";
+  encryptedEnvelope: string;
+  envelopeHash: string;
+  firstObservedAt: string;
+  recordHash: string;
+  createdAt: string;
+}
+
+export interface ProspectSourceRawHit {
+  id: string;
+  batchId: string;
+  recordId: string;
+  teamId: string;
+  ownerId: string;
+  runId: string;
+  shardId: string;
+  jobId: string;
+  attemptId: string;
+  ledgerId: string;
+  pageId: string;
+  ordinal: number;
+  fetchedAt: string;
+  hitHash: string;
+  createdAt: string;
+}
+
+export interface ProspectCandidateProcessingState {
+  hitId: string;
+  teamId: string;
+  ownerId: string;
+  runId: string;
+  ledgerId: string;
+  status: "completed" | "rejected";
+  failureCode: string;
+  candidateId?: string;
+  sourceRecordId?: string;
+  sourceCompany?: string;
+  sourceCountry?: string;
+  sourceDomain?: string;
+  processedAt: string;
+  updatedAt: string;
+}
+
+export type OrganizationIdentityClaimKind =
+  | "legal_name"
+  | "official_domain"
+  | "lei"
+  | "registration_number"
+  | "vat";
+
+export type OrganizationStrongIdentifierKind =
+  | "lei"
+  | "registration_number"
+  | "vat";
+
+export type OrganizationIdentityEntityType =
+  | "legal_entity"
+  | "branch"
+  | "establishment"
+  | "vat_group"
+  | "tax_representative"
+  | "unknown";
+
+export type OrganizationIdentityResolutionResult =
+  | "new_entity"
+  | "exact_match"
+  | "insufficient_identity"
+  | "conflict";
+
+export interface Organization {
+  id: string;
+  teamId: string;
+  scopeType: "team";
+  scopeId: string;
+  status: "active";
+  legalName: string;
+  normalizedName: string;
+  organizationHash: string;
+  createdAt: string;
+}
+
+export interface OrganizationIdentityClaim {
+  id: string;
+  resolutionId: string;
+  teamId: string;
+  ownerId: string;
+  rawRecordId: string;
+  ordinal: number;
+  kind: OrganizationIdentityClaimKind;
+  originalValue: string;
+  normalizedValue: string;
+  scheme: string;
+  jurisdiction: string;
+  entityType: OrganizationIdentityEntityType;
+  subjectRef: string;
+  classification:
+    | "association_fact"
+    | "strong_identifier_eligible"
+    | "strong_identifier_unverified";
+  normalizerVersion: string;
+  validatorVersion: string;
+  authorityProfileCode: string;
+  observedAt: string;
+  claimHash: string;
+  claimFactHash: string;
+  createdAt: string;
+}
+
+export interface OrganizationAcceptedIdentifier {
+  id: string;
+  organizationId: string;
+  teamId: string;
+  kind: OrganizationStrongIdentifierKind;
+  scheme: string;
+  jurisdiction: string;
+  normalizedValue: string;
+  normalizedValueHash: string;
+  sourceClaimId: string;
+  sourceRawRecordId: string;
+  sourceOwnerId: string;
+  authorityProfileCode: string;
+  authorityProfileVersion: string;
+  status: "active";
+  identifierHash: string;
+  createdAt: string;
+}
+
+export interface OrganizationIdentityResolution {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  rawRecordId: string;
+  rawArtifactHash: string;
+  processingKeyHash: string;
+  claimHash: string;
+  resolverContractVersion: "organization-strong-identity-v1";
+  parserVersion: string;
+  normalizerVersion: string;
+  authorityProfileCode: string;
+  authorityProfileVersion: string;
+  authorityProfileHash: string;
+  result: OrganizationIdentityResolutionResult;
+  decisionReasonCode: string;
+  organizationId: string;
+  bindingId: string;
+  conflictId: string;
+  matchedIdentifierIds: string[];
+  acceptedIdentifierIds: string[];
+  bindingRelationRole: "" | "reused_existing" | "created_new";
+  relationHash: string;
+  eventCount: number;
+  eventTailHash: string;
+  resolutionHash: string;
+  createdAt: string;
+}
+
+export interface OrganizationSourceBinding {
+  id: string;
+  organizationId: string;
+  resolutionId: string;
+  teamId: string;
+  ownerId: string;
+  rawRecordId: string;
+  status: "active";
+  bindingHash: string;
+  createdAt: string;
+}
+
+export type ProspectCoverageClassification =
+  | "net_new"
+  | "new_intelligence"
+  | "due_review"
+  | "duplicate"
+  | "excluded";
+
+export type TenantProspectStatus =
+  | "active"
+  | "excluded"
+  | "do_not_contact"
+  | "converted";
+
+export type TenantProspectQueueState =
+  | "none"
+  | "pending"
+  | "suppressed"
+  | "converted";
+
+export interface TenantProspect {
+  id: string;
+  teamId: string;
+  organizationId: string;
+  status: TenantProspectStatus;
+  latestClassification: ProspectCoverageClassification;
+  queueState: TenantProspectQueueState;
+  queueReasonCode: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  lastMaterialChangeAt: string;
+  lastQueuedAt: string;
+  lastReviewedAt: string;
+  nextReviewAt: string;
+  hitCount: number;
+  sourceCount: number;
+  evidenceCount: number;
+  sourceKeyHashes: string[];
+  materialEvidenceKeyHashes: string[];
+  exclusionScope: "none" | "organization" | "team";
+  exclusionMode: "none" | "temporary" | "permanent";
+  exclusionReasonCode: string;
+  excludedUntil: string;
+  leadId: string;
+  customerId: string;
+  dealId: string;
+  version: number;
+  eventCount: number;
+  eventTailHash: string;
+  prospectHash: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProspectCoverageEvent {
+  id: string;
+  prospectId: string;
+  teamId: string;
+  ownerId: string;
+  organizationId: string;
+  resolutionId: string;
+  rawRecordId: string;
+  sourceHitId: string;
+  campaignId: string;
+  strategyId: string;
+  runId: string;
+  shardId: string;
+  sequence: number;
+  eventType: "coverage_classified" | "disposition_changed";
+  dispositionAction:
+    | ""
+    | "exclude_temporary"
+    | "exclude_permanent"
+    | "do_not_contact"
+    | "resume"
+    | "mark_reviewed"
+    | "link_crm";
+  classification: ProspectCoverageClassification | "";
+  queueAction: "enqueue" | "suppress" | "none";
+  reasonCode: string;
+  processingKeyHash: string;
+  requestHash: string;
+  newEvidenceKeyHashes: string[];
+  newSourceKeyHashes: string[];
+  evidenceSnapshotHash: string;
+  sourceSnapshotHash: string;
+  previousEventHash: string;
+  eventHash: string;
+  createdAt: string;
+}
+
+export type ProspectEvidenceKind =
+  | "company_verification"
+  | "icp"
+  | "contact";
+
+export type ProspectEvidenceField =
+  | "legal_name"
+  | "registration_number"
+  | "operating_status"
+  | "jurisdiction"
+  | "official_domain"
+  | "product_match"
+  | "customer_type"
+  | "market_match"
+  | "purchasing_capability"
+  | "contact_source"
+  | "freshness";
+
+export type ProspectEvidenceSourceType =
+  | "authoritative_registry"
+  | "official_website"
+  | "licensed_data"
+  | "public_directory"
+  | "manual_import"
+  | "crm_manual";
+
+export interface ProspectEvidence {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  prospectId: string;
+  organizationId: string;
+  kind: ProspectEvidenceKind;
+  field: ProspectEvidenceField;
+  normalizedValue: string;
+  valueHash: string;
+  sourceType: ProspectEvidenceSourceType;
+  providerCode: string;
+  sourceRef: string;
+  excerpt: string;
+  authorityCode: string;
+  observedAt: string;
+  expiresAt: string;
+  idempotencyKeyHash: string;
+  requestHash: string;
+  recordHash: string;
+  createdAt: string;
+}
+
+export type ProspectCandidateQualificationField =
+  | "company"
+  | "business"
+  | "country"
+  | "website"
+  | "contact"
+  | "contactInfo"
+  | "description";
+
+export type ProspectCandidateQualificationStage =
+  | "company"
+  | "icp"
+  | "channel"
+  | "contactability";
+
+export interface ProspectCandidateQualificationRevision {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  prospectId: string;
+  organizationId: string;
+  candidateId: string;
+  revision: number;
+  changedFields: ProspectCandidateQualificationField[];
+  beforeBasisHash: string;
+  afterBasisHash: string;
+  changedBy: string;
+  idempotencyKeyHash: string;
+  requestHash: string;
+  recordHash: string;
+  createdAt: string;
+}
+
+export interface ProspectCandidateQualificationCheckpoint {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  prospectId: string;
+  organizationId: string;
+  candidateId: string;
+  stage: ProspectCandidateQualificationStage;
+  revision: number;
+  sourceFactId: string;
+  idempotencyKeyHash: string;
+  requestHash: string;
+  recordHash: string;
+  createdAt: string;
+}
+
+export type CompanyVerificationStatus =
+  | "verified_active"
+  | "verified_inactive"
+  | "partially_verified"
+  | "conflicting"
+  | "unverified";
+
+export interface CompanyVerificationSnapshot {
+  id: string;
+  teamId: string;
+  prospectId: string;
+  organizationId: string;
+  status: CompanyVerificationStatus;
+  reasonCodes: string[];
+  authorityCodes: string[];
+  evidenceSnapshotHash: string;
+  reviewStatus:
+    | "not_required"
+    | "pending_review"
+    | "approved"
+    | "rejected";
+  reviewedBy: string;
+  reviewedAt: string;
+  validUntil: string;
+  previousSnapshotId: string;
+  contractVersion: string;
+  idempotencyKeyHash: string;
+  requestHash: string;
+  recordHash: string;
+  createdAt: string;
+}
+
+export type ProspectIcpDimension =
+  | "productApplicationMatch"
+  | "customerType"
+  | "marketCountry"
+  | "companyAuthenticity"
+  | "purchasingChannelCapability"
+  | "contactability"
+  | "freshness";
+
+export type ProspectIcpWeights = Record<ProspectIcpDimension, number>;
+export type ProspectIcpDimensionScores =
+  Record<ProspectIcpDimension, number>;
+
+export interface ProspectIcpPolicySnapshot {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  campaignId: string;
+  campaignVersion: number;
+  campaignContentHash: string;
+  weights: ProspectIcpWeights;
+  qualifiedThreshold: number;
+  borderlineThreshold: number;
+  productMinimum: number;
+  hardExclusions: string[];
+  scoringContractVersion: string;
+  policyHash: string;
+  idempotencyKeyHash: string;
+  requestHash: string;
+  recordHash: string;
+  createdAt: string;
+}
+
+export type ProspectIcpResult =
+  | "qualified"
+  | "borderline"
+  | "not_qualified"
+  | "blocked";
+
+export interface ProspectIcpAssessmentSnapshot {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  prospectId: string;
+  organizationId: string;
+  policyId: string;
+  campaignId: string;
+  campaignVersion: number;
+  dimensionScores: ProspectIcpDimensionScores;
+  totalScore: number;
+  result: ProspectIcpResult;
+  hardGateReasonCodes: string[];
+  evidenceIds: string[];
+  evidenceSnapshotHash: string;
+  reviewStatus: "pending_review" | "approved" | "rejected";
+  reviewedBy: string;
+  reviewedAt: string;
+  previousAssessmentId: string;
+  scoringContractVersion: string;
+  idempotencyKeyHash: string;
+  requestHash: string;
+  recordHash: string;
+  createdAt: string;
+}
+
+export type ProspectContactType =
+  | "named_person"
+  | "department"
+  | "company_public";
+
+export interface ProspectContact {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  prospectId: string;
+  organizationId: string;
+  contactType: ProspectContactType;
+  name: string;
+  department: string;
+  title: string;
+  identityStatus: "unconfirmed" | "source_confirmed" | "human_confirmed";
+  sourceEvidenceId: string;
+  idempotencyKeyHash: string;
+  requestHash: string;
+  recordHash: string;
+  createdAt: string;
+}
+
+export type ProspectContactChannelType =
+  | "email"
+  | "phone"
+  | "whatsapp"
+  | "website_form";
+
+export type ProspectContactVerificationStatus =
+  | "discovered"
+  | "syntax_valid"
+  | "domain_valid"
+  | "verified"
+  | "bounced"
+  | "opted_out"
+  | "invalid";
+
+export interface ProspectContactChannel {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  prospectId: string;
+  organizationId: string;
+  contactId: string;
+  channelType: ProspectContactChannelType;
+  value: string;
+  normalizedValueHash: string;
+  sourceEvidenceId: string;
+  acquiredAt: string;
+  idempotencyKeyHash: string;
+  requestHash: string;
+  recordHash: string;
+  createdAt: string;
+}
+
+export interface ProspectContactVerificationSnapshot {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  prospectId: string;
+  organizationId: string;
+  contactId: string;
+  channelId: string;
+  status: ProspectContactVerificationStatus;
+  providerCode: string;
+  reasonCode: string;
+  verifiedAt: string;
+  expiresAt: string;
+  previousVerificationId: string;
+  idempotencyKeyHash: string;
+  requestHash: string;
+  recordHash: string;
+  createdAt: string;
+}
+
+export type ProspectSuppressionScope =
+  | "contact_channel"
+  | "contact_all"
+  | "organization_channel"
+  | "organization_all";
+
+export interface ProspectSuppressionEvent {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  prospectId: string;
+  organizationId: string;
+  contactId: string;
+  channelId: string;
+  channelType: ProspectContactChannelType | "";
+  scope: ProspectSuppressionScope;
+  scopeKeyHash: string;
+  action: "imposed" | "revoked";
+  reasonCode: string;
+  reasonNote: string;
+  effectiveAt: string;
+  expiresAt: string;
+  createdBy: string;
+  idempotencyKeyHash: string;
+  requestHash: string;
+  recordHash: string;
+  createdAt: string;
+}
+
+export type ProspectContactabilityStatus =
+  | "blocked"
+  | "review_required"
+  | "eligible"
+  | "approved_contactable"
+  | "stale";
+
+export interface ProspectContactabilityDecision {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  prospectId: string;
+  organizationId: string;
+  campaignId: string;
+  campaignVersion: number;
+  channelId: string;
+  status: ProspectContactabilityStatus;
+  reasonCodes: string[];
+  dependencyHash: string;
+  approvedBy: string;
+  approvedAt: string;
+  previousDecisionId: string;
+  contractVersion: string;
+  idempotencyKeyHash: string;
+  requestHash: string;
+  recordHash: string;
+  createdAt: string;
+}
+
+export interface OrganizationIdentityConflict {
+  id: string;
+  resolutionId: string;
+  teamId: string;
+  ownerId: string;
+  rawRecordId: string;
+  conflictType:
+    | "identifier_split"
+    | "identifier_slot_conflict"
+    | "binding_conflict";
+  organizationIds: string[];
+  identifierKeys: string[];
+  status: "open";
+  relationHash: string;
+  conflictHash: string;
+  createdAt: string;
+}
+
+export interface OrganizationIdentityConflictReview {
+  id: string;
+  conflictId: string;
+  teamId: string;
+  action: "keep_separate" | "merge";
+  canonicalOrganizationId: string;
+  note: string;
+  reviewedBy: string;
+  reviewHash: string;
+  createdAt: string;
+}
+
+export interface OrganizationCanonicalMapping {
+  id: string;
+  conflictId: string;
+  teamId: string;
+  sourceOrganizationId: string;
+  canonicalOrganizationId: string;
+  createdBy: string;
+  mappingHash: string;
+  createdAt: string;
+}
+
+export type OrganizationAliasType =
+  | "legal_name"
+  | "trading_name"
+  | "brand"
+  | "previous_name"
+  | "localized_name";
+
+export interface OrganizationAliasFact {
+  id: string;
+  teamId: string;
+  organizationId: string;
+  aliasType: OrganizationAliasType;
+  aliasName: string;
+  normalizedAlias: string;
+  locale: string;
+  jurisdiction: string;
+  sourceLabel: string;
+  sourceReference: string;
+  evidenceSummary: string;
+  verificationStatus: "reported" | "verified";
+  observedAt: string;
+  createdBy: string;
+  factKeyHash: string;
+  factHash: string;
+  createdAt: string;
+}
+
+export type OrganizationRelationType =
+  | "direct_parent"
+  | "ultimate_parent"
+  | "branch_of"
+  | "brand_of"
+  | "affiliate";
+
+export interface OrganizationRelationFact {
+  id: string;
+  teamId: string;
+  sourceOrganizationId: string;
+  targetOrganizationId: string;
+  relationType: OrganizationRelationType;
+  sourceLabel: string;
+  sourceReference: string;
+  evidenceSummary: string;
+  verificationStatus: "reported" | "verified";
+  observedAt: string;
+  createdBy: string;
+  factKeyHash: string;
+  factHash: string;
+  createdAt: string;
+}
+
+export interface OrganizationIdentityEvent {
+  id: string;
+  resolutionId: string;
+  teamId: string;
+  ownerId: string;
+  sequence: number;
+  eventType:
+    | "organization_created"
+    | "organization_matched"
+    | "identifier_accepted"
+    | "source_bound"
+    | "identity_insufficient"
+    | "identity_conflict_recorded"
+    | "resolution_recorded";
+  organizationId: string;
+  detailHash: string;
+  previousEventHash: string;
+  eventHash: string;
+  createdAt: string;
+}
+
+export interface ProspectExecutionPage {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  runId: string;
+  shardId: string;
+  jobId: string;
+  attemptId: string;
+  providerCode: string;
+  checkpointNo: number;
+  pageSequence: number;
+  payloadHash: string;
+  acceptedCount: number;
+  rawCount: number;
+  invalidCount: number;
+  duplicateCount: number;
+  partial: boolean;
+  createdAt: string;
+}
+
+export interface ProspectExecutionEvent {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  runId: string;
+  shardId: string;
+  jobId: string;
+  eventType: ProspectExecutionEventType;
+  kernelEpoch: number;
+  runEpoch: number;
+  fenceToken: number;
+  detailHash: string;
+  createdAt: string;
+}
+
+export interface ProspectExecutionThrottleBucket {
+  id: string;
+  teamId: string;
+  providerCode: string;
+  connectionId: string;
+  availableAt: string;
+  version: number;
+  updatedAt: string;
+}
+
+export type MarketOpportunityBatchStatus =
+  | "metrics_ready"
+  | "partial"
+  | "insufficient_data";
+
+export type MarketOpportunitySnapshotStatus =
+  | "metrics_ready"
+  | "insufficient_data";
+
+export interface MarketOpportunityEvidence {
+  observationId: string;
+  payloadHash: string;
+  providerId: string;
+  adapterVersion: string;
+  sourceRevision: string;
+  period: string;
+  reporterCountry: string;
+  reporterCode: string;
+  partnerCountry: string;
+  partnerCode: string;
+  tradeFlow: "IMPORT";
+  classification: string;
+  commodityCode: string;
+  tradeValueUsd: number | null;
+  suppressed: boolean;
+  statusFlags: string[];
+}
+
+export interface MarketOpportunityValuePoint {
+  period: string;
+  tradeValueUsd: number;
+  evidence: MarketOpportunityEvidence;
+}
+
+export interface MarketOpportunityRateChange {
+  fromPeriod: string;
+  toPeriod: string;
+  value: number | null;
+  reason: string;
+}
+
+export interface MarketOpportunityMetrics {
+  metricVersion: "market_opportunity_facts_v1";
+  reportedImportValueSeries: MarketOpportunityValuePoint[];
+  yoyChanges: MarketOpportunityRateChange[];
+  twoYearCagr: number | null;
+  twoYearCagrReason: string;
+  chinaMainlandSupplyShare: number | null;
+  chinaMainlandSupplyShareReason: string;
+  chinaMainlandEvidence: MarketOpportunityEvidence | null;
+}
+
+export interface MarketOpportunityBatch {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  campaignId: string;
+  providerId: "un_comtrade";
+  datasetFingerprint: string;
+  policyVersion: "market_opportunity_facts_v1";
+  status: MarketOpportunityBatchStatus;
+  emptyReason: string;
+  candidateCount: number;
+  readyCount: number;
+  comparisonPeriods: string[];
+  firstTriggerJobId: string;
+  observationCutoffAt: string | null;
+  createdAt: string;
+}
+
+export interface MarketOpportunitySnapshot {
+  id: string;
+  batchId: string;
+  teamId: string;
+  ownerId: string;
+  campaignId: string;
+  providerId: "un_comtrade";
+  reporterCountry: string;
+  reporterCode: string;
+  classification: string;
+  commodityCode: string;
+  commodityDescription: string;
+  comparisonPeriod: string;
+  snapshotStatus: MarketOpportunitySnapshotStatus;
+  insufficiencyReasons: string[];
+  metrics: MarketOpportunityMetrics;
+  marketScore: number | null;
+  growthScore: number | null;
+  chinaSupplyScore: number | null;
+  createdAt: string;
+}
+
+export interface MarketOpportunityCalculationEvent {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  campaignId: string;
+  triggerJobId: string;
+  batchId: string;
+  datasetFingerprint: string;
+  policyVersion: "market_opportunity_facts_v1";
+  outcome: MarketOpportunityBatchStatus;
+  reusedBatch: boolean;
+  sequence: number;
+  calculatedAt: string;
+}
+
+export type AgentJobStatus =
+  | "queued"
+  | "running"
+  | "retry_scheduled"
+  | "succeeded"
+  | "failed"
+  | "cancelled"
+  | "dead_letter";
+
+export interface AgentJob {
+  id: string;
+  teamId: string;
+  ownerId: string;
+  jobType: string;
+  aggregateType: string;
+  aggregateId: string;
+  parentJobId: string;
+  status: AgentJobStatus;
+  priority: number;
+  idempotencyKey: string;
+  policyVersion: string;
+  inputJsonEncrypted: string;
+  outputJsonEncrypted: string;
+  attemptCount: number;
+  maxAttempts: number;
+  nextAttemptAt: string;
+  errorCode: string;
+  errorMessage: string;
+  traceId: string;
+  startedAt: string;
+  finishedAt: string;
+  createdAt: string;
+}
+
+export interface AgentJobIdempotencyAlias {
+  id: string;
+  jobId: string;
+  teamId: string;
+  jobType: string;
+  idempotencyKey: string;
+  createdAt: string;
+}
+
+export interface LeadSourceConfig {
+  id: string;
+  provider: string;
+  scope: "personal" | "team";
+  apiKey: string;
+  baseUrl?: string;
+  enabled: boolean;
+  lastTestAt?: string;
+  lastTestStatus?: "untested" | "passed" | "failed";
+  lastTestMessage?: string;
+  usageJson?: string;
+  ownerId: string;
+  teamId: string;
+  updatedAt: string;
+}
+
+export interface AiModelConfig {
+  id: string;
+  provider: string;
+  protocol: "openai-compatible" | "anthropic" | "gemini";
+  name: string;
+  baseUrl: string;
+  model: string;
+  apiKey: string;
+  enabled: boolean;
+  temperature: number;
+  useLeadFinder: boolean;
+  useWebsiteParse: boolean;
+  useScoring: boolean;
+  useEmailDraft: boolean;
+  useExam: boolean;
+  lastTestAt?: string;
+  lastTestStatus?: "untested" | "passed" | "failed";
+  lastTestMessage?: string;
+  webSearchStatus?: "untested" | "passed" | "failed" | "unsupported";
+  webSearchTestAt?: string;
+  webSearchTestMessage?: string;
+  webSearchCitationCount?: number;
+  ownerId: string;
+  teamId: string;
+  updatedAt: string;
+}
+
+export interface Product {
+  id: string;
+  nameZh: string;
+  nameEn: string;
+  model: string;
+  category: string;
+  unit: string;
+  price: number;
+  currency: string;
+  hsCode: string;
+  descriptionZh: string;
+  descriptionEn: string;
+  tags: string[];
+  packLength?: number;
+  packWidth?: number;
+  packHeight?: number;
+  packWeight?: number;
+  imageUrl: string;
+  ownerId: string;
+  teamId: string;
+  updatedAt: string;
+}
+
+export type ShipmentStatus = "draft" | "shipped" | "in_transit" | "delivered" | "exception";
+
+export interface ShipmentItem {
+  id: string;
+  /** 关联订单明细行；有它就能精确回写 shipped_qty，无需靠品名猜。 */
+  orderItemId?: string;
+  productName: string;
+  model: string;
+  hsCode: string;
+  quantity: number;
+  unit: string;
+  netWeight: number;
+  grossWeight: number;
+  length: number;
+  width: number;
+  height: number;
+  volume: number;
+  note: string;
+}
+
+export interface Shipment {
+  id: string;
+  shipmentNo: string;
+  dealId: string;
+  dealTitle: string;
+  customerName: string;
+  /** 运输单自身的目的地信息；地图和物流视图优先使用这些字段。 */
+  destinationCountry?: string;
+  destinationPort?: string;
+  destinationAddress?: string;
+  courier: string;
+  trackingCode: string;
+  trackingImageUrl: string;
+  status: ShipmentStatus;
+  /** 状态来源：草稿/本地手填为 local；交运后由承运商官网同步为 carrier */
+  statusSource: "local" | "carrier";
+  /** 最近一次物流同步时间(ISO) */
+  lastSyncedAt?: string;
+  /** 同步错误信息(无轨迹/官网异常等) */
+  syncError?: string;
+  /** 官网轨迹节点(承运商返回) */
+  trackingEvents?: TrackingEvent[];
+  shippedAt: string;
+  estimatedArrival: string;
+  note: string;
+  items: ShipmentItem[];
+  /** 关联订单（可空：历史发货单只挂商机）。 */
+  orderId?: string;
+  ownerId: string;
+  teamId: string;
+  updatedAt: string;
+}
+
+/* ---------------------------------------------------------------------------
+ * 订单（履约主档）
+ *
+ * 定位：商机成交之后，客户侧的履约视图。它不做库存、生产、成本、开票，
+ * 只归集「条款 / 状态 / 时间轴 / 文件」，并接收发货与单证的回写。
+ * ------------------------------------------------------------------------- */
+
+export type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "in_production"
+  | "ready_to_ship"
+  | "shipped"
+  | "delivered"
+  | "completed"
+  | "cancelled";
+
+export interface OrderItem {
+  id: string;
+  /** 扁平数组存储，必须自带归属；不靠外层 order 隐式绑定。 */
+  orderId: string;
+  lineNo: number;
+  product: string;
+  spec: string;
+  qty: number;
+  unit: string;
+  unitPrice: number;
+  amount: number;
+  /** 已发数量：由发货单回写，用于派生履约进度（不是状态）。 */
+  shippedQty: number;
+  remark: string;
+}
+
+export interface Order {
+  id: string;
+  /** CRM 系统编号（`GJ-SO-YYMM-NNNN`），自动生成、不可改，只用于系统内定位。 */
+  orderNo: string;
+  /**
+   * 公司自己的订单号（合同号 / 生产单号 / 财务单号一类），业务员手工录入。
+   * `orderNo` 是系统流水号，不等于公司对外用的真实单号 —— 两者必须分开存、分开显示。
+   * 可以为空：成交自动建单时还没拿到公司单号，后续补录。
+   */
+  companyOrderNo: string;
+  dealId: string;
+  /** 同一商机拆单时的序号；自动建单固定为 1。 */
+  splitSeq: number;
+  customerId: string;
+  /** 客户名快照：客户改名后订单仍显示签约时的抬头。 */
+  customerName: string;
+  status: OrderStatus;
+  currency: string;
+  amount: number;
+  incoterm: string;
+  paymentTerm: string;
+  portLoading: string;
+  portDischarge: string;
+  buyerPoNo: string;
+  productionRequired: boolean;
+  expectedShipAt: string;
+  confirmedAt: string;
+  shippedAt: string;
+  deliveredAt: string;
+  completedAt: string;
+  cancelledAt: string;
+  cancelReason: string;
+  erpOrderNo: string;
+  erpSyncStatus: "none" | "pending" | "synced" | "conflict";
+  source: "deal_auto" | "manual" | "backfill";
+  ownerId: string;
+  teamId: string;
+  remark: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type OrderEventType =
+  | "created"
+  | "status"
+  | "note"
+  | "file"
+  | "shipment"
+  | "document"
+  | "payment"
+  | "sync";
+
+export interface OrderEvent {
+  id: string;
+  orderId: string;
+  type: OrderEventType;
+  fromStatus?: OrderStatus;
+  toStatus?: OrderStatus;
+  content: string;
+  operatorId: string;
+  refType?: string;
+  refId?: string;
+  createdAt: string;
+}
+
+export interface OrderFile {
+  id: string;
+  orderId: string;
+  /** 指向文件中心 knowledge_assets.id；订单不存文件本体。 */
+  assetId: string;
+  kind: "contract" | "pi" | "ci" | "pl" | "inspection" | "other";
+  note: string;
+  createdBy: string;
+  createdAt: string;
+  /**
+   * M6 收编：这一行已经对应到文件中心的具体文件（files.id）。
+   * 非空时订单详情不再读这条旧记录，而是读 files 那条 —— 双读要能收敛成单读。
+   */
+  supersededByFileId?: string;
+}
+
+export interface TrackingEvent {
+  id: string;
+  time: string;
+  status: ShipmentStatus;
+  location: string;
+  description: string;
+}
+
+export type LogLevel = "info" | "success" | "warning" | "error";
+export type LogCategory = "auth" | "product" | "shipment" | "system";
+
+export interface LogEntry {
+  id: string;
+  level: LogLevel;
+  category: LogCategory;
+  action: string;
+  message: string;
+  actorId: string;
+  actorName: string;
+  meta: Record<string, unknown>;
+  createdAt: string;
+  ownerId: string;
+  teamId: string;
+}
+
+export interface DealItem {
+  id: string;
+  productId?: string;
+  product: string;
+  model?: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface Deal {
+  id: string;
+  customerId: string;
+  title: string;
+  stage: "询盘" | "已联系" | "已报价" | "样品" | "谈判" | "成交" | "丢单";
+  product: string;
+  quantity: number;
+  unitPrice: number;
+  items?: DealItem[];
+  amount: number;
+  currency: string;
+  amountType: "estimate" | "quoted" | "won";
+  ownerId: string;
+  teamId: string;
+  nextAction: string;
+  nextActionAt: string;
+  expectedCloseAt: string;
+  stageChangedAt: string;
+  closedAt?: string;
+  wonReason?: string;
+  lostReason?: string;
+  lostReasonCategory?: string;
+  revisitAt?: string;
+  archivedAt?: string;
+  /** 成交后自动生成的订单 id（补偿锚点：为空即「成交未建单」）。 */
+  orderId?: string;
+}
+
+export type DealEventType = "created" | "updated" | "stage" | "follow_up" | "quote" | "sample" | "negotiation" | "payment" | "document" | "won" | "lost" | "archived" | "restored";
+
+export interface DealEvent {
+  id: string;
+  dealId: string;
+  type: DealEventType;
+  content: string;
+  operatorId: string;
+  fromStage?: Deal["stage"];
+  toStage?: Deal["stage"];
+  nextAction?: string;
+  nextActionAt?: string;
+  relatedDocumentId?: string;
+  createdAt: string;
+}
+
+export interface QuoteHistoryItem {
+  productId: string;
+  product: string;
+  model: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+export interface QuoteHistoryRecord {
+  id: string;
+  dealId: string;
+  customerId: string;
+  documentId: string;
+  documentType: "PI" | "QUOTATION";
+  documentNumber: string;
+  documentRevision: number;
+  issueDate: string;
+  customerName: string;
+  dealTitle: string;
+  dealStage: Deal["stage"];
+  currency: string;
+  totalAmount: number;
+  items: QuoteHistoryItem[];
+  changes: string[];
+  fingerprint: string;
+  operatorId: string;
+  operatorName: string;
+  ownerId: string;
+  teamId: string;
+  quotedAt: string;
+  exportedAt?: string;
+}
+
+export interface Reminder {
+  id: string;
+  title: string;
+  rule: string;
+  dueAt: string;
+  ownerId: string;
+  teamId: string;
+  channel: "站内" | "邮件" | "企业微信";
+  status: "enabled" | "disabled";
+  ruleType?: "quote_no_reply" | "sample_feedback" | "inactive_customer" | "high_value_revisit" | "custom_due";
+  targetStage?: string;
+  days?: number;
+  timeUnit?: "minute" | "day" | "hour" | "week";
+  targetCustomerIds?: string[];
+  /**
+   * 是否在待办中心生成待办（界面上是「生成待办中心任务」勾选项）。
+   * - false：规则照周期匹配，只更新命中/跳过统计，不产生任何待办；
+   * - 未设置/true：命中且无「活的」待办时生成待办。
+   * 新建规则由界面默认不勾选；历史规则迁移时按 true 保留原有行为。
+   */
+  generateTodo?: boolean;
+  priority?: "high" | "medium" | "normal";
+  enabled?: boolean;
+  generatedCount?: number;
+  targetOwnerId?: string;
+  lastRunBy?: string;
+  lastRunAt?: string;
+  lastMatchedCount?: number;
+  lastCreatedCount?: number;
+  lastSkippedCount?: number;
+  lastFailedCount?: number;
+  lastError?: string;
+  /**
+   * 最近一次运行「为什么没生成待办」的原因聚合，供界面直接显示（而不只是"跳过 1"）。
+   * 原因枚举：
+   * - `generate-disabled`：规则未勾选「生成待办中心任务」，只统计不生成；
+   * - `active-todo`：该客户已有未完成的提醒待办，先不重复催办；
+   * - `cooldown`：上一条待办已完成，但还没到规则阈值的重新计时点。
+   */
+  lastSkipReasons?: ReminderSkipReasonBucket[];
+}
+
+export type ReminderSkipReason = "generate-disabled" | "active-todo" | "cooldown";
+
+export interface ReminderSkipReasonBucket {
+  reason: ReminderSkipReason;
+  count: number;
+  /** 被跳过的客户名样本（最多 3 个），让用户一眼看出是谁被跳过。 */
+  customers?: string[];
+}
+
+export interface ImportExportJob {
+  id: string;
+  name: string;
+  type: "import" | "export";
+  rows: number;
+  status: "done" | "review" | "failed";
+  operatorId: string;
+  createdAt: string;
+}
+
+export interface TradeDocumentItem {
+  id: string;
+  lineType?: "product" | "shipping_cost";
+  productId?: string;
+  imageUrl?: string;
+  product: string;
+  model: string;
+  material?: string;
+  finish?: string;
+  hsCode: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  originCountry: string;
+  weightKg: number;
+  packageCount: number;
+  // 报关资料相关扩展字段
+  brand?: string;
+  brandType?: string;
+  exportBenefit?: string;
+  inspectionCode?: string;
+  productEnglish?: string;
+}
+
+export interface TradeDocumentImportEvidence {
+  field: string;
+  value: string;
+  source: string;
+  confidence: number;
+}
+
+export type TradeDocumentRecognitionSource = "import" | "ocr";
+
+export interface TradeDocumentRecognitionFieldRule {
+  field: Exclude<keyof TradeDocumentImportDraft, "items" | "type" | "language" | "templateStyle" | "customerId" | "dealId" | "title">;
+  labels: string[];
+}
+
+export interface TradeDocumentRecognitionTemplate {
+  id: string;
+  familyId: string;
+  version: number;
+  name: string;
+  documentType: TradeDocument["type"];
+  sourceKind: TradeDocumentRecognitionSource;
+  status: "active" | "archived";
+  fingerprint: {
+    anchors: string[];
+    sellerHint?: string;
+  };
+  fieldRules: TradeDocumentRecognitionFieldRule[];
+  itemColumnRules: Partial<Record<"product" | "model" | "material" | "finish" | "hsCode" | "quantity" | "unit" | "unitPrice" | "amount" | "originCountry" | "weightKg" | "packageCount", string[]>>;
+  sampleAnalysisId: string;
+  createdBy: string;
+  teamId: string;
+  createdAt: string;
+  archivedAt?: string;
+}
+
+export interface TradeDocumentRecognitionTemplateSnapshot {
+  templateId: string;
+  familyId: string;
+  name: string;
+  version: number;
+  matchScore: number;
+  matchedAt: string;
+}
+
+export interface TradeDocumentImportDraft {
+  customerId: string;
+  dealId: string;
+  type: TradeDocument["type"];
+  title: string;
+  number: string;
+  issueDate: string;
+  buyer: string;
+  buyerAddress: string;
+  buyerContact: string;
+  seller: string;
+  sellerAddress: string;
+  currency: string;
+  incoterm: string;
+  paymentTerm: string;
+  shippingMethod: string;
+  portLoading: string;
+  portDischarge: string;
+  validityDate: string;
+  bankInfo: string;
+  notes: string;
+  language: TradeDocument["language"];
+  templateStyle: TradeDocument["templateStyle"];
+  items: TradeDocumentItem[];
+}
+
+export interface TradeDocumentImportAnalysis {
+  id: string;
+  sourceFileName: string;
+  sourceMime: string;
+  sourceStorageKey: string;
+  sourceSha256: string;
+  sourceSize: number;
+  status: "needs_review" | "confirmed" | "failed";
+  detectedType: TradeDocument["type"];
+  confidence: number;
+  extractedDocument: TradeDocumentImportDraft;
+  fieldEvidence: TradeDocumentImportEvidence[];
+  warnings: string[];
+  sourcePreview: string[];
+  calculatedTotal: number;
+  declaredTotal?: number;
+  totalDifference?: number;
+  recognitionSource?: TradeDocumentRecognitionSource;
+  recognitionTemplate?: TradeDocumentRecognitionTemplateSnapshot;
+  createdDocumentId?: string;
+  confirmedBy?: string;
+  confirmedAt?: string;
+  ownerId: string;
+  teamId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomsDocument {
+  id: string;
+  customerId: string;
+  dealId: string;
+  tradeDocumentId?: string;
+  number: string;
+  issueDate: string;
+  // 发货人信息
+  shipper: string;
+  shipperAddress: string;
+  shipperTaxNo: string;
+  // 收货人信息
+  consignee: string;
+  consigneeAddress: string;
+  // 生产销售单位
+  manufacturer: string;
+  manufacturerTaxNo: string;
+  // 运输信息
+  transportMode: string;
+  vesselName: string;
+  exitPort: string;
+  exitDate: string;
+  tradeMode: string;
+  supervisionMode: string;
+  // 贸易信息
+  tradeCountry: string;
+  destinationCountry: string;
+  packageType: string;
+  packageCount: number;
+  grossWeight: number;
+  netWeight: number;
+  tradeMethod: string;
+  contractNo: string;
+  // 支付信息
+  currency: string;
+  incoterm: string;
+  paymentTerm: string;
+  // 其他信息
+  notes: string;
+  status: "draft" | "ready" | "exported";
+  ownerId: string;
+  teamId: string;
+  updatedAt: string;
+  items: TradeDocumentItem[];
+}
+
+export interface TradeDocumentAudit {
+  id: string;
+  field: string;
+  oldValue: string;
+  newValue: string;
+  operatorId: string;
+  operatorName: string;
+  createdAt: string;
+}
+
+export interface TradeDocumentSendRecord {
+  id: string;
+  channel: "email" | "whatsapp" | "wechat" | "manual";
+  recipient: string;
+  message: string;
+  operatorId: string;
+  operatorName: string;
+  createdAt: string;
+}
+
+export interface TradeDocument {
+  id: string;
+  customerId: string;
+  dealId: string;
+  revision: number;
+  derivedFromDocumentId?: string;
+  derivedFromType?: TradeDocument["type"];
+  /** 关联订单（可空：历史单证只挂商机/客户）。 */
+  orderId?: string;
+  importAnalysisId?: string;
+  importSourceFileName?: string;
+  importSourceSha256?: string;
+  type: "PI" | "CI" | "PO" | "CUSTOMS" | "PL" | "CONTRACT" | "QUOTATION" | "COO" | "SHIPPING";
+  title: string;
+  number: string;
+  issueDate: string;
+  buyer: string;
+  buyerAddress: string;
+  buyerContact: string;
+  seller: string;
+  brandMarkText?: string;
+  sellerAddress: string;
+  sellerContact?: string;
+  sellerPhone?: string;
+  sellerEmail?: string;
+  sellerWebsite?: string;
+  sellerTaxNo?: string;
+  currency: string;
+  incoterm: string;
+  paymentTerm: string;
+  shippingMethod: string;
+  portLoading: string;
+  portDischarge: string;
+  validityDate: string;
+  bankInfo: string;
+  notes: string;
+  language: "EN" | "ES" | "RU" | "AR" | "ZH";
+  templateStyle: "executive" | "classic" | "compact" | "indigo" | "emerald" | "rose" | "slate" | "amber" | "longtec" | "custom-b";
+  status: "draft" | "ready" | "pending_approval" | "approved" | "rejected" | "exported";
+  approvalNote?: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  audits: TradeDocumentAudit[];
+  sendRecords: TradeDocumentSendRecord[];
+  letterheadId?: string;
+  stampId?: string;
+  signatureId?: string;
+  includeProductImages?: boolean;
+  letterheadSnapshot?: DocumentLetterheadSnapshot;
+  stampSnapshot?: DocumentStampSnapshot;
+  signatureSnapshot?: DocumentSignatureSnapshot;
+  ownerId: string;
+  teamId: string;
+  updatedAt: string;
+  items: TradeDocumentItem[];
+  // 报关资料特有字段
+  customsData?: CustomsDocument;
+}
+
+export interface WecomMessage {
+  id: string;
+  customerId: string;
+  summary: string;
+  ownerId: string;
+  teamId: string;
+  status: "archived" | "pending";
+}
+
+export type WecomCommandEndpointStatus = "active" | "disabled";
+
+export interface WecomCommandEndpoint {
+  id: string;
+  connectionId: string;
+  callbackPublicId: string;
+  teamId: string;
+  ownerId: string;
+  corpId: string;
+  callbackTokenEncrypted: string;
+  encodingAesKeyEncrypted: string;
+  status: WecomCommandEndpointStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type WecomMemberBindingStatus = "active" | "revoked";
+
+export interface WecomMemberBinding {
+  id: string;
+  connectionId: string;
+  teamId: string;
+  wecomUserId: string;
+  crmUserId: string;
+  status: WecomMemberBindingStatus;
+  verifiedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WecomCommandReceipt {
+  id: string;
+  endpointId: string;
+  connectionId: string;
+  teamId: string;
+  messageKey: string;
+  wecomUserId: string;
+  responseHash: string;
+  receivedAt: string;
+}
+
+export interface ProblemItem {
+  id: string;
+  title: string;
+  category: string;
+  severity: "high" | "medium" | "low";
+  status: "open" | "solving" | "resolved";
+  ownerId: string;
+  teamId: string;
+  relatedCustomer: string;
+  rootCause: string;
+  solution: string;
+  nextAction: string;
+  dueAt: string;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
+export interface Memo {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  tags: string;
+  customerId: string;
+  dealId: string;
+  ownerId: string;
+  teamId: string;
+  pinned: boolean;
+  archived: boolean;
+  deletedAt: string;
+  updatedAt: string;
+}
+
+export interface Competitor {
+  id: string;
+  company: string;
+  country: string;
+  segment: string;
+  threatLevel: "high" | "medium" | "low";
+  website: string;
+  strengths: string;
+  weaknesses: string;
+  competingProducts: string;
+  ourStrategy: string;
+  ownerId: string;
+  teamId: string;
+  updatedAt: string;
+}
+
+/** 同行关系类型：互补 / 竞争 / 互相推荐（可多选） */
+export type PeerRelation = "互补" | "竞争" | "互相推荐";
+
+export const PEER_RELATIONS: PeerRelation[] = ["互补", "竞争", "互相推荐"];
+
+export interface Peer {
+  id: string;
+  company: string;
+  country: string;
+  /** 行业介绍：主营业务、产品线、规模等 */
+  industry: string;
+  /** 与我方关系（可多选） */
+  relations: PeerRelation[];
+  contact: string;
+  phone: string;
+  email: string;
+  wechat: string;
+  website: string;
+  remark: string;
+  source: string;
+  ownerId: string;
+  teamId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CaseStudy {
+  id: string;
+  title: string;
+  customer: string;
+  country: string;
+  product: string;
+  industry: string;
+  result: string;
+  story: string;
+  reusablePoints: string;
+  status: "draft" | "published";
+  ownerId: string;
+  teamId: string;
+  updatedAt: string;
+}
+
+export type CommissionRuleType = "rate" | "fixed" | "tier" | "gross_profit" | "none";
+export type CommissionRecordStatus = "draft" | "confirmed" | "reviewed" | "locked";
+export type CommissionCalculationStatus = "pending" | "calculated" | "reviewed" | "locked";
+
+export interface CommissionProduct {
+  id: string;
+  name: string;
+  category: string;
+  model: string;
+  currency: string;
+  defaultPrice: number;
+  costPrice: number;
+  status: "active" | "disabled";
+  remark: string;
+  ownerId: string;
+  teamId: string;
+  updatedAt: string;
+}
+
+export interface CommissionRule {
+  id: string;
+  productId: string;
+  ruleType: CommissionRuleType;
+  rate: number;
+  fixedAmount: number;
+  tierJson: string;
+  grossProfitRate: number;
+  effectiveFrom: string;
+  effectiveTo: string;
+  enabled: boolean;
+  remark: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface MonthlySalesRecord {
+  id: string;
+  month: string;
+  ownerId: string;
+  teamId: string;
+  customerId: string;
+  customerName: string;
+  dealId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  salesAmount: number;
+  currency: string;
+  exchangeRate: number;
+  exchangeRateDate: string;
+  exchangeRateSource: "pending" | "manual" | "finance";
+  settlementCurrency: string;
+  settlementAmount: number;
+  basisType: "deal_amount" | "receipt";
+  basisDate: string;
+  dealArchivedAt: string;
+  sourceType: "deal" | "manual" | "adjusted";
+  status: CommissionRecordStatus;
+  edited: boolean;
+  editNote: string;
+  lastEditedBy: string;
+  lastEditedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SalesRecordAudit {
+  id: string;
+  recordId: string;
+  fieldName: string;
+  oldValue: string;
+  newValue: string;
+  reason: string;
+  operatorId: string;
+  operatorName: string;
+  createdAt: string;
+}
+
+export interface CommissionCalculation {
+  id: string;
+  month: string;
+  ownerId: string;
+  teamId: string;
+  salesAmount: number;
+  autoCommission: number;
+  manualAdjustment: number;
+  finalCommission: number;
+  status: CommissionCalculationStatus;
+  version: number;
+  isCurrent: boolean;
+  calculatedAt: string;
+  reviewedBy: string;
+  reviewedAt: string;
+  lockedBy: string;
+  lockedAt: string;
+  unlockReason: string;
+}
+
+export interface CommissionItem {
+  id: string;
+  calculationId: string;
+  recordId: string;
+  productId: string;
+  itemType: "auto" | "bonus" | "deduction" | "subsidy" | "refund" | "special" | "other";
+  sourceType: "auto" | "manual";
+  ruleSnapshotJson: string;
+  salesAmount: number;
+  autoAmount: number;
+  manualAmount: number;
+  finalAmount: number;
+  remark: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface CommissionExport {
+  id: string;
+  month: string;
+  scopeType: "self" | "team" | "all";
+  scopeOwnerId: string;
+  fileType: "xlsx" | "csv";
+  rows: number;
+  exportedBy: string;
+  createdAt: string;
+}
+
+export interface DailyReport {
+  id: string;
+  reportDate: string;
+  completedWork: string;
+  customerProgress: string;
+  results: string;
+  risks: string;
+  nextPlan: string;
+  supportNeeded: string;
+  status: "submitted";
+  ownerId: string;
+  teamId: string;
+  submittedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DailyReportComment {
+  id: string;
+  reportId: string;
+  parentId: string;
+  content: string;
+  authorId: string;
+  teamId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InternalMessage {
+  id: string;
+  threadId: string;
+  senderId: string;
+  recipientId: string;
+  teamId: string;
+  type: "system" | "manual";
+  subject: string;
+  content: string;
+  relatedType: "daily_report" | "message" | "lead" | "email_return" | "quote_history" | "integration_approval" | "integration_call" | "integration_connection" | "integration_event" | "integration_connector" | "";
+  relatedId: string;
+  idempotencyKey?: string;
+  readAt: string;
+  createdAt: string;
+  updatedAt: string;
+}

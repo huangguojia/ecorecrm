@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>工作台重设计 · 10 款原型</title>
+<link rel="stylesheet" href="base.css">
+<style>
+  :root { --paper:#f0f1ed; }
+  body { background:var(--paper); }
+  .wrap2 { max-width:1400px; margin:0 auto; padding:30px 32px 56px; }
+
+  .intro { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:38px; padding-bottom:24px; border-bottom:1px solid var(--line); }
+  .kicker { display:flex; align-items:center; gap:7px; font-family:var(--mono); font-size:9px; letter-spacing:.18em; color:var(--brand); }
+  .kicker i { width:6px; height:6px; background:var(--brand); }
+  h1 { margin:12px 0 0; font-size:30px; font-weight:700; line-height:1.24; letter-spacing:-.02em; color:var(--ink); }
+  h1 em { font-style:normal; color:var(--brand); }
+  .lede { margin:12px 0 0; max-width:52ch; font-size:12.5px; line-height:1.8; color:var(--muted); }
+
+  .diagnosis { align-self:end; }
+  .dg { display:grid; grid-template-columns:78px minmax(0,1fr); gap:12px; padding:9px 0; border-top:1px solid var(--line-soft); font-size:11px; line-height:1.7; color:var(--text); }
+  .dg b { font-size:9px; font-weight:700; letter-spacing:.1em; color:var(--brand); padding-top:2px; }
+  .dg span { color:var(--muted); }
+  .swatches { display:flex; gap:6px; margin-top:10px; }
+  .swatches i { width:34px; height:14px; border-radius:3px; border:1px solid rgba(0,0,0,.06); }
+
+  .bar { display:flex; align-items:center; gap:10px; margin:22px 0 16px; }
+  .bar h2 { margin:0; font-size:11px; font-weight:700; letter-spacing:.14em; color:var(--ink); }
+  .bar span { font-family:var(--mono); font-size:9px; letter-spacing:.1em; color:var(--faint); }
+  .bar .right { margin-left:auto; font-size:10px; color:var(--muted); }
+
+  .gal { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .item { overflow:hidden; border:1px solid var(--line); border-radius:13px; background:#fff; box-shadow:0 2px 4px rgba(16,24,20,.03), 0 20px 40px -38px rgba(16,24,20,.5); transition:box-shadow .2s ease, transform .2s ease; }
+  .item:hover { transform:translateY(-2px); box-shadow:0 4px 8px rgba(16,24,20,.05), 0 26px 50px -34px rgba(16,24,20,.55); }
+  .item-h { display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--line-soft); }
+  .no { display:grid; place-items:center; width:24px; height:24px; flex:none; border-radius:6px; background:var(--ink); color:#fff; font-family:var(--mono); font-size:9.5px; }
+  .no.red { background:var(--brand); }
+  .item-h b { font-size:12px; font-weight:600; color:var(--ink); }
+  .item-h em { display:block; font-size:9.5px; font-style:normal; color:var(--muted); margin-top:1px; }
+  .item-h a { margin-left:auto; font-family:var(--mono); font-size:9px; letter-spacing:.06em; color:var(--brand); padding:4px 8px; border:1px solid #f0d3da; border-radius:5px; background:#fffafb; }
+  .frame { position:relative; height:386px; overflow:hidden; background:#f7f8f5; }
+  .frame iframe { position:absolute; top:0; left:0; width:1440px; height:1100px; border:0; transform:scale(.3972); transform-origin:top left; pointer-events:none; }
+
+  .tags { display:flex; flex-wrap:wrap; gap:5px; padding:10px 14px 12px; }
+  .tags span { padding:2px 7px; border-radius:100px; background:#f4f6f2; font-size:9px; color:#5d6b64; }
+
+  .notes { margin-top:30px; padding:20px 22px; border:1px solid var(--line); border-radius:12px; background:#fff; }
+  .notes h3 { margin:0 0 12px; font-size:11px; letter-spacing:.12em; color:var(--ink); }
+  table.cmp { width:100%; border-collapse:collapse; }
+  table.cmp th { padding:7px 8px; text-align:left; font-family:var(--mono); font-size:8.5px; font-weight:500; letter-spacing:.1em; color:var(--faint); border-bottom:1px solid var(--line); }
+  table.cmp td { padding:8px 8px; border-bottom:1px solid var(--line-soft); font-size:10.5px; color:var(--text); }
+  table.cmp td:first-child { font-family:var(--mono); font-size:9.5px; color:var(--brand); }
+  table.cmp td:nth-child(2) { font-weight:600; color:var(--ink); }
+  .hint { margin-top:14px; font-size:10.5px; line-height:1.75; color:var(--muted); }
+  .hint b { color:var(--ink); }
+  .foot { display:flex; justify-content:space-between; margin-top:26px; padding-top:10px; border-top:1px solid var(--line); font-family:var(--mono); font-size:8.5px; letter-spacing:.12em; color:var(--faint); }
+
+  @media (max-width:1100px) { .intro { grid-template-columns:1fr; gap:18px; } .gal { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap2">
+  <header class="intro">
+    <div>
+      <div class="kicker"><i></i>WORKBENCH REDESIGN / 10 DIRECTIONS</div>
+      <h1>工作台重设计 ·<br>把<em>荧光黄</em>换掉，让判断更值钱。</h1>
+      <p class="lede">现状是纯黑底 + 荧光黄大标题，与全站「纸白 + 绯红」的语言不兼容：黑块过重，黄字刺眼，而且真正重要的信息（谁该跟进、还差多少钱）被埋在大字后面。这 10 款原型全部保留品牌绯红作为唯一信号色，改用中性纸底承载密度。</p>
+    </div>
+    <div class="diagnosis">
+      <div class="dg"><b>保留</b><span>绯红 #be123c 只用于「需要你立刻处理」的信号；其余全部中性；中文优先、数字等宽。</span></div>
+      <div class="dg"><b>去掉</b><span>荧光黄 #f2ff00、纯黑大面积铺底、48px 以上的口号式标题占位。</span></div>
+      <div class="dg"><b>补上</b><span>今日判断（依据/动作/影响）、跟进队列、漏斗卡点、风险信号、汇率敞口、竞标、团队。</span></div>
+      <div class="swatches">
+        <i style="background:#be123c"></i><i style="background:#8c0e2d"></i><i style="background:#fbe9ee"></i><i style="background:#111816"></i><i style="background:#69756f"></i><i style="background:#f4f5f2"></i>
+      </div>
+    </div>
+  </header>
+
+  <div class="bar">
+    <h2>十款方向</h2>
+    <span>点击右上「打开」看原尺寸</span>
+    <div class="right">全部为纯静态原型 · 未改动现有代码</div>
+  </div>
+
+  <div class="gal">
+    <article class="item">
+      <div class="item-h"><span class="no">01</span><div><b>晨报编辑版</b><em>Editorial Brief</em></div><a href="01-editorial.html" target="_blank">打开 →</a></div>
+      <div class="frame"><iframe src="01-editorial.html" title="01 晨报编辑版"></iframe></div>
+      <div class="tags"><span>衬线标题</span><span>零卡片</span><span>细线分隔</span><span>阅读感最强</span></div>
+    </article>
+
+    <article class="item">
+      <div class="item-h"><span class="no">02</span><div><b>指挥台</b><em>Command Console</em></div><a href="02-console.html" target="_blank">打开 →</a></div>
+      <div class="frame"><iframe src="02-console.html" title="02 指挥台"></iframe></div>
+      <div class="tags"><span>深色信号卡</span><span>12 栅格</span><span>信息密度高</span><span>日报式</span></div>
+    </article>
+
+    <article class="item">
+      <div class="item-h"><span class="no">03</span><div><b>Bento 卡片</b><em>Bento Grid</em></div><a href="03-bento.html" target="_blank">打开 →</a></div>
+      <div class="frame"><iframe src="03-bento.html" title="03 Bento 卡片"></iframe></div>
+      <div class="tags"><span>圆角卡片</span><span>渐变主卡</span><span>亲和</span><span>移动端友好</span></div>
+    </article>
+
+    <article class="item">
+      <div class="item-h"><span class="no">04</span><div><b>时间轴台账</b><em>Timeline Ledger</em></div><a href="04-timeline.html" target="_blank">打开 →</a></div>
+      <div class="frame"><iframe src="04-timeline.html" title="04 时间轴台账"></iframe></div>
+      <div class="tags"><span>以时间为轴</span><span>现在线</span><span>日程驱动</span><span>适合个人</span></div>
+    </article>
+
+    <article class="item">
+      <div class="item-h"><span class="no">05</span><div><b>商机看板</b><em>Pipeline Board</em></div><a href="05-kanban.html" target="_blank">打开 →</a></div>
+      <div class="frame"><iframe src="05-kanban.html" title="05 商机看板"></iframe></div>
+      <div class="tags"><span>四列阶段</span><span>可拖拽</span><span>销售视角</span><span>WIP 预警</span></div>
+    </article>
+
+    <article class="item">
+      <div class="item-h"><span class="no">06</span><div><b>数据仪表</b><em>Analytics First</em></div><a href="06-analytics.html" target="_blank">打开 →</a></div>
+      <div class="frame"><iframe src="06-analytics.html" title="06 数据仪表"></iframe></div>
+      <div class="tags"><span>大图表</span><span>环比</span><span>阶段停留</span><span>适合主管</span></div>
+    </article>
+
+    <article class="item">
+      <div class="item-h"><span class="no">07</span><div><b>AI 副驾</b><em>Copilot</em></div><a href="07-copilot.html" target="_blank">打开 →</a></div>
+      <div class="frame"><iframe src="07-copilot.html" title="07 AI 副驾"></iframe></div>
+      <div class="tags"><span>对话式</span><span>判断卡</span><span>追问</span><span>未来感</span></div>
+    </article>
+
+    <article class="item">
+      <div class="item-h"><span class="no">08</span><div><b>墨金夜间版</b><em>Ink &amp; Ember</em></div><a href="08-ember.html" target="_blank">打开 →</a></div>
+      <div class="frame"><iframe src="08-ember.html" title="08 墨金夜间版"></iframe></div>
+      <div class="tags"><span>暗色</span><span>暖灰</span><span>绯红高光</span><span>夜间值守</span></div>
+    </article>
+
+    <article class="item">
+      <div class="item-h"><span class="no">09</span><div><b>双栏聚焦</b><em>Split Focus</em></div><a href="09-split.html" target="_blank">打开 →</a></div>
+      <div class="frame"><iframe src="09-split.html" title="09 双栏聚焦"></iframe></div>
+      <div class="tags"><span>目标在左</span><span>三件事在右</span><span>周视角</span><span>强聚焦</span></div>
+    </article>
+
+    <article class="item">
+      <div class="item-h"><span class="no">10</span><div><b>瑞士网格</b><em>Swiss Grid</em></div><a href="10-swiss.html" target="_blank">打开 →</a></div>
+      <div class="frame"><iframe src="10-swiss.html" title="10 瑞士网格"></iframe></div>
+      <div class="tags"><span>黑白红</span><span>硬线</span><span>极大字号对比</span><span>克制</span></div>
+    </article>
+  </div>
+
+  <section class="notes">
+    <h3>怎么选</h3>
+    <table class="cmp">
+      <thead><tr><th>#</th><th>方案</th><th>最适合</th><th>信息密度</th><th>关键取舍</th></tr></thead>
+      <tbody>
+        <tr><td>01</td><td>晨报编辑版</td><td>每天开工前读一遍</td><td>中</td><td>极简但有阅读门槛，卡片为零</td></tr>
+        <tr><td>02</td><td>指挥台</td><td>业务 + 主管通用</td><td>高</td><td>深色信号卡很抢眼，需控制只用一块</td></tr>
+        <tr><td>03</td><td>Bento 卡片</td><td>移动端 / 年轻团队</td><td>中高</td><td>渐变主卡好看，但需克制只用一张</td></tr>
+        <tr><td>04</td><td>时间轴台账</td><td>个人执行，按天推进</td><td>中</td><td>强依赖日程数据质量</td></tr>
+        <tr><td>05</td><td>商机看板</td><td>销售自己管单</td><td>中</td><td>弱化「今天」概念，偏商机</td></tr>
+        <tr><td>06</td><td>数据仪表</td><td>主管周会 / 复盘</td><td>高</td><td>弱化待办，偏结果</td></tr>
+        <tr><td>07</td><td>AI 副驾</td><td>新人 / 需要引导</td><td>中</td><td>依赖 AI 质量，文本量大</td></tr>
+        <tr><td>08</td><td>墨金夜间版</td><td>长时间盯盘 / 夜班</td><td>高</td><td>暗色与全站纸白不一致，需整站同款</td></tr>
+        <tr><td>09</td><td>双栏聚焦</td><td>周目标管理</td><td>中高</td><td>目标与动作分离，今天信息略少</td></tr>
+        <tr><td>10</td><td>瑞士网格</td><td>数据量大的成熟团队</td><td>很高</td><td>硬朗、缺温度，适合 B 端老手</td></tr>
+      </tbody>
+    </table>
+    <p class="hint"><b>推荐组合：</b>以 <b>02 指挥台</b> 为骨架（信息最全、扩展性最好），把 01 的「判断三段式（依据 / 动作 / 影响）」搬进深色信号卡；如果团队偏年轻、移动端多，改用 <b>03 Bento</b>。夜班场景再单独提供 08 暗色皮肤。</p>
+    <p class="hint"><b>已做的验证：</b>10 款全部通过 headless Chrome 体检 —— 无控制台报错、无横向溢出、无文字被裁切、正文对比度 ≥ 4.2:1、没有小于 8px 的字号；截图见 <span class="mono">/tmp/proto-shots</span>，体检脚本 <span class="mono">verify-protos.mjs</span>。</p>
+  </section>
+
+  <div class="foot"><span>GOODJOB / WORKBENCH PROTOTYPES · 2026-10-23</span><span>纯静态原型 · 未接入真实数据 · 未替换生产代码</span></div>
+</div>
+</body>
+</html>

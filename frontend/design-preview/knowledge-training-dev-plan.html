@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知识库训练 · 开发方案（功能闭环版）</title>
+<style>
+  :root{
+    --ink:#131c2e; --ink-2:#37445b; --muted:#6b7d94; --faint:#94a3b6;
+    --line:#e7ecf4; --line-2:#dbe3ee; --surface:#ffffff; --surface-2:#f8fafc;
+    --brand:#4f46e5; --brand-tint:#eef0ff; --brand-ring:#c9cdfa;
+    --teal:#0c736a; --teal-tint:#e6f6f4; --green:#12733e; --green-tint:#e7f7ed;
+    --amber:#a16207; --amber-tint:#fdf6e3; --red:#b42323; --red-tint:#fdeeee;
+    --radius:10px; --radius-sm:6px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#f3f5f9;color:var(--ink);
+    font:14px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;}
+  .page{max-width:1180px;margin:0 auto;padding:36px 44px 80px}
+  .doc{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 1px 2px rgba(23,35,61,.04),0 18px 40px -30px rgba(23,35,61,.35);overflow:hidden}
+  .hero{padding:34px 40px 30px;border-bottom:1px solid var(--line);
+    background:linear-gradient(112deg,var(--brand-tint) 0%,var(--surface) 58%)}
+  .hero .kicker{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--brand);text-transform:uppercase}
+  .hero h1{margin:8px 0 6px;font-size:26px;letter-spacing:-.02em}
+  .hero p{margin:0;color:var(--muted);font-size:13px;max-width:880px}
+  .hero .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  .hero .meta span{font-size:11px;color:var(--ink-2);background:var(--surface);
+    border:1px solid var(--line);border-radius:999px;padding:3px 11px}
+  section{padding:30px 40px;border-bottom:1px solid var(--line)}
+  section:last-child{border-bottom:0}
+  h2{margin:0 0 4px;font-size:19px;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+  h2 .no{font-size:11px;font-weight:700;color:var(--brand);background:var(--brand-tint);
+    border:1px solid var(--brand-ring);border-radius:6px;padding:2px 8px;letter-spacing:.04em}
+  h2 + .lead{color:var(--muted);font-size:13px;margin:0 0 18px}
+  h3{margin:24px 0 10px;font-size:15px}
+  h3:first-of-type{margin-top:4px}
+  h4{margin:16px 0 6px;font-size:13px;color:var(--ink-2)}
+  p{margin:8px 0}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12.5px}
+  th{background:var(--surface-2);text-align:left;font-weight:600;color:var(--ink-2);
+    border:1px solid var(--line);padding:7px 10px;white-space:nowrap}
+  td{border:1px solid var(--line);padding:7px 10px;vertical-align:top}
+  tr:hover td{background:#fcfdff}
+  code,kbd{font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:#3d3a8c}
+  td code{white-space:nowrap}
+  .grid{display:grid;gap:12px}
+  .grid.c2{grid-template-columns:1fr 1fr}
+  .grid.c3{grid-template-columns:repeat(3,1fr)}
+  .grid.c4{grid-template-columns:repeat(4,1fr)}
+  @media (max-width:960px){.grid.c2,.grid.c3,.grid.c4{grid-template-columns:1fr}}
+  .card{border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;background:var(--surface)}
+  .card h5{margin:0 0 6px;font-size:13px}
+  .card p{margin:0;font-size:12.5px;color:var(--muted)}
+  .tag{display:inline-block;font-size:11px;font-weight:600;border-radius:5px;padding:1px 8px;
+    border:1px solid transparent;white-space:nowrap}
+  .t-p0{background:var(--red-tint);color:var(--red);border-color:#f3caca}
+  .t-p1{background:var(--amber-tint);color:var(--amber);border-color:#eedfb4}
+  .t-p2{background:var(--teal-tint);color:var(--teal);border-color:#b6e4df}
+  .t-p3{background:var(--brand-tint);color:var(--brand);border-color:var(--brand-ring)}
+  .t-ok{background:var(--green-tint);color:var(--green);border-color:#b7e3c9}
+  .t-mut{background:var(--surface-2);color:var(--muted);border-color:var(--line)}
+  .note{border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+    background:var(--surface-2);padding:11px 14px;margin:14px 0;font-size:12.5px;color:var(--ink-2)}
+  .note.warn{border-left-color:var(--amber)}
+  .note.danger{border-left-color:var(--red)}
+  .note.ok{border-left-color:var(--green)}
+  .note b{color:var(--ink)}
+  .loop{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin:14px 0}
+  .loop-head{padding:10px 16px;background:var(--surface-2);border-bottom:1px solid var(--line);
+    display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .loop-head b{font-size:14px}
+  .loop-head span{font-size:12px;color:var(--muted)}
+  .loop-body{padding:6px 16px 14px}
+  .flow{display:flex;align-items:stretch;gap:0;margin:14px 0;flex-wrap:wrap}
+  .flow .node{flex:1;min-width:118px;border:1px solid var(--line-2);border-radius:var(--radius-sm);
+    background:var(--surface);padding:9px 11px;position:relative}
+  .flow .node b{display:block;font-size:12px;margin-bottom:2px}
+  .flow .node span{font-size:11px;color:var(--muted);line-height:1.5;display:block}
+  .flow .node.new{border-color:var(--brand-ring);background:var(--brand-tint)}
+  .flow .node.fix{border-color:#f3caca;background:var(--red-tint)}
+  .flow .node.mod{border-color:#b6e4df;background:var(--teal-tint)}
+  .flow .arrow{flex:0 0 22px;display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:15px}
+  .audit{border:1px solid var(--line);border-radius:var(--radius);margin:14px 0;overflow:hidden}
+  .audit-head{padding:10px 16px;background:linear-gradient(112deg,var(--brand-tint),var(--surface));
+    border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+  .audit-head b{font-size:14px}
+  .audit-head span{font-size:12px;color:var(--muted)}
+  .audit-body{padding:6px 16px 14px}
+  .finding{border-left:3px solid var(--amber);background:var(--amber-tint);border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+    padding:10px 14px;margin:10px 0;font-size:12.5px}
+  .finding.fixed{border-left-color:var(--green);background:var(--green-tint)}
+  .finding.bad{border-left-color:var(--red);background:var(--red-tint)}
+  .finding b{color:var(--ink)}
+  .finding .fno{font-weight:700;color:var(--amber);margin-right:6px}
+  .finding.fixed .fno{color:var(--green)}
+  .finding.bad .fno{color:var(--red)}
+  ul,ol{margin:8px 0;padding-left:22px}
+  li{margin:3px 0}
+  .small{font-size:12px;color:var(--muted)}
+  .svgbox{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);
+    padding:18px 14px;margin:14px 0;overflow-x:auto}
+  .svgbox .cap{font-size:11px;color:var(--faint);text-align:center;margin-top:8px}
+  .toc{display:grid;grid-template-columns:repeat(3,1fr);gap:6px 18px;font-size:12.5px;margin:16px 0 0}
+  .toc a{color:var(--ink-2);text-decoration:none;border-bottom:1px solid transparent}
+  .toc a:hover{color:var(--brand);border-bottom-color:var(--brand-ring)}
+  @media (max-width:960px){.toc{grid-template-columns:1fr}.page{padding:16px}}
+  .verdict{display:flex;gap:14px;flex-wrap:wrap;margin:16px 0 0}
+  .verdict > div{flex:1;min-width:170px;border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px 14px;background:var(--surface)}
+  .verdict b{display:block;font-size:20px;letter-spacing:-.015em;font-variant-numeric:tabular-nums}
+  .verdict span{font-size:11px;color:var(--muted)}
+  .verdict .v-brand b{color:var(--brand)}
+  .batch{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin:12px 0}
+  .batch-head{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--surface-2);
+    border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .batch-head .pid{font-size:11px;font-weight:700;color:#fff;background:var(--brand);border-radius:6px;padding:2px 9px}
+  .batch-head b{font-size:14px}
+  .batch-head .why{margin-left:auto;font-size:11.5px;color:var(--muted)}
+  .batch-body{padding:4px 16px 14px}
+  .crit{background:var(--surface-2);border:1px dashed var(--line-2);border-radius:var(--radius-sm);
+    padding:9px 12px;margin:8px 0;font-size:12.5px}
+  .crit b{color:var(--brand)}
+</style>
+</head>
+<body>
+<div class="page"><div class="doc">
+
+<div class="hero">
+  <div class="kicker">GoodJob CRM · 知识库训练</div>
+  <h1>知识库训练开发方案 · 功能闭环版</h1>
+  <p>把设计规格（<code>docs/KNOWLEDGE-TRAINING-DESIGN.md</code>）落成可执行计划：<b>5 个批次，每批交付一个能从头走到尾的功能闭环切片</b>。本方案先核出 6 个技术前提（本轮实测、带 file:line 证据），据此定出 4 个闭环的判据、10 条降级路径、3 条「必须会红」的自检，并对开发方案本身做了三轮自我辩论（批次划分 / 失败路径 / 可证伪性），修订 5 处。</p>
+  <div class="meta">
+    <span>状态：开发方案 v1（三轮辩论后修订）</span>
+    <span>未改任何代码 · 等确认后按 P0→P4 实施</span>
+    <span>范围：CRM 后端 / CRM 前端 / whatsapp-plugin / whatsapp-web-translator</span>
+    <span>工程规格：docs/KNOWLEDGE-TRAINING-DEV-PLAN.md</span>
+  </div>
+  <div class="verdict">
+    <div class="v-brand"><b>5</b><span>批次，每批一个可独立验收的闭环切片</span></div>
+    <div class="v-brand"><b>4</b><span>功能闭环（训练 / 试问 / 溯源 / 度量）</span></div>
+    <div class="v-brand"><b>6</b><span>技术前提，本轮实测带行号证据</span></div>
+    <div class="v-brand"><b>10</b><span>降级路径（失败也要闭环）</span></div>
+    <div class="v-brand"><b>3</b><span>条「必须会红」的自检</span></div>
+  </div>
+  <nav class="toc">
+    <a href="#s1">§1 结论先看：五批 × 四闭环</a>
+    <a href="#s2">§2 六个技术前提</a>
+    <a href="#s3">§3 四个功能闭环与判据</a>
+    <a href="#s4">§4 批次与节奏</a>
+    <a href="#s5">§5 数据模型与接口</a>
+    <a href="#s6">§6 CRM 训练工作台</a>
+    <a href="#s7">§7 插件与扩展改造</a>
+    <a href="#s8">§8 降级矩阵</a>
+    <a href="#s9">§9 验收（可证伪）</a>
+    <a href="#s10">§10 风险与回滚</a>
+    <a href="#s11">§11 三轮自我辩论</a>
+    <a href="#s12">§12 铁律检查与待定夺</a>
+  </nav>
+</div>
+
+<!-- ========== §1 ========== -->
+<section id="s1">
+  <h2><span class="no">§1</span>结论先看：五批 × 四闭环</h2>
+  <p class="lead">一句话：<b>先让自己看得见（P0），再让一条最窄的链路真的通（P1），然后加第二个源（P2）、把检索变准（P3）、最后让"有没有用"变成数字（P4）。</b>顺序不是按功能多少排的，是按<b>风险类型</b>和<b>可验证性</b>排的。</p>
+
+  <div class="grid c4">
+    <div class="card"><h5><span class="tag t-p3">P0</span> 可观测性打底</h5><p>不改检索行为、不加表、不加路由。半天量级，当天可验。<br><b>用户可见</b>：点「来源」能看到是哪条训练条目、命中哪些词、多少分。</p></div>
+    <div class="card"><h5><span class="tag t-p3">P1</span> 训练工作台（文件源）</h5><p>新模块 + 两张表 + 新视图 + 发布通道。<br><b>用户可见</b>：传一份资料 → 训出一条 QA → 发布 → 插件立刻能用 → 现场试问。</p></div>
+    <div class="card"><h5><span class="tag t-p3">P2</span> 会话挖矿</h5><p>第二个采集源 + 知识缺口补答。<br><b>用户可见</b>：从真实客户对话里挖出<b>问法</b>，人工配答后发布。</p></div>
+    <div class="card"><h5><span class="tag t-p1">P3</span> 检索硬化</h5><p>改既有检索行为，风险最高，所以放在语料就位之后。<br><b>用户可见</b>：库变干净，臆造引用被拦并弃答。</p></div>
+  </div>
+  <div class="grid c2" style="margin-top:12px">
+    <div class="card"><h5><span class="tag t-p2">P4</span> 成绩单与回流</h5><p>golden set 回测 + 四项指标 + 回流反哺。<br><b>用户可见</b>：训练后自动出成绩单；改写样本进下一批候选；零命中条目退役。</p></div>
+    <div class="card" style="background:var(--brand-tint);border-color:var(--brand-ring)"><h5>三条划分原则</h5><p>① 每批结束时用户都能用上一段真实功能，不留技术半成品；<br>② 零风险在前、改行为在后；<br>③ <b>窄而通优于宽而断</b>——P1 只接文件源但全链路通，P2 再加会话源。</p></div>
+  </div>
+
+  <div class="svgbox">
+    <svg viewBox="0 0 1040 312" width="100%" height="312" role="img" aria-label="四闭环与五批次的覆盖关系">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M0 0 L10 5 L0 10 z" fill="#94a3b6"/>
+        </marker>
+      </defs>
+
+      <!-- 闭环括号 -->
+      <text x="14" y="20" font-size="11" font-weight="600" fill="#4f46e5">闭环①「训练一次」</text>
+      <path d="M14 28 L14 34 L448 34 L448 28" fill="none" stroke="#c9cdfa" stroke-width="1.4"/>
+      <text x="470" y="20" font-size="11" font-weight="600" fill="#0c736a">闭环②「问一句」</text>
+      <path d="M470 28 L470 34 L614 34 L614 28" fill="none" stroke="#b6e4df" stroke-width="1.4"/>
+      <text x="636" y="20" font-size="11" font-weight="600" fill="#a16207">闭环③「答可溯源」</text>
+      <path d="M636 28 L636 34 L830 34 L830 28" fill="none" stroke="#eedfb4" stroke-width="1.4"/>
+      <text x="852" y="20" font-size="11" font-weight="600" fill="#b42323">闭环④「训练有没有用」</text>
+      <path d="M852 28 L852 34 L1026 34 L1026 28" fill="none" stroke="#f3caca" stroke-width="1.4"/>
+
+      <!-- 流水线节点 -->
+      <g font-size="11.5">
+        <rect x="14" y="46" width="98" height="60" rx="6" fill="#eef0ff" stroke="#c9cdfa"/>
+        <text x="63" y="70" text-anchor="middle" font-weight="600" fill="#131c2e">采集</text>
+        <text x="63" y="87" text-anchor="middle" font-size="10" fill="#6b7d94">文件 / 会话</text>
+        <text x="63" y="100" text-anchor="middle" font-size="10" fill="#4f46e5">P1 · P2</text>
+
+        <rect x="128" y="46" width="98" height="60" rx="6" fill="#eef0ff" stroke="#c9cdfa"/>
+        <text x="177" y="70" text-anchor="middle" font-weight="600" fill="#131c2e">CLI 提炼</text>
+        <text x="177" y="87" text-anchor="middle" font-size="10" fill="#6b7d94">20 段/次</text>
+        <text x="177" y="100" text-anchor="middle" font-size="10" fill="#4f46e5">P1</text>
+
+        <rect x="242" y="46" width="98" height="60" rx="6" fill="#eef0ff" stroke="#c9cdfa"/>
+        <text x="291" y="70" text-anchor="middle" font-weight="600" fill="#131c2e">候选池</text>
+        <text x="291" y="87" text-anchor="middle" font-size="10" fill="#6b7d94">带出处/理由</text>
+        <text x="291" y="100" text-anchor="middle" font-size="10" fill="#4f46e5">P1</text>
+
+        <rect x="356" y="100" width="98" height="60" rx="6" fill="#eef0ff" stroke="#c9cdfa"/>
+        <text x="405" y="124" text-anchor="middle" font-weight="600" fill="#131c2e">人工确认</text>
+        <text x="405" y="141" text-anchor="middle" font-size="10" fill="#6b7d94">20 条/屏</text>
+        <text x="405" y="154" text-anchor="middle" font-size="10" fill="#4f46e5">P1</text>
+
+        <rect x="470" y="100" width="98" height="60" rx="6" fill="#eef0ff" stroke="#c9cdfa"/>
+        <text x="519" y="124" text-anchor="middle" font-weight="600" fill="#131c2e">发布</text>
+        <text x="519" y="141" text-anchor="middle" font-size="10" fill="#6b7d94">CRM → 插件</text>
+        <text x="519" y="154" text-anchor="middle" font-size="10" fill="#4f46e5">P1</text>
+
+        <rect x="584" y="100" width="98" height="60" rx="6" fill="#e6f6f4" stroke="#b6e4df"/>
+        <text x="633" y="124" text-anchor="middle" font-weight="600" fill="#131c2e">检索</text>
+        <text x="633" y="141" text-anchor="middle" font-size="10" fill="#6b7d94">分层 + 精排</text>
+        <text x="633" y="154" text-anchor="middle" font-size="10" fill="#0c736a">P3</text>
+
+        <rect x="698" y="100" width="98" height="60" rx="6" fill="#fdf6e3" stroke="#eedfb4"/>
+        <text x="747" y="124" text-anchor="middle" font-weight="600" fill="#131c2e">出稿 + 引用</text>
+        <text x="747" y="141" text-anchor="middle" font-size="10" fill="#6b7d94">回引校验</text>
+        <text x="747" y="154" text-anchor="middle" font-size="10" fill="#a16207">P0 · P3</text>
+
+        <rect x="812" y="100" width="98" height="60" rx="6" fill="#fdf6e3" stroke="#eedfb4"/>
+        <text x="861" y="124" text-anchor="middle" font-weight="600" fill="#131c2e">三层溯源</text>
+        <text x="861" y="141" text-anchor="middle" font-size="10" fill="#6b7d94">条目→出处→原文</text>
+        <text x="861" y="154" text-anchor="middle" font-size="10" fill="#a16207">P0</text>
+
+        <rect x="926" y="100" width="100" height="60" rx="6" fill="#fdeeee" stroke="#f3caca"/>
+        <text x="976" y="124" text-anchor="middle" font-weight="600" fill="#131c2e">回流 / 成绩单</text>
+        <text x="976" y="141" text-anchor="middle" font-size="10" fill="#6b7d94">四项指标</text>
+        <text x="976" y="154" text-anchor="middle" font-size="10" fill="#b42323">P4</text>
+      </g>
+
+      <!-- 连接箭头 -->
+      <g stroke="#94a3b6" stroke-width="1.3" fill="none" marker-end="url(#ar)">
+        <path d="M112 76 L126 76"/>
+        <path d="M226 76 L240 76"/>
+        <path d="M340 82 L352 92"/>
+        <path d="M454 130 L468 130"/>
+        <path d="M568 130 L582 130"/>
+        <path d="M682 130 L696 130"/>
+        <path d="M796 130 L810 130"/>
+        <path d="M910 130 L924 130"/>
+      </g>
+      <text x="405" y="88" font-size="9.5" fill="#94a3b6">↓ 落库待审</text>
+
+      <!-- 回环 -->
+      <path d="M976 168 L976 208 L63 208 L63 168" fill="none" stroke="#f3caca" stroke-width="1.3"
+            stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <text x="520" y="224" text-anchor="middle" font-size="10.5" fill="#b42323">回流反哺：改写样本 → 下一批候选 · 零命中 → 退役 · 采纳 → 升权</text>
+
+      <!-- 底部说明 -->
+      <text x="14" y="256" font-size="11" font-weight="600" fill="#37445b">图例</text>
+      <rect x="60" y="247" width="14" height="12" rx="3" fill="#eef0ff" stroke="#c9cdfa"/>
+      <text x="80" y="257" font-size="10.5" fill="#6b7d94">新增（P1/P2）</text>
+      <rect x="180" y="247" width="14" height="12" rx="3" fill="#e6f6f4" stroke="#b6e4df"/>
+      <text x="200" y="257" font-size="10.5" fill="#6b7d94">改行为（P3）</text>
+      <rect x="300" y="247" width="14" height="12" rx="3" fill="#fdf6e3" stroke="#eedfb4"/>
+      <text x="320" y="257" font-size="10.5" fill="#6b7d94">观测/出稿（P0）</text>
+      <rect x="440" y="247" width="14" height="12" rx="3" fill="#fdeeee" stroke="#f3caca"/>
+      <text x="460" y="257" font-size="10.5" fill="#6b7d94">度量（P4）</text>
+
+      <text x="14" y="288" font-size="11" fill="#6b7d94">读法：上面四个括号是四个功能闭环，它们<b>同时被多个批次覆盖</b>——这正是"每批都是闭环切片"的含义：闭环①靠 P1+P2 才完整，闭环③的第一层在 P0 就能用。</text>
+    </svg>
+    <div class="cap">四闭环 × 五批次的覆盖关系（含回流虚线）</div>
+  </div>
+
+  <div class="note ok"><b>本方案与设计规格的关系：</b>设计方案回答"做什么、为什么"，本方案回答"<b>怎么做、按什么顺序、怎么证明做对了</b>"。批次上把设计规格的"批 2 训练工作台"拆成 P1（文件源）与 P2（会话源），把"批 4 成绩单"的度量能力提前到 P3 期间使用（界面后置）——这两处都是本轮辩论的产物（见 §11）。</div>
+</section>
+
+<!-- ========== §2 ========== -->
+<section id="s2">
+  <h2><span class="no">§2</span>六个技术前提（本轮实测，带证据）</h2>
+  <p class="lead">开发方案与设计方案的差别全在这六条上。它们决定哪些设计可以照做、哪些必须改法。<b>其中第 4 条是设计规格里缺失的一环，本方案补上。</b></p>
+
+  <div class="audit">
+    <div class="audit-head"><b>前提 1 · CRM → 插件的认证通道已天然打通，零改造</b><span>决定"发布"能不能一步做完</span></div>
+    <div class="audit-body">
+      <ul>
+        <li>插件所有 <code>/api/v1</code> 路由统一挂 <code>requireCrmAuth(config.crmJwtSecret)</code> —— <code>whatsapp-plugin/src/server/app.ts:593</code></li>
+        <li>校验规则：<code>alg=HS256</code> / <code>iss=goodjob-crm</code> / <code>aud=goodjob-crm-web</code> / 有 <code>sub</code> 且 <code>exp</code> 未过期 —— <code>whatsapp-plugin/src/server/crm-auth.ts:34-56</code></li>
+        <li>CRM 侧 <code>signToken(user)</code> 签发的 claims <b>正好是这个格式</b> —— <code>backend/src/auth.ts:111-124</code>（issuer/audience 常量在 <code>auth.ts:17-18</code>）</li>
+        <li>两侧密钥同值：插件取 <code>CRM_JWT_SECRET || JWT_SECRET</code>（<code>config.ts:228</code>），CRM 用 <code>JWT_SECRET</code>，两档实测共库同密</li>
+      </ul>
+      <div class="finding fixed"><span class="fno">结论</span>CRM 侧只需 <code>signToken(目标用户)</code> 即可调插件，<b>不需要插件侧任何"接收 CRM"的新改造</b>。这同时回答了设计规格漏掉的问题——<b>发布给谁，由"用谁的身份签 token"决定</b>。</div>
+    </div>
+  </div>
+
+  <div class="audit">
+    <div class="audit-head"><b>前提 2 · 插件训练库写入是幂等的</b><span>决定发布能不能安全重试</span></div>
+    <div class="audit-body">
+      <ul>
+        <li><code>save()</code> 在 <code>fingerprint = sha256(kind+question+answer)</code> 撞上已有条目时不报错，直接返回既有那条 —— <code>training-library-service.ts:231-234</code></li>
+        <li>路由用 201 / 200 区分「新建」与「已存在」 —— <code>app.ts:1150-1160</code></li>
+      </ul>
+      <div class="finding fixed"><span class="fno">结论</span>重复发布（重试、补发、用户点两次）<b>不会在插件库产生重复条目</b>。发布链路可以放心做"部分失败 → 重试"。</div>
+    </div>
+  </div>
+
+  <div class="audit">
+    <div class="audit-head"><b>前提 3 · 发布即生效，不需要二次确认</b><span>决定闭环判据怎么写</span></div>
+    <div class="audit-body">
+      <ul>
+        <li><code>save()</code> 新建条目时 <code>status = existing?.status ?? "active"</code>，注释明确"人工录入的条目直接 active：人在录入那一刻就是确认动作" —— <code>training-library-service.ts:252</code></li>
+        <li>只有 <code>importFromProfile()</code>（档案批量导入）会显式落 <code>candidate</code> —— <code>:299-</code></li>
+      </ul>
+      <div class="finding fixed"><span class="fno">结论</span>CRM 的「确认」发生在 <b>CRM 侧候选池</b>；用户点「发布」→ 调一次 <code>POST /api/v1/training/library</code> → 插件库立刻 <code>active</code> 进提示词。<b>"发布"是一个动作，不是两个。</b></div>
+    </div>
+  </div>
+
+  <div class="audit">
+    <div class="audit-head"><b>前提 4 · 插件库按 owner 隔离 —— 发布目标必须显式指定</b><span>设计规格的缺失一环，本方案补上</span></div>
+    <div class="audit-body">
+      <ul>
+        <li>所有训练库路由用 <code>request.crmIdentity!.userId</code> 作 ownerUserId —— <code>app.ts:1143 / 1152 / 1176 / 1196 / 1206</code></li>
+      </ul>
+      <div class="finding"><span class="fno">缺口</span>设计规格写了"CRM → 插件单向发布"，但没说<b>发给哪个 owner</b>。若不解决，P1 的发布就无处落地。</div>
+      <div class="finding fixed"><span class="fno">落法</span><b>P1：只发操作者本人</b>（<code>signToken(actor)</code>，最小闭环、零歧义）；<b>P2 可选：发团队其他成员</b>（需要对"团队内已接入插件的账号"做枚举，来源见 §5 的 <code>targetOwnerId</code>）。</div>
+    </div>
+  </div>
+
+  <div class="audit">
+    <div class="audit-head"><b>前提 5 · 会话语料在插件库，CRM 需要一个批量出口</b><span>决定 P2 的形态与铁律合规</span></div>
+    <div class="audit-body">
+      <ul>
+        <li>会话原文存于插件 <code>conversations</code>（<code>mysql-migrate.ts:101-113</code>）与 <code>messages.body</code>（<code>:115-133</code>，LONGTEXT）</li>
+        <li>CRM 侧没有也不该有会话原文副本（沿用既有铁律）</li>
+      </ul>
+      <div class="finding fixed"><span class="fno">结论</span>P2 必须<b>新增一个插件侧批量语料接口</b>，CRM 拉取后<b>即取即提炼、只存整理结果与引用指针</b>（原文不落 CRM 库）。单条会话的按需查看已有现成模式（前提 6）可复用。</div>
+    </div>
+  </div>
+
+  <div class="audit">
+    <div class="audit-head"><b>前提 6 · CRM 侧已有"调插件"的现成模式与常量</b><span>决定改动面有多小</span></div>
+    <div class="audit-body">
+      <ul>
+        <li>插件基址：<code>WHATSAPP_PLUGIN_BASE_URL || "http://127.0.0.1:3100"</code> —— <code>backend/src/server.ts:10917</code>（另见 <code>:11035</code>）</li>
+        <li>现成代理范例：<code>GET /api/whatsapp/followup-transcript/:activityId</code> —— <code>server.ts:11034</code></li>
+        <li>CRM 侧 CLI 调用器：<code>runCliSummary(prompt,{timeoutMs,binary})</code> —— <code>cli-ai.ts:189</code>；剥离 <code>CODEBUDDY_/WORKBUDDY_/SERVER__/CLAUDE_</code> 前缀 —— <code>cli-ai.ts:68</code>；模型 <code>deepseek-v4.1-flash</code> —— <code>cli-ai.ts:81</code>；<b>当前只服务跟进补全一个场景</b>（文件头注释 <code>cli-ai.ts:8</code>）</li>
+      </ul>
+      <div class="finding fixed"><span class="fno">结论</span>新增 <code>backend/src/plugin-client.ts</code> 作为<b>唯一的插件出口</b>，把"签 token + 拼 URL + 超时 + 错误归一"收在一处；训练模块不直接写 fetch。CLI 调用只复用不再造。</div>
+    </div>
+  </div>
+
+  <div class="svgbox">
+    <svg viewBox="0 0 1040 268" width="100%" height="268" role="img" aria-label="CRM 与插件的双向通道">
+      <rect x="14" y="30" width="300" height="200" rx="10" fill="#f8fafc" stroke="#dbe3ee"/>
+      <text x="34" y="56" font-size="13" font-weight="700" fill="#131c2e">CRM 后端（4190 / 4188）</text>
+      <rect x="34" y="70" width="260" height="48" rx="6" fill="#eef0ff" stroke="#c9cdfa"/>
+      <text x="46" y="90" font-size="11.5" font-weight="600" fill="#131c2e">新增 plugin-client.ts</text>
+      <text x="46" y="107" font-size="10.5" fill="#6b7d94">signToken(actor) + fetch + 超时 + 错误归一</text>
+      <rect x="34" y="126" width="260" height="44" rx="6" fill="#ffffff" stroke="#e7ecf4"/>
+      <text x="46" y="145" font-size="11" fill="#37445b">kb-training-service.ts</text>
+      <text x="46" y="161" font-size="10.5" fill="#94a3b6">采集 · 提炼 · 校验 · 发布编排</text>
+      <rect x="34" y="178" width="260" height="44" rx="6" fill="#ffffff" stroke="#e7ecf4"/>
+      <text x="46" y="197" font-size="11" fill="#37445b">cli-ai.ts::runCliSummary</text>
+      <text x="46" y="213" font-size="10.5" fill="#94a3b6">已有，仅服用于跟进补全 → 本方案复用</text>
+
+      <rect x="726" y="30" width="300" height="200" rx="10" fill="#f8fafc" stroke="#dbe3ee"/>
+      <text x="746" y="56" font-size="13" font-weight="700" fill="#131c2e">whatsapp-plugin（3100）</text>
+      <rect x="746" y="70" width="260" height="48" rx="6" fill="#ffffff" stroke="#e7ecf4"/>
+      <text x="758" y="90" font-size="11.5" font-weight="600" fill="#131c2e">app.ts  /api/v1 全局</text>
+      <text x="758" y="107" font-size="10.5" fill="#6b7d94">requireCrmAuth(crmJwtSecret)</text>
+      <rect x="746" y="126" width="260" height="44" rx="6" fill="#eef0ff" stroke="#c9cdfa"/>
+      <text x="758" y="145" font-size="11" fill="#37445b">POST /training/library（已有）</text>
+      <text x="758" y="161" font-size="10.5" fill="#6b7d94">幂等：撞指纹返回既有条目</text>
+      <rect x="746" y="178" width="260" height="44" rx="6" fill="#eef0ff" stroke="#c9cdfa"/>
+      <text x="758" y="197" font-size="11" fill="#37445b">POST /training/library/match（已有）</text>
+      <text x="758" y="213" font-size="10.5" fill="#6b7d94">试问；P0 起返回值带 citations</text>
+
+      <path d="M320 96 L720 96" stroke="#4f46e5" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+      <text x="520" y="88" text-anchor="middle" font-size="11" font-weight="600" fill="#4f46e5">Bearer signToken(actor) · HS256</text>
+      <text x="520" y="118" text-anchor="middle" font-size="10.5" fill="#6b7d94">发布条目 / 试问命中 / 拉取会话语料（P2）</text>
+
+      <path d="M720 190 L320 190" stroke="#0c736a" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+      <text x="520" y="182" text-anchor="middle" font-size="11" font-weight="600" fill="#0c736a">插件 → CRM（已有）</text>
+      <text x="520" y="212" text-anchor="middle" font-size="10.5" fill="#6b7d94">crmIdentityToken 自签 · 跟进同步 / 资源召回</text>
+
+      <text x="14" y="252" font-size="11" fill="#6b7d94">关键：两个方向<b>用的是同一套密钥与同一套 claims 约定</b>（iss=goodjob-crm / aud=goodjob-crm-web），所以"CRM 主动发"只是把已有能力反着用一次，不需要新协议。</text>
+    </svg>
+    <div class="cap">CRM ↔ 插件双向通道：P1 的发布与试问都走已有的认证约定</div>
+  </div>
+</section>
+
+<!-- ========== §3 ========== -->
+<section id="s3">
+  <h2><span class="no">§3</span>四个功能闭环与判据</h2>
+  <p class="lead">「闭环」在本方案里有严格定义：<b>一个真实场景，用户从入口走到出口，中途不需要人工兜底、不需要查数据库、不会有静默失败。</b>缺任何一环，就只是"做了个功能"，不是闭环。</p>
+
+  <div class="loop">
+    <div class="loop-head"><b>闭环 ①「训练一次」</b><span>治理端主线 · P1（文件源）+ P2（会话源）</span></div>
+    <div class="loop-body">
+      <div class="flow">
+        <div class="node new"><b>选源 + 范围</b><span>文件多选 / 会话时间窗</span></div>
+        <div class="arrow">→</div>
+        <div class="node new"><b>后台提炼</b><span>20 段/次 CLI 调用</span></div>
+        <div class="arrow">→</div>
+        <div class="node new"><b>候选落池</b><span>带出处/理由/置信度</span></div>
+        <div class="arrow">→</div>
+        <div class="node new"><b>批量确认</b><span>20 条/屏，键盘可完成</span></div>
+        <div class="arrow">→</div>
+        <div class="node new"><b>发布</b><span>插件库 active</span></div>
+        <div class="arrow">→</div>
+        <div class="node new"><b>血缘回写</b><span>published_entry_id</span></div>
+      </div>
+      <div class="crit"><b>闭环判据：</b>① 点下到出候选 ≤ 2 分钟（100 段 ≈ 5 次 CLI 调用）；② 确认 20 条 ≤ 2 分钟；③ 发布后插件库可查到、CRM 血缘可回指；④ <b>同批重复发布不产生第二条</b>；⑤ 撤回后插件 <code>archived</code>、CRM 状态可查。</div>
+      <div class="crit"><b>断裂点（怎么知道它坏了）：</b>候选池空（源没选对）· 发布后插件里没有（owner 签错）· 血缘为空（回写失败被吞）。</div>
+    </div>
+  </div>
+
+  <div class="loop">
+    <div class="loop-head"><b>闭环 ②「问一句」</b><span>训练完立刻验证 · P1</span></div>
+    <div class="loop-body">
+      <div class="flow">
+        <div class="node mod"><b>输入客户来文</b><span>试问一句</span></div>
+        <div class="arrow">→</div>
+        <div class="node mod"><b>走真实检索</b><span>同一条 resolve()</span></div>
+        <div class="arrow">→</div>
+        <div class="node mod"><b>命中 + citations</b><span>证据切片可点开</span></div>
+        <div class="arrow">→</div>
+        <div class="node mod"><b>拟用回复</b><span>哪儿句用到哪条</span></div>
+        <div class="arrow">→</div>
+        <div class="node mod"><b>护栏判决</b><span>是否撞商务红线</span></div>
+      </div>
+      <div class="crit"><b>闭环判据：</b>① 与插件实跑<b>同源</b>（同一条 <code>resolve()</code>，不是另写一套模拟）；② citations 每条可点开出处；③ 撞护栏时明确显示"哪句被拦、为什么"。</div>
+      <div class="crit"><b>断裂点：</b>试问结果与真实推荐不一致（两套逻辑）· citations 为空却仍出稿。</div>
+    </div>
+  </div>
+
+  <div class="loop">
+    <div class="loop-head"><b>闭环 ③「答可溯源」</b><span>运行端最终价值 · P0（第一层）+ P3（回引校验）</span></div>
+    <div class="loop-body">
+      <div class="flow">
+        <div class="node mod"><b>扩展生成草稿</b><span>推荐回复面板</span></div>
+        <div class="arrow">→</div>
+        <div class="node mod"><b>草稿带引用</b><span>逐句可回指</span></div>
+        <div class="arrow">→</div>
+        <div class="node mod"><b>三层展开</b><span>条目→出处→原文</span></div>
+        <div class="arrow">→</div>
+        <div class="node mod"><b>采纳 / 改写 / 没帮助</b><span>三种都回流</span></div>
+      </div>
+      <div class="crit"><b>闭环判据：</b>① 从点击到看到原文 ≤ 2 次交互；② 引用校验失败时<b>弃答</b>（不出正文，只给"依据不足，建议人工"）；③ 采纳后 <code>hit_count</code> 与 <code>adopted_count</code> 真实 +1。</div>
+      <div class="crit"><b>断裂点（当前状态）：</b>只能看到来源标签（<code>resources.js:123-137</code>）· 引用指向不存在的 id · 采纳没回流（<code>recordHits</code> 当前只覆盖 qa，两处调用点 <code>auto-chat-service.ts:543 / :731</code>）。</div>
+    </div>
+  </div>
+
+  <div class="loop">
+    <div class="loop-head"><b>闭环 ④「训练有没有用」</b><span>度量 · P4（能力在 P3 期间即投入使用的）</span></div>
+    <div class="loop-body">
+      <div class="flow">
+        <div class="node fix"><b>golden set</b><span>20–50 条真实问法</span></div>
+        <div class="arrow">→</div>
+        <div class="node fix"><b>自动回测</b><span>训练结束即跑</span></div>
+        <div class="arrow">→</div>
+        <div class="node fix"><b>四项指标</b><span>命中率/来源/引用/越权</span></div>
+        <div class="arrow">→</div>
+        <div class="node fix"><b>批次对比</b><span>两次训练可并排</span></div>
+        <div class="arrow">→</div>
+        <div class="node fix"><b>反哺下一批</b><span>改写样本进候选</span></div>
+      </div>
+      <div class="crit"><b>闭环判据：</b>① 四项指标来自<b>真实检索</b>而非写死；② 两次训练可并排对比；③ <b>越权率必须为 0</b>（否则发布闸形同虚设）。首版目标：命中率 ≥80% · 来源命中率 ≥75% · 引用准确率 ≥90% · 越权率 0%。</div>
+      <div class="crit"><b>断裂点：</b>指标永远 100%（没真跑）· 改写样本没进候选池 · 退役只改标记不影响检索。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== §4 ========== -->
+<section id="s4">
+  <h2><span class="no">§4</span>批次与节奏</h2>
+  <p class="lead">每批结束时，用户都能用上一段真实功能。P0 与 P1 可连着做；P2 独立成段；<b>P3 必须在 P1/P2 之后</b>（没有语料就验证不出硬化）；P4 收口。</p>
+
+  <div class="batch">
+    <div class="batch-head"><span class="pid">P0</span><b>可观测性打底</b><span class="tag t-ok">低风险</span><span class="why">不改检索行为 · 不加表 · 不加路由 · 当天可验</span></div>
+    <div class="batch-body">
+      <table>
+        <tr><th style="width:34%">改动</th><th>位置</th></tr>
+        <tr><td><code>resolve()</code> 返回结构加 <code>citations[]</code></td><td><code>training-library-service.ts:370-407</code></td></tr>
+        <tr><td><code>recordHits()</code> 覆盖四类 + adopted 维度</td><td><code>training-library-service.ts:478</code>；调用点 <code>auto-chat-service.ts:543 / :731</code></td></tr>
+        <tr><td><code>forbiddenHits()</code> 接线或删除（不留死代码）</td><td><code>training-library-service.ts:472</code></td></tr>
+        <tr><td>扩展来源徽章升级为可展开第一版</td><td><code>resources.js:223-238</code>（白名单）、<code>agent.js:1258</code>（卡片）、<code>crm.js:520</code>（证据文案）</td></tr>
+      </table>
+      <div class="crit"><b>结束时用户能干什么：</b>在扩展里点「来源」，看到是哪条训练条目、命中哪些词、多少分。</div>
+    </div>
+  </div>
+
+  <div class="batch">
+    <div class="batch-head"><span class="pid">P1</span><b>训练工作台（文件源）</b><span class="tag t-p1">中风险</span><span class="why">新增模块 + 两张表 + 新视图 + 发布通道</span></div>
+    <div class="batch-body">
+      <table>
+        <tr><th style="width:34%">新增 / 修改</th><th>位置</th></tr>
+        <tr><td>新建模块（4 文件）</td><td><code>backend/src/kb-training/{kb-training-repository,kb-training-service,kb-training-prompt,kb-training-test}.ts</code>（模板 = <code>exchange/exchange-repository.ts</code>）</td></tr>
+        <tr><td>插件出口（唯一）</td><td>新建 <code>backend/src/plugin-client.ts</code>（<code>signPluginToken</code> + 调用封装）</td></tr>
+        <tr><td>挂载三处 + 版本号</td><td><code>mysql-store.ts</code>（<code>createMysqlStore</code> / <code>migrateMysqlSchema</code> / <code>close</code>）；<code>GOODJOB_MYSQL_SCHEMA_VERSION</code> → <code>1.4.21-kb-training</code></td></tr>
+        <tr><td>8 条路由（P1 需 8 条）</td><td><code>server.ts</code>：<code>/api/kb/training/{runs,candidates,publish,probe}</code></td></tr>
+        <tr><td>契约与策略登记</td><td><code>agent-api-contracts.ts</code> 加严格契约；<code>agent-api-policy.ts</code> 把 <code>/api/kb</code> 加入 <code>deniedPatterns</code></td></tr>
+        <tr><td>前端视图</td><td><code>index.html</code>（<code>#kb-training</code> + 导航）+ <code>prototype-api.ts</code>（标签/权限/view 钩子/事件/三屏渲染）</td></tr>
+      </table>
+      <div class="crit"><b>结束时用户能干什么：</b>传一份资料 → 训出一条 QA → 发布 → 插件立刻能用 → 在试问屏现场验证。<b>这是最窄但完整的一条链路。</b></div>
+    </div>
+  </div>
+
+  <div class="batch">
+    <div class="batch-head"><span class="pid">P2</span><b>会话挖矿</b><span class="tag t-p0">中高风险</span><span class="why">涉会话数据，脱敏要求高</span></div>
+    <div class="batch-body">
+      <table>
+        <tr><th style="width:34%">改动</th><th>位置</th></tr>
+        <tr><td>插件批量语料出口（脱敏后）</td><td><code>whatsapp-plugin/src/server/app.ts</code> 新增 <code>GET /api/v1/training/corpus/conversations</code>（+ repository 查询）</td></tr>
+        <tr><td>CRM 侧会话采集器（即取即提炼，不落原文）</td><td><code>kb-training-service.ts</code></td></tr>
+        <tr><td>候选屏加「知识缺口」分组 + 补答案入口</td><td><code>prototype-api.ts</code></td></tr>
+        <tr><td>会话来源一律 <code>pending</code>（不自动放行）</td><td><code>kb-training-prompt.ts</code> 校验规则</td></tr>
+      </table>
+      <div class="crit"><b>结束时用户能干什么：</b>从真实客户对话里挖出<b>问法</b>，人工配上答案后发布。<b>会话只贡献问法，答案必须来自文件或人工。</b></div>
+    </div>
+  </div>
+
+  <div class="batch">
+    <div class="batch-head"><span class="pid">P3</span><b>检索硬化</b><span class="tag t-p0">高风险</span><span class="why">改既有检索行为 · 每项独立开关 · 逐项回测</span></div>
+    <div class="batch-body">
+      <table>
+        <tr><th style="width:34%">改动</th><th>位置与开关</th></tr>
+        <tr><td>snippet 去掉"按 priority 取前 6"兜底（全不相关返回空）</td><td><code>training-library-service.ts:428</code>（<code>selectSnippets</code> <code>:417-435</code>）· <code>KB_SNIPPET_STRICT</code></td></tr>
+        <tr><td>policy 按相关度截断并记 warning 明细</td><td><code>:380-385</code> · <code>KB_POLICY_TRUNCATE</code></td></tr>
+        <tr><td>分层加权 + 同族合并 + 生命周期过滤</td><td><code>rankQa</code>（<code>:445</code>）与 <code>resolve</code> 排序段 · <code>KB_TIERED_RANKING</code></td></tr>
+        <tr><td>CLI 精排：只从候选挑 + 回引 id，越界丢弃并计数</td><td>新增 <code>resolveWithCli()</code>（参考 <code>resource-recommend-service.ts:461-507</code> 的 <code>invented</code> 规则）· <code>KB_CLI_RERANK</code></td></tr>
+        <tr><td>出稿回引校验：引用 id 必须 ⊆ citations，否则弃答</td><td><code>auto-chat-service.ts</code> · <code>KB_CITE_ENFORCE</code></td></tr>
+      </table>
+      <div class="crit"><b>结束时用户能干什么：</b>无关条目不再污染提示词；编造的引用会被拦下并走弃答。<b>逐项开关 + 每开一项重跑 golden</b>，所以 P3 期间成绩单能力已经在用（界面在 P4 落地）。</div>
+    </div>
+  </div>
+
+  <div class="batch">
+    <div class="batch-head"><span class="pid">P4</span><b>成绩单与回流</b><span class="tag t-p1">中风险</span><span class="why">依赖 P1 的批次数据</span></div>
+    <div class="batch-body">
+      <table>
+        <tr><th style="width:34%">改动</th><th>位置</th></tr>
+        <tr><td>新增 <code>kb_golden_queries</code> 表 + 回测执行器</td><td><code>kb-training-repository.ts</code> / <code>kb-training-service.ts</code></td></tr>
+        <tr><td>成绩单屏 + 批次对比</td><td><code>prototype-api.ts</code> <code>renderKbScorecard()</code></td></tr>
+        <tr><td>回流：采纳 / 改写 / 没帮助 → 升降权 → 90 天退役</td><td>扩展埋点（已有通道）→ 插件 <code>hit_count</code> / <code>adopted_count</code> → CRM 退役任务</td></tr>
+      </table>
+      <div class="crit"><b>结束时用户能干什么：</b>训练后自动出成绩单；改写样本进入下一批候选；零命中条目被标退役。</div>
+    </div>
+  </div>
+
+  <div class="note"><b>每批都有"可关闭"设计（贯穿全部批次）：</b>CRM 侧统一开关 <code>KB_TRAINING_ENABLED</code>；插件侧硬化项各自带开关（见 §7）。<b>任一批出问题，关开关即回到上一批状态，不需要回滚代码。</b></div>
+</section>
+
+<!-- ========== §5 ========== -->
+<section id="s5">
+  <h2><span class="no">§5</span>数据模型与接口</h2>
+
+  <h3>5.1 三张新表（建表位置遵循项目「新模块独立 Repository」套路）</h3>
+  <div class="note warn"><b>不要</b>把新表塞进 <code>mysql-store.ts</code> 的 <code>persistAll</code> 体系（那是全表重写模型，新模块不该背上）。照 <code>backend/src/exchange/exchange-repository.ts</code> 的模式：独立文件 + <code>ensureKbTrainingSchema(pool)</code> + <code>MysqlKbTrainingRepository</code> + 模块级 set/get，在 <code>mysql-store.ts</code> <b>挂三处</b>（api 侧 ensure+set / <code>migrateMysqlSchema</code> 内 ensure / <code>close</code> 置空）。</div>
+
+  <table>
+    <tr><th style="width:22%">表</th><th style="width:12%">批次</th><th>关键列</th></tr>
+    <tr>
+      <td><code>kb_training_runs</code><br><span class="small">训练批次</span></td><td>P1</td>
+      <td><code>id</code>(kbr_) · <code>team_id</code>/<code>owner_id</code> · <code>sources_json</code> · <code>status</code>(running/succeeded/partial/failed) · <code>engine</code>+<code>model</code>（<b>实际生效那一档</b>）· <code>stats_json</code>{segments,candidates,duplicates,skipped,cliCalls,invented} · <code>error_message</code> · <code>created_at</code>/<code>finished_at</code></td>
+    </tr>
+    <tr>
+      <td><code>kb_training_candidates</code><br><span class="small">候选 / 已发布镜像</span></td><td>P1</td>
+      <td><code>id</code>(kbc_) · <code>run_id</code> · <code>kind</code>(qa/snippet/policy/forbidden，与插件同口径) · <code>question</code>/<code>answer</code>（<b>不写原文</b>） · <code>tags_json</code>/<code>languages_json</code> · <code>confidence</code> · <code>source_type</code>(file/conversation/manual) · <code>source_ref_json</code> · <code>rationale</code> · <code>gap_flag</code> · <code>fingerprint</code> CHAR(32) · <code>status</code>(pending/approved/rejected/published) · <code>published_entry_id</code>(血缘) · <code>reviewed_by</code>/<code>reviewed_at</code><br>索引：<code>(team_id,status,created_at)</code> / <code>(run_id)</code> / <code>UNIQUE(fingerprint)</code></td>
+    </tr>
+    <tr>
+      <td><code>kb_golden_queries</code><br><span class="small">golden set</span></td><td>P4</td>
+      <td><code>id</code> · <code>team_id</code>/<code>owner_id</code> · <code>question</code> · <code>expect_kinds</code> · <code>expect_source_ref</code> · <code>enabled</code> · <code>created_at</code></td>
+    </tr>
+  </table>
+
+  <h3>5.2 迁移与双库同步（项目铁律，必走）</h3>
+  <div class="grid c2">
+    <div class="card"><h5>三步走</h5><p><code>npm run db:migrate:dev</code> → <code>npm run db:migrate:personal</code> → <code>goodjob-db-parity.sh</code>（期望退出码 0）。新功能默认两库同步，无需每次征求同意。</p></div>
+    <div class="card"><h5>回滚（这次特别干净）</h5><p>三张表都是 <code>CREATE TABLE IF NOT EXISTS</code> 且<b>不改任何既有列</b> → 回滚 = 关开关 + <code>DROP TABLE</code> 三张表。无数据风险，无需备份。</p></div>
+  </div>
+
+  <h3>5.3 接口清单</h3>
+  <table>
+    <tr><th style="width:8%">批</th><th style="width:40%">接口</th><th>说明</th></tr>
+    <tr><td><span class="tag t-p3">P1</span></td><td><code>POST /api/kb/training/runs</code></td><td>发起训练；<b>立即返回 running，提炼后台执行</b>（沿用 followup-sync 姿态：先返回、后台跑、前端轮询）</td></tr>
+    <tr><td><span class="tag t-p3">P1</span></td><td><code>GET /api/kb/training/runs</code> · <code>/runs/:id</code></td><td>批次列表与详情（含 stats / 状态 / 引擎 / 失败原因）</td></tr>
+    <tr><td><span class="tag t-p3">P1</span></td><td><code>GET /api/kb/training/candidates</code></td><td>候选池分页，<b>必须带回 sourceRef / rationale / confidence / gapFlag</b></td></tr>
+    <tr><td><span class="tag t-p3">P1</span></td><td><code>POST /api/kb/training/candidates/review</code></td><td><code>{ids:[…≤20], action:"confirm"|"drop", edits?}</code></td></tr>
+    <tr><td><span class="tag t-p3">P1</span></td><td><code>POST /api/kb/training/candidates/publish</code></td><td><code>{ids:[…≤20], targetOwnerId?}</code> → 逐条调插件；返回 <code>{published, existing, failed:[{id,reason}]}</code></td></tr>
+    <tr><td><span class="tag t-p3">P1</span></td><td><code>POST /api/kb/training/candidates/:id/revoke</code></td><td>撤回：插件置 <code>archived</code>（留痕），CRM 状态回 <code>approved</code></td></tr>
+    <tr><td><span class="tag t-p3">P1</span></td><td><code>POST /api/kb/training/probe</code></td><td>代理插件 <code>/training/library/match</code> —— <b>闭环②同源保证</b></td></tr>
+    <tr><td><span class="tag t-p2">P2</span></td><td><span class="tag t-mut">插件侧</span> <code>GET /api/v1/training/corpus/conversations</code></td><td>会话语料批量出口（脱敏后）；<b>不返回附件二进制</b>，附件只给文件名与体积标记</td></tr>
+    <tr><td><span class="tag t-p1">P4</span></td><td><code>GET /api/kb/training/scorecard?runId=</code></td><td>golden 回测 + 回流统计</td></tr>
+  </table>
+
+  <div class="note warn"><b>必做登记（漏了会挂测试）：</b>每个 <code>POST</code> 都要在 <code>agent-api-contracts.ts</code> 加一行 <code>define(...)</code> 严格契约（<code>agent-api-contracts-test.ts</code> 会报"缺少严格 Agent 操作契约"）；新增入参字段也要登记（否则 Agent 通道调用被 <code>assertAgentOperationInput</code> 拒收）；<code>/api/kb</code> 整条前缀加入 <code>agent-api-policy.ts</code> 的 <code>deniedPatterns</code>（与 <code>/api/exchange</code> 同类的治理控制面）。</div>
+</section>
+
+<!-- ========== §6 ========== -->
+<section id="s6">
+  <h2><span class="no">§6</span>CRM 训练工作台（前端）</h2>
+  <p class="lead">照 <code>knowledge</code> 视图的模式接线：<b>index.html 给骨架，prototype-api.ts 给渲染与事件</b>。三屏对应四个闭环。</p>
+
+  <div class="grid c3">
+    <div class="card"><h5>接线五件套</h5><p>① 视图容器 <code>&lt;div class="view" id="kb-training"&gt;</code>（紧邻 <code>#knowledge</code>，index.html:29836 之后）<br>② 导航按钮 <code>data-view="kb-training"</code>（紧邻「资料维护」，index.html:25636）<br>③ 视图标签表 + 权限表（<code>training.read</code>）<br>④ <code>activateNavView</code> 的 view 钩子 → <code>void loadKbTraining()</code><br>⑤ 启动时 <code>bindKbTrainingEvents()</code> 一次</p></div>
+    <div class="card"><h5>屏 1 · 源与批次（闭环①入口）</h5><p><code>#kbSourceFiles</code>（文件中心多选）· <code>#kbSourceConversations</code>（P2）· <code>#kbStartRunButton</code>（配 <code>setButtonPending</code>）· <code>#kbRunList</code>（状态徽章 + 引擎徽章 + 已提炼/重复/丢弃 + 失败原因）</p></div>
+    <div class="card"><h5>屏 2 · 候选确认（简易性落在这里）</h5><p>一屏 20 条，每条 = 问法/答案/类型徽章/置信度/<b>出处（可点）</b>/<b>理由</b>/勾选框。键盘：<code>J</code>/<code>K</code> 上下、<code>空格</code> 勾选、<code>Enter</code> 确认、<code>D</code> 丢弃 —— <b>这是"2 分钟/屏"的关键</b>。</p></div>
+  </div>
+
+  <div class="note ok"><b>预勾选规则（降低人工负担，不是放松标准）：</b><code>confidence ≥ 0.9 且 source_type = file 且未命中商务红线</code> → 自动勾选（仍可取消）。会话来源、低置信、知识缺口一律不勾。</div>
+
+  <div class="note warn"><b>必须遵守的既有界面规范（项目铁律）：</b>① 右上统计块三档字级（标签 11px/500 <code>#6b7d94</code>、数值 20px/700 <code>#131c2e</code>、说明 11px/400 <code>#94a3b6</code>，<b>0 值不上色</b>）；② 输入框字号三档、占位符 <code>#94a3b6</code> 且聚焦即透明、<b>禁把提示语写进 value</b>、圆角统一 6px；③ 新样式追加到 <code>index.html</code> 尾部既有 <code>&lt;style id="input-refine"&gt;</code> / <code>head-text-refine</code>，<b>不要另写一套</b>；④ 弹窗新增专属类<b>必须补进 <code>openModal()</code> 的 classList.remove 清理列表</b>；⑤ 写操作 handler <b>必须 try/catch + toast</b>（<code>api()</code> 只 throw 不弹提示，静默失败是历史高发缺陷）；⑥ 动效只用 <code>--ease-out</code>/<code>--ease-expo</code>，<code>animation-fill-mode: backwards</code>（不要 both/forwards，会让 hover 失效），并写 reduced-motion 降级。</div>
+</section>
+
+<!-- ========== §7 ========== -->
+<section id="s7">
+  <h2><span class="no">§7</span>插件与扩展改造</h2>
+
+  <h3>P0 · 可观测性（改的是读取与展示，不改检索决策）</h3>
+  <table>
+    <tr><th style="width:36%">位置</th><th>改动</th></tr>
+    <tr><td><code>training-library-service.ts</code> <code>resolve()</code> <code>:370-407</code></td><td>返回结构加 <code>citations[]</code>（含 <code>refId</code>/<code>title</code>/<code>snippet ≤200 字</code>/<code>anchor</code>/<code>score</code>/<code>hitTerms</code>）</td></tr>
+    <tr><td><code>training-library-service.ts</code> <code>recordHits()</code> <code>:478</code></td><td>覆盖四类 + <code>adopted</code> 维度；两处调用点改传全部命中 id</td></tr>
+    <tr><td><code>whatsapp-plugin/src/shared/types.ts</code></td><td>新增 <code>TrainingCitation</code> 类型</td></tr>
+    <tr><td><code>whatsapp-web-translator/src/{resources,agent,crm}.js</code></td><td>白名单加 citations · <code>resourceCard()</code> <code>:1258</code> 渲染可展开来源块 · 草稿下挂引用条</td></tr>
+  </table>
+  <div class="note danger"><b>扩展铁律：</b><code>settings.js</code> / <code>content.js</code> 与 <code>agent.js</code> 存在<b>叶子函数逐字 parity 锁</b>，改一份必须同步另一份；改默认值必须走 schema 迁移。改完必须<b>重载扩展 + 刷新 web.whatsapp.com</b> 才可见 —— 这是反复踩过的测试盲点（"修了没生效"多半是没刷新页面）。</div>
+
+  <h3>P1 · CLI 提炼契约</h3>
+  <div class="grid c3">
+    <div class="card"><h5>只复用，不新造</h5><p>复用 <code>cli-ai.ts::runCliSummary</code>。批处理 <b>每 20 段语料 1 次调用</b>（100 段 ≈ 5 次），<b>禁止每条一调</b>。</p></div>
+    <div class="card"><h5>降级要如实</h5><p>CLI 优先 → 失败退 CRM 配置模型 → 都没有则 <code>engine:"none"</code>。<b>不假装成功</b>，实际生效的那一档写进 <code>runs.engine</code>。</p></div>
+    <div class="card"><h5>不信任模型</h5><p>输出校验是纯函数（便于单测）：JSON 解析失败 / 缺字段 / <code>source_seg</code> 越界 → 丢弃并计数；<code>confidence &lt; 0.5</code> → 强制 pending；未知 kind → 丢弃。</p></div>
+  </div>
+
+  <h3>P3 · 检索硬化（每项独立开关，逐项回测）</h3>
+  <table>
+    <tr><th style="width:44%">改动</th><th style="width:34%">位置</th><th>开关</th></tr>
+    <tr><td>snippet 全不相关返回空（删掉 priority 兜底）</td><td><code>training-library-service.ts:428</code></td><td><code>KB_SNIPPET_STRICT</code></td></tr>
+    <tr><td>policy 按相关度截断 + warning 明细</td><td><code>:380-385</code></td><td><code>KB_POLICY_TRUNCATE</code></td></tr>
+    <tr><td>分层加权 + 同族合并 + 生命周期过滤</td><td><code>rankQa :445</code></td><td><code>KB_TIERED_RANKING</code></td></tr>
+    <tr><td>CLI 精排（只挑不造 + invented 计数）</td><td>新增 <code>resolveWithCli()</code></td><td><code>KB_CLI_RERANK</code></td></tr>
+    <tr><td>出稿回引校验 + 弃答路径</td><td><code>auto-chat-service.ts</code></td><td><code>KB_CITE_ENFORCE</code></td></tr>
+  </table>
+</section>
+
+<!-- ========== §8 ========== -->
+<section id="s8">
+  <h2><span class="no">§8</span>降级矩阵（失败路径也要闭环）</h2>
+  <p class="lead">第一轮辩论的核心结论：只画 happy path 的方案不是闭环。以下每种故障都必须在实现前定好"用户看到什么"。<b>统一原则：任何降级都必须写进 <code>engine</code>/<code>stats</code>/<code>error_message</code> 之一并在界面可见，不允许静默降级。</b></p>
+
+  <table>
+    <tr><th style="width:4%">#</th><th style="width:20%">故障</th><th style="width:22%">表现</th><th style="width:30%">降级动作</th><th>用户看到</th></tr>
+    <tr><td>1</td><td>CLI 未 <code>/login</code></td><td>退出码 0 但无有效 result 事件</td><td><b>按现有契约读 result 事件判定失败</b>（不能只看退出码）→ 退 CRM 配置模型</td><td>批次标 <code>engine=ai</code>，如实降级，不报"成功"</td></tr>
+    <tr><td>2</td><td>CLI 超时 &gt;120s</td><td>进程挂起</td><td><code>timeoutMs</code> 到点 kill，本批标 <code>partial</code></td><td>「N 段未处理，可重试」按钮</td></tr>
+    <tr><td>3</td><td>CRM 配置模型 key 失效（如 401）</td><td>提炼全失败</td><td><code>engine:"none"</code> + <code>error_message</code></td><td>批次红色 + "引擎不可用，请检查配置"</td></tr>
+    <tr><td>4</td><td>插件 3100 未启动</td><td>发布 ECONNREFUSED</td><td><b>不置 published</b>，保留 <code>approved</code>；返回 <code>failed:[{id,reason}]</code></td><td>「N 条待发布（插件未启动）」+ 重试按钮</td></tr>
+    <tr><td>5</td><td>发布部分失败（10 成 3）</td><td>半途失败</td><td>逐条独立事务，成功即回写血缘；失败保持 <code>approved</code></td><td>「已发布 3 / 待重试 7」；<b>重试不会重复</b>（靠前提 2 幂等）</td></tr>
+    <tr><td>6</td><td>迁移失败</td><td>后端拒启动</td><td>纯新增表，无护栏影响；先跑迁移修（含 <code>repairProspectRunExecutionSnapshotIntegrity</code>）</td><td>启动日志明确原因</td></tr>
+    <tr><td>7</td><td>候选池为空</td><td>训练完成 0 条</td><td>标 <code>succeeded</code> 但 <code>stats.candidates=0</code></td><td>「本批未发现新条目」+ 建议换源（<b>不是报错</b>）</td></tr>
+    <tr><td>8</td><td>指纹冲突（重复训练同一份资料）</td><td>全部撞既有</td><td>返回 <code>existing</code> 计数，不重复入库</td><td>「N 条已存在，跳过」</td></tr>
+    <tr><td>9</td><td>引用校验失败</td><td>草稿引用了不存在的 id</td><td><b>弃答</b>：不出正文，只给"依据不足，建议人工" + 来文关键词</td><td>草稿位显示弃答卡片，可一键转人工</td></tr>
+    <tr><td>10</td><td>会话语料接口超时（P2）</td><td>CRM 拉不到语料</td><td>该源跳过，其余源照常提炼</td><td>批次标 <code>partial</code>，注明"会话源未取到"</td></tr>
+  </table>
+</section>
+
+<!-- ========== §9 ========== -->
+<section id="s9">
+  <h2><span class="no">§9</span>验收方案（可证伪）</h2>
+  <p class="lead">第二轮辩论的核心结论：验收条件写成"功能正常"是不可验的。<b>每条判据都必须能被故意弄坏。</b></p>
+
+  <h3>9.1 三条「必须会红」的自检（先弄坏，确认能抓住，再修回来）</h3>
+  <p class="small">这是项目铁律（写自检必须实测会红），也是本方案对"桩全绿 ≠ 能用"的正面回应。</p>
+  <div class="audit">
+    <div class="audit-head"><b>自检 1 · 无出处不可发布</b><span>把 source_ref_json 手工改成 NULL 再点发布</span></div>
+    <div class="audit-body"><div class="finding bad"><span class="fno">期望</span>发布被拒（无出处永不发布），<b>不是</b>静默发布成功。</div></div>
+  </div>
+  <div class="audit">
+    <div class="audit-head"><b>自检 2 · 无关条目不得污染提示词</b><span>把 selectSnippets 兜底改回"priority 前 6"，喂一条全无关来文</span></div>
+    <div class="audit-body"><div class="finding bad"><span class="fno">期望</span><code>KB_SNIPPET_STRICT</code> 自检报"无关条目入提示词"。</div></div>
+  </div>
+  <div class="audit">
+    <div class="audit-head"><b>自检 3 · 越界引用必须被丢弃</b><span>让 CLI 返回一个 source_seg 越界的候选</span></div>
+    <div class="audit-body"><div class="finding bad"><span class="fno">期望</span>输出校验丢弃该条并 <code>stats.skipped+1</code>，<b>不是</b>落库。</div></div>
+  </div>
+
+  <h3>9.2 P1 端到端验收（真实链路，不是桩）</h3>
+  <div class="svgbox">
+    <svg viewBox="0 0 1040 150" width="100%" height="150" role="img" aria-label="P1 端到端验收链路">
+      <g font-size="11">
+        <rect x="10" y="30" width="150" height="56" rx="6" fill="#eef0ff" stroke="#c9cdfa"/>
+        <text x="85" y="52" text-anchor="middle" font-weight="600" fill="#131c2e">① 发起训练</text>
+        <text x="85" y="70" text-anchor="middle" font-size="10" fill="#6b7d94">POST /api/kb/training/runs</text>
+        <text x="85" y="100" text-anchor="middle" font-size="10" fill="#4f46e5">期望 201 + running</text>
+
+        <rect x="182" y="30" width="150" height="56" rx="6" fill="#eef0ff" stroke="#c9cdfa"/>
+        <text x="257" y="52" text-anchor="middle" font-weight="600" fill="#131c2e">② 轮询到完成</text>
+        <text x="257" y="70" text-anchor="middle" font-size="10" fill="#6b7d94">GET /runs/:id</text>
+        <text x="257" y="100" text-anchor="middle" font-size="10" fill="#4f46e5">期望 succeeded</text>
+
+        <rect x="354" y="30" width="150" height="56" rx="6" fill="#eef0ff" stroke="#c9cdfa"/>
+        <text x="429" y="52" text-anchor="middle" font-weight="600" fill="#131c2e">③ 候选带出处</text>
+        <text x="429" y="70" text-anchor="middle" font-size="10" fill="#6b7d94">GET /candidates</text>
+        <text x="429" y="100" text-anchor="middle" font-size="10" fill="#4f46e5">期望 sourceRef 非空</text>
+
+        <rect x="526" y="30" width="150" height="56" rx="6" fill="#eef0ff" stroke="#c9cdfa"/>
+        <text x="601" y="52" text-anchor="middle" font-weight="600" fill="#131c2e">④ 确认 + 发布</text>
+        <text x="601" y="70" text-anchor="middle" font-size="10" fill="#6b7d94">review → publish</text>
+        <text x="601" y="100" text-anchor="middle" font-size="10" fill="#4f46e5">期望 published:1</text>
+
+        <rect x="698" y="30" width="150" height="56" rx="6" fill="#e7f7ed" stroke="#b7e3c9"/>
+        <text x="773" y="52" text-anchor="middle" font-weight="600" fill="#131c2e">⑤ 插件库 active</text>
+        <text x="773" y="70" text-anchor="middle" font-size="10" fill="#6b7d94">查插件库</text>
+        <text x="773" y="100" text-anchor="middle" font-size="10" fill="#12733e">期望 status=active</text>
+
+        <rect x="870" y="30" width="160" height="56" rx="6" fill="#e7f7ed" stroke="#b7e3c9"/>
+        <text x="950" y="52" text-anchor="middle" font-weight="600" fill="#131c2e">⑥ 血缘可回指</text>
+        <text x="950" y="70" text-anchor="middle" font-size="10" fill="#6b7d94">CRM 该条</text>
+        <text x="950" y="100" text-anchor="middle" font-size="10" fill="#12733e">期望 published_entry_id 非空</text>
+      </g>
+      <g stroke="#94a3b6" stroke-width="1.3" fill="none" marker-end="url(#ar)">
+        <path d="M160 58 L180 58"/><path d="M332 58 L352 58"/><path d="M504 58 L524 58"/><path d="M676 58 L696 58"/><path d="M848 58 L868 58"/>
+      </g>
+    </svg>
+    <div class="cap">P1 闭环判据：六步全部通过，且第 ⑤ 步是"查插件库"而不是"接口返回 200"</div>
+  </div>
+
+  <h3>9.3 必须保持绿的既有回归</h3>
+  <table>
+    <tr><th style="width:26%">套件</th><th style="width:36%">命令</th><th>基线</th></tr>
+    <tr><td>CRM 全量</td><td><code>cd backend &amp;&amp; npm test</code></td><td>含 <code>agent-api-contracts-test</code>（新增契约后必跑）</td></tr>
+    <tr><td>插件</td><td><code>cd whatsapp-plugin &amp;&amp; npm test</code></td><td>285 passed / 9 skipped</td></tr>
+    <tr><td>扩展单测</td><td>10 份（parity 298 / twotier 35）</td><td><b>改了叶子函数必跑 parity</b></td></tr>
+    <tr><td>扩展 e2e</td><td>3 份 + live-check</td><td>不并发</td></tr>
+    <tr><td>双库结构</td><td><code>goodjob-db-parity.sh</code></td><td>迁移后必跑，期望退出码 0</td></tr>
+    <tr><td>前端</td><td><code>cd frontend &amp;&amp; npm test</code> + <code>npm run test:e2e</code></td><td>e2e 自起 memory 后端，不碰真实库</td></tr>
+  </table>
+  <div class="note"><b>第三轮辩论新增的一条：</b>P2 的会话源验收必须包含<b>脱敏检查</b>——用 grep 在 CRM 库中检索会话特征的原始文本，<b>命中数必须为 0</b>（与既有"正文零泄漏"检查同法）。</div>
+</section>
+
+<!-- ========== §10 ========== -->
+<section id="s10">
+  <h2><span class="no">§10</span>风险与回滚</h2>
+  <table>
+    <tr><th style="width:24%">风险</th><th style="width:10%">等级</th><th style="width:36%">缓解</th><th>回滚</th></tr>
+    <tr><td>迁移把库搞坏</td><td><span class="tag t-ok">低</span></td><td>只加表不改列；先 dev 后 personal；<code>MIGRATION_PROTECTED_TABLES</code> 行数护栏兜底</td><td><code>DROP TABLE</code> 三张表 + 还原版本号</td></tr>
+    <tr><td>发布污染插件库</td><td><span class="tag t-p1">中</span></td><td>幂等（前提 2）+ 撤回接口（置 <code>archived</code> 留痕）+ 总开关</td><td>插件侧把误发条目 <code>archived</code>（不删）</td></tr>
+    <tr><td>检索硬化改变现有回复质量</td><td><span class="tag t-p0">高</span></td><td>每项独立开关，逐个开、开完对比成绩单</td><td>关对应开关即回退（<b>无需发版</b>）</td></tr>
+    <tr><td>会话语料脱敏不彻底</td><td><span class="tag t-p0">高</span></td><td>出口只给"会话片段 + 文件名标记"，不给附件二进制；CRM 侧即取即提炼不落原文</td><td>关 <code>conversations</code> 源</td></tr>
+    <tr><td>CLI 提炼出臆造内容</td><td><span class="tag t-p1">中</span></td><td>输出校验（越界丢弃）+ 无出处不入池 + 自动放行仅限 file 源</td><td>候选池全人工审（关自动勾选）</td></tr>
+    <tr><td>扩展改动影响既有翻译</td><td><span class="tag t-p1">中</span></td><td>parity 锁保证两侧一致；改完必跑 10 份单测</td><td>重载扩展即可回退</td></tr>
+    <tr><td><b>测试往真实客户写数据</b></td><td><span class="tag t-p0">高危（历史踩过）</span></td><td><b>一律用 dev 档位 + 独立测试客户；严禁直连写真实客户</b></td><td>按 id+type+marker 三重条件清理</td></tr>
+  </table>
+  <div class="note ok"><b>总开关：</b><code>KB_TRAINING_ENABLED</code>（CRM 侧路由级，默认 <code>true</code>；开发档先 <code>false</code> 验证再开）。关闭后路由返回 503 + 界面提示，<b>既有功能完全不受影响</b>。</div>
+</section>
+
+<!-- ========== §11 ========== -->
+<section id="s11">
+  <h2><span class="no">§11</span>三轮自我辩论（针对本开发方案）</h2>
+  <p class="lead">这三次辩论不是复述设计方案的三场辩论，而是<b>针对"开发方案本身"</b>：批次划分对不对、失败路径闭不闭环、验收能不能证伪。三场共修订 5 处。</p>
+
+  <div class="audit">
+    <div class="audit-head"><b>辩论一 · 批次划分是否真的闭环？</b><span>修订 2 处</span></div>
+    <div class="audit-body">
+      <div class="finding bad"><span class="fno">反方</span>① P0 只有三个改动，够不上"一批"，不如并进 P1；② P1 只接文件源，用户真正想要的是会话——"窄而通"是不是自我安慰；③ P3 改检索行为、P4 出成绩单，<b>凭什么 P3 在 P4 前</b>——没有成绩单，怎么知道硬化是改好了还是改坏了。</div>
+      <p><b>正方：</b></p>
+      <ul>
+        <li>P0 的独立性理由是<b>风险类型不同</b>：全是插件侧读取行为（不改检索决策、不加表、不加路由），半天可完成、当天可验、可单独回退；P1 是新增模块 + 迁移 + 新路由。合并会让"当天可验的最小价值"消失。</li>
+        <li>P1 只接文件源恰恰是优势：文件源有明确出处、可自动放行、无隐私顾虑，<b>闭环可以窄但必须真通</b>。会话源在 P2 补，此时管道已建成，P2 只是加一个采集器——<b>若 P1 就上双源，一旦会话切分有问题，整条管道都验不了</b>。</li>
+        <li><b>P3 在 P4 前是硬约束</b>：golden 回测测的是检索质量，而硬化本身会改变质量。若 P4 先做，它的基线是一个即将被推翻的检索器，成绩单立刻作废。<b>先定行为，再量行为。</b></li>
+      </ul>
+      <div class="finding fixed"><span class="fno">裁决</span>维持 P0→P1→P2→P3→P4，但把 P3 的开关做成<b>可逐项对比</b>——每开一项就重跑 golden。<b>度量能力提前，度量界面后置</b>（P4 才落 UI）。这两条是辩论产生的实质修订。</div>
+    </div>
+  </div>
+
+  <div class="audit">
+    <div class="audit-head"><b>辩论二 · 失败路径是否闭环？</b><span>修订 2 处</span></div>
+    <div class="audit-body">
+      <div class="finding bad"><span class="fno">反方</span>本方案第一版只画了 happy path。CLI 挂了怎么办？插件 3100 没起怎么办？发布到一半失败怎么办？迁移失败怎么办？<b>这些都是必然而非偶然</b>——本项目历史上 CLI 未登录、模型 key 401、插件离线全都真实发生过。</div>
+      <div class="finding fixed"><span class="fno">裁决</span>补 §8 降级矩阵 10 条，并确立三条原则：① <b>降级必须可见</b>（写进 engine/stats/error_message，界面展示），禁止静默降级；② <b>每批都可关开关回到上一批状态</b>；③ <b>部分失败不污染整体</b>（发布逐条独立事务、采集逐源独立跳过）。</div>
+      <div class="finding fixed"><span class="fno">额外修订</span>第 1 条"CLI 未登录要看 result 事件而非退出码"是本项目已踩过的坑（<b>CLI 未 /login 必失败但退出码 0</b>）——所以它<b>写进实现注意事项，而不只是测试</b>。</div>
+    </div>
+  </div>
+
+  <div class="audit">
+    <div class="audit-head"><b>辩论三 · 验收是否可证伪？</b><span>修订 1 处</span></div>
+    <div class="audit-body">
+      <div class="finding bad"><span class="fno">反方</span>十条验收里若有一条写成"功能正常"，整份方案的严肃性就没了。而且本项目有过更贵的教训——<b>桩全绿 ≠ 能用</b>（插件侧 <code>request(app)</code> 随机 401、CLI 诊断脚本被 SIGKILL、扩展"修了没生效"其实是没刷新页面）。</div>
+      <div class="finding fixed"><span class="fno">裁决</span>① 判据改成"可执行命令 + 期望输出"，不给"正常/良好"这类词；② 补<b>三条「必须会红」的自检</b>（先故意弄坏，确认自检能抓住）；③ 明确既有回归清单与基线数字；④ 验收必须包含<b>真实链路</b>——P1 判据要求"发布后能在插件库查到"，而不是"接口返回 200"。</div>
+      <div class="finding fixed"><span class="fno">额外修订</span>P2 验收增加<b>脱敏检查</b>：在 CRM 库 grep 会话特征原文，命中数必须为 0。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== §12 ========== -->
+<section id="s12">
+  <h2><span class="no">§12</span>铁律检查与待定夺</h2>
+
+  <h3>12.1 与既有铁律的一致性</h3>
+  <table>
+    <tr><th style="width:34%">铁律</th><th>本方案的做法</th></tr>
+    <tr><td>开发一律走 development 档位（4190）</td><td>全部开发与验证在 dev 档；测试写数据只用 dev 测试客户</td></tr>
+    <tr><td>结构改动必须回灌个人库</td><td><code>db:migrate:dev</code> → <code>db:migrate:personal</code> → <code>goodjob-db-parity.sh</code></td></tr>
+    <tr><td>新写接口必须有 Agent 契约</td><td><code>agent-api-contracts.ts</code> 登记 + 入参登记 + <code>/api/kb</code> 进 <code>deniedPatterns</code></td></tr>
+    <tr><td>不把会话原文写进 CRM 库</td><td>前提 5 + §5.3：即取即提炼，只存整理结果与引用指针</td></tr>
+    <tr><td>全量持久化体系不背新模块</td><td>独立 Repository 文件，不进 <code>persistAll</code></td></tr>
+    <tr><td>界面字体 / 输入框 / 右上文字三档规范</td><td>§6：追加到尾部 style 块，不另写一套</td></tr>
+    <tr><td>写操作必须有反馈（禁静默失败）</td><td>§6 handler 必 try/catch + toast；§8 降级可见</td></tr>
+    <tr><td>改完不抢跑提交，等用户给备注</td><td>全程不 <code>svn commit</code>，改动留在工作副本</td></tr>
+  </table>
+
+  <h3>12.2 待你定夺（默认值已给，<b>不阻塞开工</b>）</h3>
+  <table>
+    <tr><th style="width:4%">#</th><th style="width:26%">问题</th><th style="width:40%">默认取值</th><th>影响面</th></tr>
+    <tr><td>1</td><td>价格 / 交期口径是否进库</td><td><b>进库但标「仅人工参考」</b>，不进入可引用集（检索层单独过滤）</td><td>若选"完全不进库"，P1 入库闸加一条正则硬拒</td></tr>
+    <tr><td>2</td><td>训练频率</td><td><b>手动 + 每周提醒</b>（新增会话 ≥20 段才提示）</td><td>只影响提醒入口</td></tr>
+    <tr><td>3</td><td>发布默认动作</td><td><b>高置信（≥0.9）+ 文件出处 + 无商务承诺 → 自动勾选（仍可撤回）</b>，其余人工确认</td><td>若选"全人工"，P1 预勾选默认不勾</td></tr>
+    <tr><td>4</td><td>（本方案新增）发布给谁</td><td><b>P1 只发操作者本人</b>；团队共享列为 P2 可选项</td><td>决定是否要建"插件接入账号"列表</td></tr>
+  </table>
+
+  <div class="note ok"><b>四项都可在开工后按你的答复调整；默认值下五批全部可执行。</b>本轮结论已落盘：<code>docs/KNOWLEDGE-TRAINING-DEV-PLAN.md</code>（工程规格）与本文（可视化报告）。</div>
+
+  <h3>12.3 与设计规格批次的对应关系</h3>
+  <table>
+    <tr><th style="width:30%">设计规格（§9 四批）</th><th style="width:18%">本开发方案</th><th>差异说明</th></tr>
+    <tr><td>批 1 可观测性打底</td><td><span class="tag t-p3">P0</span></td><td>一致</td></tr>
+    <tr><td>批 2 训练工作台</td><td><span class="tag t-p3">P1</span> + <span class="tag t-p3">P2</span></td><td>拆两批：先文件源闭环，再补会话源（辩论一的产物）</td></tr>
+    <tr><td>批 3 检索硬化</td><td><span class="tag t-p1">P3</span></td><td>一致，但增加"逐项开关 + 逐项回测"（辩论一的产物）</td></tr>
+    <tr><td>批 4 成绩单与回流</td><td><span class="tag t-p2">P4</span></td><td>度量能力提前到 P3 期间使用，界面后置（辩论一的产物）</td></tr>
+  </table>
+</section>
+
+</div></div>
+</body>
+</html>

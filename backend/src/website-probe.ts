@@ -1,0 +1,1578 @@
+import { createHash, randomUUID } from "node:crypto";
+import { load } from "cheerio";
+import robotsParser from "robots-parser";
+import { getDomain } from "tldts";
+import { ProviderContractError } from "./provider-contract.js";
+import { mergeProspectContactEvidence } from "./prospect-contact-enrichment.js";
+import {
+  createProviderHttpClient,
+  resolveProviderPublicAddresses
+} from "./provider-http-client.js";
+import type { CrmStore } from "./store.js";
+import type {
+  WebsiteContactAiExtractor,
+  WebsiteContactAiPage
+} from "./website-contact-ai.js";
+import type {
+  ExtractedWebsiteContact,
+  WebsiteOpportunity,
+  WebsiteProbeAttempt,
+  WebsiteProbeEvidence,
+  WebsiteProbeEvent,
+  WebsiteProbeStage
+} from "./types.js";
+
+const POLICY_VERSION = "website-probe-policy-v5-foreign-only" as const;
+const USER_AGENT = "GoodJobCRM-WebsiteProbe/1.0";
+const MAX_RESPONSE_BYTES = Math.max(
+  64 * 1024,
+  Math.min(512 * 1024, Number(process.env.WEBSITE_PROBE_MAX_RESPONSE_BYTES) || 256 * 1024)
+);
+const CACHE_WINDOW_MS = 24 * 60 * 60 * 1000;
+const CIRCUIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+const TRANSIENT_RETRY_WINDOW_MS = 5 * 60 * 1000;
+const DEFAULT_STALE_ATTEMPT_MS = 10 * 60 * 1000;
+const domainQueues = new Map<string, Promise<void>>();
+const scheduledAttemptIds = new Set<string>();
+const teamNextAllowedAt = new Map<string, number>();
+const parseRobots = robotsParser as unknown as (
+  url: string,
+  body: string
+) => { isAllowed(url: string, userAgent?: string): boolean | undefined };
+
+export class WebsiteProbeError extends Error {
+  constructor(
+    public readonly code:
+      | "WEBSITE_PROBE_DISABLED"
+      | "WEBSITE_PROBE_NOT_OWNED"
+      | "WEBSITE_PROBE_COUNTRY_BLOCKED"
+      | "WEBSITE_PROBE_URL_INVALID"
+      | "WEBSITE_PROBE_ATTEMPT_NOT_FOUND",
+    message: string,
+    public readonly status: number
+  ) {
+    super(message);
+    this.name = "WebsiteProbeError";
+  }
+}
+
+type PersistCandidate = (candidate: WebsiteOpportunity) => Promise<void>;
+
+interface WebsiteProbeOptions {
+  extractPublicContacts?: WebsiteContactAiExtractor;
+}
+
+function featureEnabled() {
+  return process.env.WEBSITE_PROBE_ENABLED !== "false";
+}
+
+function sha256(value: string) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function candidateById(store: CrmStore, candidateId: string) {
+  return store.websiteOpportunities.find((item) => item.id === candidateId);
+}
+
+function normalizedCountry(value: string) {
+  return value
+    .normalize("NFKC")
+    .trim()
+    .toLocaleLowerCase("en-US")
+    .replace(/[.\s_()\-]+/gu, "");
+}
+
+function isChinaRestrictedCountry(value: string) {
+  return new Set([
+    "cn",
+    "china",
+    "中国",
+    "中国大陆",
+    "中华人民共和国",
+    "mainlandchina",
+    "hk",
+    "hongkong",
+    "hongkongsar",
+    "香港",
+    "中国香港",
+    "香港特别行政区",
+    "mo",
+    "macau",
+    "macao",
+    "澳门",
+    "中国澳门",
+    "澳门特别行政区",
+    "tw",
+    "taiwan",
+    "台湾",
+    "中国台湾",
+    "unknown",
+    "未知",
+    "未识别",
+    "待补充",
+    "待维护",
+    "n/a",
+    "na"
+  ]).has(normalizedCountry(value));
+}
+
+function isChinaRestrictedDomain(hostname: string) {
+  const normalized = hostname.toLocaleLowerCase("en-US").replace(/\.$/u, "");
+  return normalized.endsWith(".cn")
+    || normalized.endsWith(".hk")
+    || normalized.endsWith(".mo")
+    || normalized.endsWith(".tw")
+    || normalized.endsWith(".中国")
+    || normalized.endsWith(".公司")
+    || normalized.endsWith(".网络")
+    || normalized.endsWith(".xn--fiqs8s")
+    || normalized.endsWith(".xn--55qx5d")
+    || normalized.endsWith(".xn--io0a7i");
+}
+
+function attemptById(
+  store: CrmStore,
+  candidateId: string,
+  attemptId: string
+) {
+  return candidateById(store, candidateId)?.websiteProbeAttempts?.find(
+    (item) => item.id === attemptId
+  );
+}
+
+function canonicalTarget(candidate: WebsiteOpportunity) {
+  let url: URL;
+  try {
+    url = new URL(candidate.website);
+  } catch {
+    throw new WebsiteProbeError(
+      "WEBSITE_PROBE_URL_INVALID",
+      "The company website must be a complete HTTPS address",
+      400
+    );
+  }
+  if (url.protocol !== "https:"
+    || url.username
+    || url.password
+    || (url.port && url.port !== "443")
+    || url.hostname.includes("%")) {
+    throw new WebsiteProbeError(
+      "WEBSITE_PROBE_URL_INVALID",
+      "Website review accepts credential-free HTTPS on the standard port only",
+      400
+    );
+  }
+  if (!candidate.country?.trim() || isChinaRestrictedCountry(candidate.country)) {
+    throw new WebsiteProbeError(
+      "WEBSITE_PROBE_COUNTRY_BLOCKED",
+      "Automated contact review is unavailable for China or unidentified countries",
+      403
+    );
+  }
+  if (isChinaRestrictedDomain(url.hostname)) {
+    throw new WebsiteProbeError(
+      "WEBSITE_PROBE_COUNTRY_BLOCKED",
+      "Automated contact review is unavailable for Chinese domains",
+      403
+    );
+  }
+  const domain = getDomain(url.hostname, { allowPrivateDomains: false });
+  if (!domain) {
+    throw new WebsiteProbeError(
+      "WEBSITE_PROBE_URL_INVALID",
+      "The website domain is not a registered public domain",
+      400
+    );
+  }
+  const hostname = url.hostname.toLocaleLowerCase("en-US");
+  url.hash = "";
+  url.search = "";
+  const targetPath = url.pathname || "/";
+  return {
+    domain: domain.toLocaleLowerCase("en-US"),
+    hostname,
+    homeUrl: `https://${hostname}${targetPath}`,
+    homePath: targetPath,
+    robotsUrl: `https://${hostname}/robots.txt`
+  };
+}
+
+export function websiteProbeAutoEnrichmentEligible(
+  candidate: WebsiteOpportunity,
+  at = Date.now()
+) {
+  if (candidate.contactInfo?.trim()
+    || (candidate.extractedContacts || []).some((contact) =>
+      contact.emails.length || contact.phones.length || contact.whatsapp.length
+    )) return false;
+  try {
+    canonicalTarget(candidate);
+  } catch {
+    return false;
+  }
+  return !(candidate.websiteProbeAttempts || []).some((attempt) => {
+    if (["queued", "running"].includes(attempt.status)) return true;
+    const completedAt = new Date(
+      attempt.completedAt || attempt.createdAt
+    ).getTime();
+    if (!Number.isFinite(completedAt)) return false;
+    const cooldown = ["unreachable", "rate_limited", "circuit_open", "interrupted"].includes(attempt.outcome)
+      ? TRANSIENT_RETRY_WINDOW_MS
+      : CACHE_WINDOW_MS;
+    return at - completedAt < cooldown;
+  });
+}
+
+export function expireStaleWebsiteProbeAttempts(
+  candidate: WebsiteOpportunity,
+  at = Date.now(),
+  staleMs = Math.max(
+    2 * 60 * 1000,
+    Math.min(60 * 60 * 1000, Number(process.env.WEBSITE_PROBE_STALE_MS || DEFAULT_STALE_ATTEMPT_MS))
+  )
+) {
+  let changed = false;
+  for (const attempt of candidate.websiteProbeAttempts || []) {
+    if (!["queued", "running"].includes(attempt.status)) continue;
+    const lastProgressAt = attempt.events.at(-1)?.createdAt
+      || attempt.startedAt
+      || attempt.createdAt;
+    const lastProgressTime = new Date(lastProgressAt).getTime();
+    if (!Number.isFinite(lastProgressTime) || at - lastProgressTime < staleMs) continue;
+    attempt.status = "failed";
+    attempt.outcome = "interrupted";
+    attempt.failureCode = "WEBSITE_PROBE_INTERRUPTED";
+    attempt.failureMessage = "The background service restarted or the task made no progress; no site availability conclusion was formed";
+    attempt.completedAt = new Date(at).toISOString();
+    appendEvent(attempt, "failed", "failed", "Website review interrupted. You can start it again.", {
+      interrupted: true,
+      staleMinutes: Math.max(1, Math.round((at - lastProgressTime) / 60_000))
+    });
+    changed = true;
+  }
+  return changed;
+}
+
+function appendEvent(
+  attempt: WebsiteProbeAttempt,
+  stage: WebsiteProbeStage,
+  status: WebsiteProbeEvent["status"],
+  message: string,
+  metrics: WebsiteProbeEvent["metrics"] = {}
+) {
+  const event: WebsiteProbeEvent = {
+    id: `wpe_${randomUUID()}`,
+    sequence: attempt.events.length + 1,
+    stage,
+    status,
+    message,
+    metrics,
+    createdAt: nowIso()
+  };
+  attempt.events.push(event);
+  return event;
+}
+
+async function mutateAttempt(
+  store: CrmStore,
+  candidateId: string,
+  attemptId: string,
+  persist: PersistCandidate,
+  mutation: (attempt: WebsiteProbeAttempt) => void
+) {
+  const candidate = candidateById(store, candidateId);
+  const attempt = attemptById(store, candidateId, attemptId);
+  if (!candidate || !attempt) {
+    throw new WebsiteProbeError(
+      "WEBSITE_PROBE_ATTEMPT_NOT_FOUND",
+      "The website review task does not exist or is no longer valid",
+      404
+    );
+  }
+  mutation(attempt);
+  await persist(candidate);
+}
+
+function allDomainAttempts(
+  store: CrmStore,
+  teamId: string,
+  domain: string
+) {
+  return store.websiteOpportunities
+    .filter((item) => item.teamId === teamId)
+    .flatMap((item) => item.websiteProbeAttempts || [])
+    .filter((item) => item.domain === domain)
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+function recentCachedAttempt(
+  store: CrmStore,
+  teamId: string,
+  domain: string,
+  at: number
+) {
+  return allDomainAttempts(store, teamId, domain).find((item) =>
+    item.status === "completed"
+    && Boolean(item.completedAt)
+    && at - new Date(item.completedAt).getTime() < CACHE_WINDOW_MS
+  );
+}
+
+function circuitOpen(
+  store: CrmStore,
+  teamId: string,
+  domain: string,
+  at: number
+) {
+  const recent = allDomainAttempts(store, teamId, domain)
+    .filter((item) =>
+      item.status === "failed"
+      && at - new Date(item.completedAt || item.createdAt).getTime()
+        < CIRCUIT_WINDOW_MS
+    )
+    .slice(0, 3);
+  return recent.length === 3 && recent.every((item) => {
+    if (item.outcome === "rate_limited") return true;
+    if (item.outcome !== "unreachable") return false;
+    if (/^HTTP_5\d\d$/u.test(item.failureCode)) return true;
+    if (["NETWORK_TIMEOUT", "DNS_TEMPORARY", "CONNECTION_RESET"].includes(item.failureCode)) {
+      return true;
+    }
+    return item.failureCode === "NETWORK_ERROR"
+      && /timeout|timed out|ECONNRESET|EAI_AGAIN/iu.test(item.failureMessage);
+  });
+}
+
+function alternateHost(hostname: string, domain: string) {
+  if (hostname === domain) return `www.${domain}`;
+  if (hostname === `www.${domain}`) return domain;
+  return "";
+}
+
+function networkPolicy(hostname: string, domain: string, extraPaths: string[] = []) {
+  const alternate = alternateHost(hostname, domain);
+  return {
+    allowedHosts: [hostname, ...(alternate ? [alternate] : [])],
+    redirectHosts: alternate ? [alternate] : [],
+    // Foreign corporate sites commonly redirect / to a locale path such as /en-US/.
+    // Redirects remain limited to the validated apex/www pair and HTTPS paths.
+    redirectPathPrefixes: ["/"],
+    allowedPaths: ["/", "/robots.txt", ...extraPaths],
+    allowedPathPrefixes: [],
+    allowedMethods: ["GET", "HEAD"] as Array<"GET" | "HEAD">,
+    maxRedirects: 3,
+    maxResponseBytes: MAX_RESPONSE_BYTES,
+    truncateResponse: true,
+    timeoutMs: Math.max(
+      2_000,
+      Math.min(30_000, Number(process.env.WEBSITE_PROBE_TIMEOUT_MS || 18_000))
+    )
+  };
+}
+
+async function controlledFetch(
+  url: string,
+  method: "GET" | "HEAD",
+  policy: ReturnType<typeof networkPolicy>
+) {
+  return await createProviderHttpClient(policy).fetch(url, {
+    method,
+    headers: {
+      accept: "text/html,text/plain;q=0.8",
+      "user-agent": USER_AGENT
+    }
+  });
+}
+
+async function waitForTeamBudget(teamId: string) {
+  const intervalMs = Math.max(
+    0,
+    Math.min(60_000, Number(process.env.WEBSITE_PROBE_TEAM_INTERVAL_MS || 3_000))
+  );
+  const now = Date.now();
+  const reservedAt = Math.max(now, teamNextAllowedAt.get(teamId) || 0);
+  teamNextAllowedAt.set(teamId, reservedAt + intervalMs);
+  const waitMs = Math.max(0, reservedAt - now);
+  if (waitMs) {
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+}
+
+async function fetchWithOneTransientRetry(
+  operation: () => Promise<Response>,
+  onRetry: (reason: string) => Promise<void>
+) {
+  try {
+    const first = await operation();
+    if (first.status < 500 || first.status > 599) return first;
+    await onRetry(`HTTP_${first.status}`);
+  } catch (error) {
+    if (error instanceof ProviderContractError) throw error;
+    await onRetry("NETWORK_ERROR");
+  }
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  return await operation();
+}
+
+function responseFailure(response: Response) {
+  if (response.status === 429) {
+    return { outcome: "rate_limited" as const, code: "HTTP_429" };
+  }
+  return {
+    outcome: "unreachable" as const,
+    code: `HTTP_${response.status || 0}`
+  };
+}
+
+function responseFailureMessage(response: Response, stage: "robots" | "head" | "body") {
+  const target = stage === "robots" ? "Access policy" : "Website address";
+  if (response.status === 404) return `${target} returned 404; the source link may no longer be valid`;
+  if ([401, 403, 406].includes(response.status)) return `${target} declined the request (HTTP ${response.status})`;
+  if (response.status === 429) return `${target} reached its request rate limit (HTTP 429)`;
+  if (response.status >= 500) return `${target} is temporarily unavailable (HTTP ${response.status})`;
+  return `${target} returned HTTP ${response.status || 0}`;
+}
+
+function networkFailure(error: unknown) {
+  const raw = error instanceof Error ? error.message : "Network request failed";
+  if (/timeout|timed out/iu.test(raw)) {
+    return { code: "NETWORK_TIMEOUT", message: "The website connection or response timed out. Please try again later." };
+  }
+  if (/ENOTFOUND/iu.test(raw)) {
+    return { code: "DNS_NOT_FOUND", message: "The website domain could not be resolved. It may be invalid or not active yet." };
+  }
+  if (/EAI_AGAIN/iu.test(raw)) {
+    return { code: "DNS_TEMPORARY", message: "The domain lookup was temporarily unavailable. Please try again later." };
+  }
+  if (/certificate|CERT_|self signed|unable to verify/iu.test(raw)) {
+    return { code: "TLS_CERTIFICATE_INVALID", message: "The website HTTPS certificate is invalid, expired, or untrusted." };
+  }
+  if (/ECONNREFUSED/iu.test(raw)) {
+    return { code: "CONNECTION_REFUSED", message: "The website server declined the HTTPS connection." };
+  }
+  if (/ECONNRESET|socket hang up/iu.test(raw)) {
+    return { code: "CONNECTION_RESET", message: "The website connection was interrupted. Please try again later." };
+  }
+  return { code: "NETWORK_ERROR", message: raw.slice(0, 500) };
+}
+
+function normalizedText(value: unknown, max = 240) {
+  return typeof value === "string"
+    ? value.replace(/\s+/gu, " ").trim().slice(0, max)
+    : "";
+}
+
+function organizationNodes(value: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(value)) return value.flatMap(organizationNodes);
+  if (!value || typeof value !== "object") return [];
+  const record = value as Record<string, unknown>;
+  const nested = organizationNodes(record["@graph"]);
+  const rawType = record["@type"];
+  const types = (Array.isArray(rawType) ? rawType : [rawType])
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.toLocaleLowerCase("en-US"));
+  const isOrganization = types.some((item) =>
+    item === "organization"
+    || item === "corporation"
+    || item.endsWith("business")
+  );
+  return isOrganization ? [record, ...nested] : nested;
+}
+
+function countryValue(value: unknown) {
+  if (typeof value === "string") return normalizedText(value, 80);
+  if (!value || typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  return normalizedText(record.name || record["@id"], 80);
+}
+
+function publicSameDomainEmail(value: unknown, domain: string) {
+  const candidate = normalizedPublicEmail(value);
+  if (!candidate) return "";
+  const hostname = candidate.split("@")[1] || "";
+  const emailDomain = getDomain(hostname, { allowPrivateDomains: false })
+    ?.toLocaleLowerCase("en-US") || "";
+  return emailDomain === domain ? candidate : "";
+}
+
+function normalizedPublicEmail(value: unknown) {
+  if (typeof value !== "string") return "";
+  let decoded = value;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    // Keep the original value when a malformed percent escape is present.
+  }
+  const candidate = decoded
+    .replace(/^mailto:/iu, "")
+    .split("?")[0]!
+    .trim()
+    .match(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,63}/iu)?.[0]
+    .toLocaleLowerCase("en-US") || "";
+  if (!candidate || candidate.length > 254) return "";
+  const [localPart, hostname] = candidate.split("@");
+  if (!localPart
+    || !hostname
+    || /^(?:no-?reply|do-?not-?reply|mailer-daemon|postmaster)$/iu.test(localPart)) {
+    return "";
+  }
+  const emailDomain = getDomain(hostname, { allowPrivateDomains: false })
+    ?.toLocaleLowerCase("en-US") || "";
+  return emailDomain ? candidate : "";
+}
+
+function decodeCloudflareEmail(value: string) {
+  if (!/^[a-f0-9]{4,}$/iu.test(value) || value.length % 2 !== 0) return "";
+  const key = Number.parseInt(value.slice(0, 2), 16);
+  if (!Number.isFinite(key)) return "";
+  let decoded = "";
+  for (let index = 2; index < value.length; index += 2) {
+    const byte = Number.parseInt(value.slice(index, index + 2), 16);
+    if (!Number.isFinite(byte)) return "";
+    decoded += String.fromCharCode(byte ^ key);
+  }
+  return decoded;
+}
+
+function publicContactEmail(
+  html: string,
+  nodes: Array<Record<string, unknown>>,
+  domain: string
+) {
+  const $ = load(html, { xmlMode: false });
+  const explicitValues: string[] = [];
+  const visibleValues: string[] = [];
+  nodes.forEach((node) => {
+    const emails = Array.isArray(node.email) ? node.email : [node.email];
+    emails.forEach((email) => {
+      if (typeof email === "string") explicitValues.push(email);
+    });
+  });
+  $("a[href]").each((_index, element) => {
+    const href = $(element).attr("href") || "";
+    if (/^mailto:/iu.test(href)) explicitValues.push(href);
+  });
+  $("[data-cfemail]").each((_index, element) => {
+    const decoded = decodeCloudflareEmail($(element).attr("data-cfemail") || "");
+    if (decoded) explicitValues.push(decoded);
+  });
+  const visibleText = $("body").text();
+  if (visibleText.includes("@")) {
+    visibleValues.push(...(visibleText.match(
+      /[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,63}/giu
+    ) || []));
+  }
+  const obfuscatedText = visibleText
+    .replace(/\s*(?:\[at\]|\(at\))\s*/giu, "@")
+    .replace(/\s*(?:\[dot\]|\(dot\))\s*/giu, ".");
+  if (obfuscatedText.includes("@")) {
+    visibleValues.push(...(obfuscatedText
+      .match(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,63}/giu) || []));
+  }
+  const preferredLocalParts = [
+    "sales", "info", "contact", "hello", "export", "business", "office", "support"
+  ];
+  const values = [
+    ...explicitValues.map(normalizedPublicEmail),
+    ...visibleValues.map((value) => publicSameDomainEmail(value, domain))
+  ];
+  return [...new Set(values.filter(Boolean))]
+    .sort((left, right) => {
+      const leftRank = preferredLocalParts.indexOf(left.split("@")[0] || "");
+      const rightRank = preferredLocalParts.indexOf(right.split("@")[0] || "");
+      return (leftRank < 0 ? preferredLocalParts.length : leftRank)
+        - (rightRank < 0 ? preferredLocalParts.length : rightRank)
+        || left.localeCompare(right);
+    })[0] || "";
+}
+
+const contactPathPattern = /(?:^|\/)(?:contact(?:-us)?|kontakt|impressum|contacto|contatti|nous-contacter|support|customer-service|sales|about|team)(?:\/|$)/iu;
+
+// ---------- 新增：电话与联系人抽取（叠加在既有公司邮箱抽取之上，不改原逻辑） ----------
+
+function normalizePhone(raw: string, minimumDigits = 8): string {
+  const trimmed = raw.trim();
+  const digits = trimmed.replace(/\D/gu, "");
+  if (digits.length < minimumDigits || digits.length > 15) return "";
+  if (/^(?:19|20)\d{6}$/u.test(digits)) {
+    const year = Number(digits.slice(0, 4));
+    const month = Number(digits.slice(4, 6));
+    const day = Number(digits.slice(6, 8));
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (date.getUTCFullYear() === year
+      && date.getUTCMonth() === month - 1
+      && date.getUTCDate() === day) return "";
+  }
+  if (/^(\d)\1{7,}$/u.test(digits)) return "";
+  return `${trimmed.startsWith("+") ? "+" : ""}${digits}`;
+}
+
+// 从 tel: 链接、JSON-LD 与带明确电话标签的正文中抽取电话号码。
+// 正文无国际区号时必须有电话语境，避免把日期、订单号和产品编号当成电话。
+function publicContactPhones(
+  html: string,
+  nodes: Array<Record<string, unknown>>
+): string[] {
+  const $ = load(html, { xmlMode: false });
+  const values: string[] = [];
+  const push = (value: unknown, minimumDigits = 8) => {
+    if (typeof value !== "string") return;
+    const phone = normalizePhone(value, minimumDigits);
+    if (phone) values.push(phone);
+  };
+  nodes.forEach((node) => {
+    const phones = Array.isArray(node.telephone) ? node.telephone : [node.telephone];
+    phones.forEach((phone) => push(phone));
+    const contactPoints = Array.isArray(node.contactPoint)
+      ? node.contactPoint
+      : [node.contactPoint];
+    contactPoints.forEach((point) => {
+      if (!point || typeof point !== "object") return;
+      const telephone = (point as Record<string, unknown>).telephone;
+      (Array.isArray(telephone) ? telephone : [telephone]).forEach((phone) => push(phone));
+    });
+  });
+  $("a[href]").each((_index, element) => {
+    const href = ($(element).attr("href") || "").trim();
+    if (/^tel:/iu.test(href)) {
+      push(href.replace(/^tel:/iu, "").split("?")[0] || "");
+    }
+  });
+  const bodyText = $("body").text();
+  const phonePattern = /(?:\+?\d[\d\s\-().]{6,}\d)/gu;
+  let match: RegExpExecArray | null;
+  while ((match = phonePattern.exec(bodyText)) !== null) {
+    const raw = match[0];
+    const international = raw.trim().startsWith("+");
+    const num = normalizePhone(raw, 9);
+    const prefix = bodyText.slice(Math.max(0, match.index - 48), match.index);
+    const labeled = /(?:phone|telephone|tel\.?|call|mobile|fax|whats\s*app|hotline|contact(?:\s+us)?|sales\s+office)[\s:：#.,\-()]*$/iu.test(prefix);
+    if (num && (international || (labeled && /[\s\-().]/u.test(raw)))) {
+      values.push(num);
+    }
+  }
+  return [...new Set(values)].slice(0, 12);
+}
+
+const CONTACT_TITLE_ALT = "manager|director|ceo|cto|cfo|coo|founder|co-founder|president|owner|head of|lead|officer|representative|sales|purchasing|procurement|export|import|marketing|buyer|chief|vice president|chairman|general manager";
+
+// 从正文抽取"姓名 — 职务"形式的联系人（决策人/对接人），保守启发式，最多 6 条。
+function publicContactPersons(html: string): Array<{ name: string; title: string }> {
+  const $ = load(html, { xmlMode: false });
+  const results: Array<{ name: string; title: string }> = [];
+  const seen = new Set<string>();
+  const pushIfNew = (name: string, title: string) => {
+    const cleanedName = normalizedText(name, 80);
+    const cleanedTitle = normalizedText(title, 80);
+    const key = `${cleanedName}|${cleanedTitle}`;
+    if (!cleanedName || seen.has(key) || results.length >= 6) return;
+    seen.add(key);
+    results.push({ name: cleanedName, title: cleanedTitle });
+  };
+  const text = $("body").text().slice(0, 50_000);
+  const pairPattern = new RegExp(
+    `([A-Z][a-z]+(?:\\s[A-Z][a-z]+){1,2})\\s*(?:[\\u2013\\u2014:,\\-]|\\s[-\\u2013\\u2014]\\s)\\s*([^,;\\n]{2,90})`,
+    "gu"
+  );
+  let m: RegExpExecArray | null;
+  while ((m = pairPattern.exec(text)) !== null) {
+    if (new RegExp(`(?:${CONTACT_TITLE_ALT})`, "iu").test(m[2] || "")) {
+      pushIfNew(m[1], m[2]);
+    }
+  }
+  return results;
+}
+
+export function buildExtractedContacts(
+  evidence: WebsiteProbeEvidence,
+  domain: string
+): ExtractedWebsiteContact[] {
+  const out: ExtractedWebsiteContact[] = [];
+  const emails = evidence.publicContactEmail ? [evidence.publicContactEmail] : [];
+  const phones = evidence.publicContactPhones || [];
+  if (emails.length || phones.length) {
+    out.push({
+      kind: "company",
+      name: evidence.organizationName || evidence.legalName || domain,
+      title: "Public company contact",
+      emails,
+      phones,
+      whatsapp: [],
+      source: "website_probe",
+      sourceLabel: "Foreign company website",
+      sourceKind: "official_website",
+      confidence: 82,
+      verificationStatus: "source_confirmed",
+      observedAt: evidence.observedAt,
+      reasonCodes: ["OFFICIAL_WEBSITE_PUBLIC_CHANNEL"],
+      evidenceUrl: evidence.sourceUrl
+    });
+  }
+  for (const person of evidence.publicContactNames || []) {
+    out.push({
+      kind: "person",
+      name: person.name,
+      title: person.title,
+      emails: [],
+      phones: [],
+      whatsapp: [],
+      source: "website_probe",
+      sourceLabel: "Foreign company website",
+      sourceKind: "official_website",
+      confidence: 68,
+      verificationStatus: "source_confirmed",
+      observedAt: evidence.observedAt,
+      reasonCodes: ["OFFICIAL_WEBSITE_PUBLIC_PERSON"],
+      evidenceUrl: evidence.sourceUrl
+    });
+  }
+  return mergeProspectContactEvidence(out, evidence.aiStructuredContacts || []);
+}
+
+function contactPageUrl(
+  html: string,
+  sourceUrl: string,
+  hostname: string,
+  domain: string
+) {
+  const $ = load(html, { xmlMode: false });
+  const candidates: Array<{ url: string; rank: number }> = [];
+  const alternate = alternateHost(hostname, domain);
+  const approvedHosts = new Set([hostname, ...(alternate ? [alternate] : [])]);
+  $("a[href]").each((_index, element) => {
+    const href = ($(element).attr("href") || "").trim();
+    if (!href || /^(?:mailto|tel|javascript):/iu.test(href)) return;
+    try {
+      const url = new URL(href, sourceUrl);
+      const targetDomain = getDomain(url.hostname, { allowPrivateDomains: false })
+        ?.toLocaleLowerCase("en-US") || "";
+      if (url.protocol !== "https:"
+        || targetDomain !== domain
+        || !approvedHosts.has(url.hostname.toLocaleLowerCase("en-US"))
+        || url.pathname === "/") return;
+      const anchorText = normalizedText($(element).text(), 100);
+      if (!contactPathPattern.test(url.pathname)
+        && !/contact|kontakt|impressum|contacto|contatti|nous contacter|support|customer service|get in touch|sales|about|team|联系|关于/iu.test(anchorText)) return;
+      url.hash = "";
+      url.search = "";
+      candidates.push({
+        url: url.toString(),
+        rank: /contact|kontakt|contacto|contatti|nous-contacter|nous contacter|联系/iu.test(`${url.pathname} ${anchorText}`)
+          ? 0
+          : /support|customer-service|customer service|get in touch|sales/iu.test(`${url.pathname} ${anchorText}`)
+            ? 1
+            : 2
+      });
+    } catch {
+      // Invalid and cross-origin links are ignored.
+    }
+  });
+  return candidates.sort((left, right) => left.rank - right.rank || left.url.localeCompare(right.url))[0]?.url || "";
+}
+
+function mergePageEvidence(
+  home: WebsiteProbeEvidence,
+  contact: WebsiteProbeEvidence | null
+) {
+  if (!contact) return home;
+  const facts = {
+    canonicalDomain: home.canonicalDomain,
+    pageTitle: home.pageTitle || contact.pageTitle,
+    language: home.language || contact.language,
+    organizationName: home.organizationName || contact.organizationName,
+    legalName: home.legalName || contact.legalName,
+    addressCountry: home.addressCountry || contact.addressCountry,
+    businessCategory: home.businessCategory || contact.businessCategory,
+    publicContactEmail: contact.publicContactEmail || home.publicContactEmail,
+    publicContactPhones: [
+      ...new Set([...(contact.publicContactPhones || []), ...(home.publicContactPhones || [])])
+    ],
+    publicContactNames: dedupeContactNames([
+      ...(contact.publicContactNames || []),
+      ...(home.publicContactNames || [])
+    ]),
+    sourceUrl: contact.publicContactEmail
+      || contact.publicContactPhones?.length
+      || contact.publicContactNames?.length
+      ? contact.sourceUrl
+      : home.sourceUrl,
+    observedAt: contact.observedAt > home.observedAt ? contact.observedAt : home.observedAt
+  };
+  return { ...facts, payloadHash: sha256(JSON.stringify(facts)) };
+}
+
+function dedupeContactNames(
+  items: Array<{ name: string; title: string }>
+): Array<{ name: string; title: string }> {
+  const seen = new Set<string>();
+  const out: Array<{ name: string; title: string }> = [];
+  for (const item of items) {
+    const key = `${item.name}|${item.title}`;
+    if (seen.has(key) || out.length >= 8) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
+
+export function extractEvidence(
+  html: string,
+  sourceUrl: string,
+  domain: string,
+  observedAt: string
+): WebsiteProbeEvidence {
+  const $ = load(html, { xmlMode: false });
+  const nodes: Array<Record<string, unknown>> = [];
+  $("script[type='application/ld+json']").each((_index, element) => {
+    const text = $(element).text().trim();
+    if (!text || text.length > MAX_RESPONSE_BYTES) return;
+    try {
+      nodes.push(...organizationNodes(JSON.parse(text)));
+    } catch {
+      // Invalid JSON-LD is ignored; no facts are inferred from broken markup.
+    }
+  });
+  const node = nodes[0] || {};
+  const address = node.address && typeof node.address === "object"
+    ? node.address as Record<string, unknown>
+    : {};
+  const pageTitle = normalizedText($("title").first().text(), 200);
+  const language = normalizedText($("html").attr("lang"), 30);
+  const organizationName = normalizedText(node.name, 200);
+  const legalName = normalizedText(node.legalName, 200);
+  const addressCountry = countryValue(address.addressCountry);
+  const businessCategory = normalizedText(
+    node.industry || node.category || node.description,
+    240
+  );
+  const contactEmail = publicContactEmail(html, nodes, domain);
+  const contactPhones = publicContactPhones(html, nodes);
+  const contactNames = publicContactPersons(html);
+  const facts = {
+    canonicalDomain: domain,
+    pageTitle,
+    language,
+    organizationName,
+    legalName,
+    addressCountry,
+    businessCategory,
+    publicContactEmail: contactEmail,
+    publicContactPhones: contactPhones,
+    publicContactNames: contactNames,
+    sourceUrl,
+    observedAt
+  };
+  return {
+    ...facts,
+    payloadHash: sha256(JSON.stringify(facts))
+  };
+}
+
+async function finishAttempt(
+  store: CrmStore,
+  candidateId: string,
+  attemptId: string,
+  persist: PersistCandidate,
+  input: {
+    status: "completed" | "failed";
+    outcome: WebsiteProbeAttempt["outcome"];
+    stage: "completed" | "failed";
+    message: string;
+    failureCode?: string;
+    failureMessage?: string;
+  }
+) {
+  await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+    attempt.status = input.status;
+    attempt.outcome = input.outcome;
+    attempt.failureCode = input.failureCode || "";
+    attempt.failureMessage = input.failureMessage || "";
+    attempt.completedAt = nowIso();
+    appendEvent(
+      attempt,
+      input.stage,
+      input.status === "completed" ? "completed" : "failed",
+      input.message,
+      { outcome: input.outcome }
+    );
+  });
+}
+
+async function executeAttempt(
+  store: CrmStore,
+  candidateId: string,
+  attemptId: string,
+  target: ReturnType<typeof canonicalTarget>,
+  persist: PersistCandidate,
+  options: WebsiteProbeOptions
+) {
+  const policy = networkPolicy(
+    target.hostname,
+    target.domain,
+    target.homePath === "/" ? [] : [target.homePath]
+  );
+  try {
+    await waitForTeamBudget(candidateById(store, candidateId)!.teamId);
+    await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+      attempt.status = "running";
+      attempt.startedAt = nowIso();
+      appendEvent(attempt, "dns", "started", "Checking all public DNS addresses for the website domain");
+    });
+    const addresses = await resolveProviderPublicAddresses(target.hostname);
+    await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+      appendEvent(attempt, "dns", "completed", "Public DNS check passed. Requests will use a fixed public address through the secure client.", {
+        addressCount: addresses.length,
+        allPublic: true
+      });
+      appendEvent(attempt, "robots", "started", "Checking the website access policy");
+    });
+
+    const robotsResponse = await fetchWithOneTransientRetry(
+      () => controlledFetch(target.robotsUrl, "GET", policy),
+      async (reason) => mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+        appendEvent(attempt, "robots", "started", "The access policy check had a transient failure. Retrying once.", {
+          retry: 1,
+          reason
+        });
+      })
+    );
+    if (robotsResponse.status === 401 || robotsResponse.status === 403) {
+      await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+        attempt.robotsDecision = "denied";
+        attempt.httpStatus = robotsResponse.status;
+        appendEvent(attempt, "robots", "completed", "The website access policy declined the request. Review stopped.", {
+          allowed: false,
+          httpStatus: robotsResponse.status
+        });
+      });
+      await finishAttempt(store, candidateId, attemptId, persist, {
+        status: "completed",
+        outcome: "robots_denied",
+        stage: "completed",
+        message: "Website review completed: the site access policy declined the request. Candidate scores were not changed."
+      });
+      return;
+    }
+    if (robotsResponse.status === 429 || robotsResponse.status >= 500) {
+      const failure = responseFailure(robotsResponse);
+      await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+        attempt.robotsDecision = "unavailable";
+        attempt.httpStatus = robotsResponse.status;
+        appendEvent(attempt, "robots", "failed", "The access policy endpoint is temporarily unavailable. The homepage was not reviewed.", {
+          httpStatus: robotsResponse.status
+        });
+      });
+      await finishAttempt(store, candidateId, attemptId, persist, {
+        status: "failed",
+        outcome: failure.outcome,
+        stage: "failed",
+        message: "Website review completed: the site is temporarily unavailable. Candidate scores were not changed.",
+        failureCode: failure.code,
+        failureMessage: "The access policy endpoint is temporarily unavailable"
+      });
+      return;
+    }
+    let robotsAllowed = true;
+    let robotsRules: ReturnType<typeof parseRobots> | null = null;
+    if (robotsResponse.ok) {
+      const robotsText = await robotsResponse.text();
+      robotsRules = parseRobots(target.robotsUrl, robotsText);
+      robotsAllowed = robotsRules.isAllowed(target.homeUrl, USER_AGENT) !== false;
+    }
+    await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+      attempt.robotsDecision = robotsAllowed ? "allowed" : "denied";
+      appendEvent(attempt, "robots", "completed", robotsAllowed
+        ? "The access policy allows homepage review"
+        : "The access policy does not allow homepage review. Review stopped.", {
+        allowed: robotsAllowed,
+        httpStatus: robotsResponse.status
+      });
+    });
+    if (!robotsAllowed) {
+      await finishAttempt(store, candidateId, attemptId, persist, {
+        status: "completed",
+        outcome: "robots_denied",
+        stage: "completed",
+        message: "Website review completed: the access policy does not allow review. Candidate scores were not changed."
+      });
+      return;
+    }
+
+    await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+      appendEvent(attempt, "head", "started", "Checking homepage status, content type, and size");
+    });
+    const headResponse = await fetchWithOneTransientRetry(
+      () => controlledFetch(target.homeUrl, "HEAD", policy),
+      async (reason) => mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+        appendEvent(attempt, "head", "started", "The homepage pre-check had a transient failure. Retrying once.", {
+          retry: 1,
+          reason
+        });
+      })
+    );
+    if (headResponse.status === 429 || headResponse.status >= 500) {
+      const failure = responseFailure(headResponse);
+      await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+        attempt.httpStatus = headResponse.status;
+        appendEvent(attempt, "head", "failed", "The homepage pre-check did not pass", {
+          httpStatus: headResponse.status
+        });
+      });
+      await finishAttempt(store, candidateId, attemptId, persist, {
+        status: "failed",
+        outcome: failure.outcome,
+        stage: "failed",
+        message: "Website review completed: the homepage pre-check temporarily failed. Candidate scores were not changed.",
+        failureCode: failure.code,
+        failureMessage: responseFailureMessage(headResponse, "head")
+      });
+      return;
+    }
+    const headUsable = headResponse.ok;
+    const headType = ((headUsable ? headResponse.headers.get("content-type") : "") || "")
+      .split(";")[0]!.trim().toLocaleLowerCase("en-US");
+    const declaredLength = Number(headResponse.headers.get("content-length") || 0);
+    if (headUsable && headType && !["text/html", "text/plain"].includes(headType)) {
+      await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+        attempt.httpStatus = headResponse.status;
+        appendEvent(attempt, "head", "completed", "The homepage content is outside the minimum evidence scope. Content review stopped.", {
+          httpStatus: headResponse.status,
+          contentType: headType || "unknown",
+          declaredBytes: declaredLength
+        });
+      });
+      await finishAttempt(store, candidateId, attemptId, persist, {
+        status: "completed",
+        outcome: "no_evidence",
+        stage: "completed",
+        message: "Website review completed: content outside the evidence scope was not reviewed. Candidate scores were not changed."
+      });
+      return;
+    }
+    await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+      attempt.httpStatus = headResponse.status;
+      attempt.redirected = Boolean(headResponse.url && headResponse.url !== target.homeUrl);
+      appendEvent(attempt, "head", headUsable ? "completed" : "skipped", headUsable
+        ? "Homepage status and content type check passed"
+        : `The site does not support the HEAD pre-check (HTTP ${headResponse.status}). Continuing with a limited GET review.`, {
+        httpStatus: headResponse.status,
+        contentType: headType || "unknown",
+        declaredBytes: declaredLength,
+        sampleWillBeTruncated: declaredLength > MAX_RESPONSE_BYTES,
+        redirected: attempt.redirected
+      });
+      appendEvent(attempt, "body", "started", `Reviewing a homepage content sample (limit ${(MAX_RESPONSE_BYTES / 1024).toFixed(0)} KiB)`);
+    });
+
+    let bodyResponse = await fetchWithOneTransientRetry(
+      () => controlledFetch(target.homeUrl, "GET", policy),
+      async (reason) => mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+        appendEvent(attempt, "body", "started", "The homepage content request had a transient failure. Retrying once.", {
+          retry: 1,
+          reason
+        });
+      })
+    );
+    if (bodyResponse.status === 404 && target.homePath !== "/") {
+      const rootUrl = `https://${target.hostname}/`;
+      const rootAllowed = robotsRules?.isAllowed(rootUrl, USER_AGENT) !== false;
+      if (rootAllowed) {
+        await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+          appendEvent(attempt, "body", "skipped", "The source path returned 404. Falling back to the same-domain homepage.", {
+            originalPath: target.homePath,
+            fallbackPath: "/"
+          });
+        });
+        bodyResponse = await fetchWithOneTransientRetry(
+          () => controlledFetch(rootUrl, "GET", policy),
+          async (reason) => mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+            appendEvent(attempt, "body", "started", "The same-domain homepage request had a transient failure. Retrying once.", {
+              retry: 1,
+              reason
+            });
+          })
+        );
+        if (bodyResponse.ok) {
+          const currentCandidate = candidateById(store, candidateId);
+          if (currentCandidate) currentCandidate.website = bodyResponse.url || rootUrl;
+          await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+            attempt.sourceUrl = bodyResponse.url || rootUrl;
+            appendEvent(attempt, "body", "completed", "The invalid path was replaced with the same-domain homepage. The website address was corrected.", {
+              correctedWebsite: attempt.sourceUrl
+            });
+          });
+        }
+      }
+    }
+    if (!bodyResponse.ok) {
+      const failure = responseFailure(bodyResponse);
+      await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+        attempt.httpStatus = bodyResponse.status;
+        appendEvent(attempt, "body", "failed", "The homepage content could not be reviewed", {
+          httpStatus: bodyResponse.status
+        });
+      });
+      await finishAttempt(store, candidateId, attemptId, persist, {
+        status: "failed",
+        outcome: failure.outcome,
+        stage: "failed",
+        message: "Website review completed: the current website address could not be reviewed. Candidate scores were not changed.",
+        failureCode: failure.code,
+        failureMessage: responseFailureMessage(bodyResponse, "body")
+      });
+      return;
+    }
+    const bodyType = (bodyResponse.headers.get("content-type") || "")
+      .split(";")[0]!.trim().toLocaleLowerCase("en-US");
+    if (bodyType && !["text/html", "text/plain"].includes(bodyType)) {
+      await finishAttempt(store, candidateId, attemptId, persist, {
+        status: "completed",
+        outcome: "no_evidence",
+        stage: "completed",
+        message: "Website review completed: the content type is outside the evidence scope. Candidate scores were not changed."
+      });
+      return;
+    }
+    const html = await bodyResponse.text();
+    const responseBytes = Buffer.byteLength(html);
+    const bodyTruncated = bodyResponse.headers.get("x-goodjob-response-truncated") === "true";
+    const observedAt = nowIso();
+    const homeEvidence = extractEvidence(
+      html,
+      bodyResponse.url || target.homeUrl,
+      target.domain,
+      observedAt
+    );
+    const selectedContactUrl = contactPageUrl(
+      html,
+      bodyResponse.url || target.homeUrl,
+      target.hostname,
+      target.domain
+    );
+    let contactEvidence: WebsiteProbeEvidence | null = null;
+    let contactHtmlForAi = "";
+    let contactBytes = 0;
+    if (selectedContactUrl) {
+      const contactPath = new URL(selectedContactUrl).pathname;
+      const contactAllowed = robotsRules?.isAllowed(selectedContactUrl, USER_AGENT) !== false;
+      if (!contactAllowed) {
+        await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+          appendEvent(attempt, "contact_page", "skipped", "The access policy does not allow review of the contact page found on the homepage", {
+            path: contactPath,
+            allowed: false
+          });
+        });
+      } else {
+        await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+          appendEvent(attempt, "contact_page", "started", "Reviewing a same-domain contact page sample found on the homepage", {
+            path: contactPath,
+            maxResponseBytes: MAX_RESPONSE_BYTES
+          });
+        });
+        try {
+          const contactResponse = await fetchWithOneTransientRetry(
+            () => controlledFetch(
+              selectedContactUrl,
+              "GET",
+              networkPolicy(target.hostname, target.domain, [contactPath])
+            ),
+            async (reason) => mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+              appendEvent(attempt, "contact_page", "started", "The contact page request had a transient failure. Retrying once.", { retry: 1, reason });
+            })
+          );
+          const contactType = (contactResponse.headers.get("content-type") || "")
+            .split(";")[0]!.trim().toLocaleLowerCase("en-US");
+          if (contactResponse.ok && (!contactType || ["text/html", "text/plain"].includes(contactType))) {
+            const contactHtml = await contactResponse.text();
+            contactHtmlForAi = contactHtml;
+            contactBytes = Buffer.byteLength(contactHtml);
+            const contactTruncated = contactResponse.headers.get("x-goodjob-response-truncated") === "true";
+            contactEvidence = extractEvidence(
+              contactHtml,
+              contactResponse.url || selectedContactUrl,
+              target.domain,
+              nowIso()
+            );
+            await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+              appendEvent(attempt, "contact_page", "completed", "The same-domain contact page sample was reviewed. Source text was not retained.", {
+                httpStatus: contactResponse.status,
+                responseBytes: contactBytes,
+                truncated: contactTruncated,
+                publicContactEmail: Boolean(contactEvidence?.publicContactEmail)
+              });
+            });
+          } else {
+            await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+              appendEvent(attempt, "contact_page", "skipped", "The contact page response is outside the minimum evidence scope", {
+                httpStatus: contactResponse.status,
+                contentType: contactType || "unknown"
+              });
+            });
+          }
+        } catch (error) {
+          await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+            appendEvent(attempt, "contact_page", "failed", "The contact page could not be reviewed. Homepage evidence is still retained.", {
+              reason: error instanceof Error ? error.message.slice(0, 200) : "NETWORK_ERROR"
+            });
+          });
+        }
+      }
+    }
+    const evidence = mergePageEvidence(homeEvidence, contactEvidence);
+    if (options.extractPublicContacts) {
+      await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+        appendEvent(attempt, "ai_extract", "started", "AI is organizing public contact details found on the reviewed pages. It will not generate or guess data.");
+      });
+      const pages: WebsiteContactAiPage[] = [{
+        sourceUrl: bodyResponse.url || target.homeUrl,
+        html
+      }];
+      if (contactEvidence && selectedContactUrl) {
+        pages.push({ sourceUrl: contactEvidence.sourceUrl || selectedContactUrl, html: contactHtmlForAi });
+      }
+      try {
+        const aiContacts = await options.extractPublicContacts({
+          domain: target.domain,
+          pages
+        });
+        evidence.aiStructuredContacts = aiContacts;
+        evidence.payloadHash = sha256(JSON.stringify({
+          ...evidence,
+          payloadHash: undefined
+        }));
+        await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+          appendEvent(attempt, "ai_extract", "completed", aiContacts.length
+            ? `AI organized ${aiContacts.length} public contact record(s) from the reviewed pages`
+            : "AI found no new verifiable contact details on the reviewed pages", {
+            contactCount: aiContacts.length,
+            generatedContacts: false,
+            exactSourceValidation: true
+          });
+        });
+      } catch (error) {
+        await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+          appendEvent(attempt, "ai_extract", "failed", "AI organization was incomplete. Rule-based results were retained.", {
+            fallback: "rule_extraction",
+            reason: error instanceof Error ? error.message.slice(0, 200) : "AI_PARSE_FAILED"
+          });
+        });
+      }
+    }
+    const hasOrganizationEvidence = Boolean(
+      evidence.organizationName
+      || evidence.legalName
+      || evidence.addressCountry
+      || evidence.businessCategory
+    );
+    const builtContacts = buildExtractedContacts(evidence, target.domain);
+    const hasUsableEvidence = hasOrganizationEvidence
+      || Boolean(evidence.publicContactEmail)
+      || Boolean(evidence.publicContactPhones?.length)
+      || builtContacts.some((contact) => contact.emails.length || contact.phones.length || contact.whatsapp.length);
+    const candidate = candidateById(store, candidateId);
+    const primaryEvidenceContact = builtContacts.find((contact) =>
+      contact.kind === "person"
+      && (contact.emails.length || contact.phones.length || contact.whatsapp.length)
+    ) || builtContacts.find((contact) =>
+      contact.emails.length || contact.phones.length || contact.whatsapp.length
+    );
+    const primaryContact = primaryEvidenceContact ? [
+      ...primaryEvidenceContact.emails,
+      ...primaryEvidenceContact.phones,
+      ...primaryEvidenceContact.whatsapp
+    ][0] : builtContacts.flatMap((contact) => [
+      ...contact.emails,
+      ...contact.phones,
+      ...contact.whatsapp
+    ])[0]
+      || "";
+    if (candidate && !candidate.contactInfo && primaryContact) {
+      candidate.contactInfo = primaryContact;
+    }
+    if (candidate) {
+      const built = builtContacts;
+      if (built.length) {
+        candidate.extractedContacts = mergeProspectContactEvidence(candidate.extractedContacts || [], built);
+        const person = built.find((contact) => contact.kind === "person" && contact.name);
+        if (person && (!candidate.contact?.trim() || /^(?:待维护|待确认|未知|-|—)$/u.test(candidate.contact.trim()))) {
+          candidate.contact = person.name;
+        }
+      }
+    }
+    await mutateAttempt(store, candidateId, attemptId, persist, (attempt) => {
+      attempt.httpStatus = bodyResponse.status;
+      attempt.responseBytes = responseBytes + contactBytes;
+      attempt.redirected = attempt.redirected
+        || Boolean(bodyResponse.url && bodyResponse.url !== target.homeUrl);
+      appendEvent(attempt, "body", "completed", "The homepage content sample was reviewed. Source text was not retained.", {
+        httpStatus: bodyResponse.status,
+        responseBytes: responseBytes + contactBytes,
+        contentType: bodyType || "unknown",
+        truncated: bodyTruncated,
+        redirected: attempt.redirected
+      });
+      attempt.evidence = evidence;
+      appendEvent(attempt, "evidence", "completed", hasUsableEvidence
+        ? "Public contact details or organization-level supporting evidence was identified"
+        : "No usable public contact details or structured organization evidence was identified", {
+        organizationName: Boolean(evidence.organizationName || evidence.legalName),
+        country: Boolean(evidence.addressCountry),
+        businessCategory: Boolean(evidence.businessCategory),
+        publicContactEmail: Boolean(evidence.publicContactEmail),
+        publicContactPhoneCount: evidence.publicContactPhones?.length || 0,
+        language: Boolean(evidence.language)
+      });
+    });
+    await finishAttempt(store, candidateId, attemptId, persist, {
+      status: "completed",
+      outcome: hasUsableEvidence ? "evidence_found" : "no_evidence",
+      stage: "completed",
+      message: hasUsableEvidence
+        ? "Website review completed: public evidence from the homepage and contact page was recorded. Organization facts still require cross-checking."
+        : "Website review completed: no public contact details or organization-level evidence was identified. Candidate scores were not changed."
+    });
+  } catch (error) {
+    const current = attemptById(store, candidateId, attemptId);
+    if (current && !["completed", "failed"].includes(current.status)) {
+      const policyBlocked = error instanceof ProviderContractError
+        && error.code === "PROVIDER_POLICY_BLOCKED";
+      const failure = networkFailure(error);
+      await finishAttempt(store, candidateId, attemptId, persist, {
+        status: "failed",
+        outcome: policyBlocked ? "policy_blocked" : "unreachable",
+        stage: "failed",
+        message: policyBlocked
+          ? "Website review completed: the security policy blocked the request. Candidate scores were not changed."
+          : "Website review completed: the network request failed. Candidate scores were not changed.",
+        failureCode: policyBlocked ? error.code : failure.code,
+        failureMessage: policyBlocked
+          ? (error instanceof Error ? error.message.slice(0, 500) : "The security policy blocked the request")
+          : failure.message
+      });
+    }
+  }
+}
+
+function scheduleAttemptWork(
+  store: CrmStore,
+  candidate: WebsiteOpportunity,
+  attempt: WebsiteProbeAttempt,
+  target: ReturnType<typeof canonicalTarget>,
+  persist: PersistCandidate,
+  options: WebsiteProbeOptions
+) {
+  if (scheduledAttemptIds.has(attempt.id)) return false;
+  scheduledAttemptIds.add(attempt.id);
+  const queueKey = `${candidate.teamId}:${target.domain}`;
+  const previous = domainQueues.get(queueKey) || Promise.resolve();
+  const work = previous
+    .catch(() => undefined)
+    .then(() => executeAttempt(
+      store,
+      candidate.id,
+      attempt.id,
+      target,
+      persist,
+      options
+    ))
+    .finally(() => {
+      scheduledAttemptIds.delete(attempt.id);
+      if (domainQueues.get(queueKey) === work) domainQueues.delete(queueKey);
+    });
+  domainQueues.set(queueKey, work);
+  void work.catch(() => undefined);
+  return true;
+}
+
+export async function resumeWebsiteProbeAttempt(
+  store: CrmStore,
+  candidate: WebsiteOpportunity,
+  attempt: WebsiteProbeAttempt,
+  actorId: string,
+  persist: PersistCandidate,
+  options: WebsiteProbeOptions = {}
+) {
+  if (["completed", "failed"].includes(attempt.status)) return false;
+  if (candidate.ownerId !== actorId
+    || attempt.candidateId !== candidate.id
+    || attempt.teamId !== candidate.teamId
+    || attempt.ownerId !== candidate.ownerId) {
+    throw new WebsiteProbeError(
+      "WEBSITE_PROBE_NOT_OWNED",
+      "The website review task does not match the candidate's access scope",
+      403
+    );
+  }
+  const target = canonicalTarget(candidate);
+  if (target.domain !== attempt.domain) {
+    throw new WebsiteProbeError(
+      "WEBSITE_PROBE_URL_INVALID",
+      "The candidate website changed; the previous domain review cannot be resumed",
+      409
+    );
+  }
+  return scheduleAttemptWork(store, candidate, attempt, target, persist, options);
+}
+
+export async function queueWebsiteProbe(
+  store: CrmStore,
+  candidate: WebsiteOpportunity,
+  actorId: string,
+  persist: PersistCandidate,
+  options: WebsiteProbeOptions = {}
+) {
+  if (!featureEnabled()) {
+    throw new WebsiteProbeError(
+      "WEBSITE_PROBE_DISABLED",
+      "Website review is disabled by the administrator",
+      503
+    );
+  }
+  if (candidate.ownerId !== actorId) {
+    throw new WebsiteProbeError(
+      "WEBSITE_PROBE_NOT_OWNED",
+      "Only the assigned owner can start website review",
+      403
+    );
+  }
+  const target = canonicalTarget(candidate);
+  const createdAt = nowIso();
+  const attempt: WebsiteProbeAttempt = {
+    id: `wpa_${randomUUID()}`,
+    candidateId: candidate.id,
+    teamId: candidate.teamId,
+    ownerId: candidate.ownerId,
+    domain: target.domain,
+    sourceUrl: target.homeUrl,
+    purpose: "company_evidence_enrichment",
+    accessMode: "controlled_probe",
+    policyVersion: POLICY_VERSION,
+    status: "queued",
+    outcome: "pending",
+    robotsDecision: "pending",
+    httpStatus: 0,
+    responseBytes: 0,
+    redirected: false,
+    evidence: null,
+    events: [],
+    failureCode: "",
+    failureMessage: "",
+    startedAt: "",
+    completedAt: "",
+    createdAt
+  };
+  appendEvent(attempt, "queued", "completed", "Website review has been queued", {
+    domain: target.domain,
+    maxBodyBytes: MAX_RESPONSE_BYTES,
+    cacheHours: 24,
+    maxRedirects: 3,
+    maxContactPages: 1
+  });
+  candidate.websiteProbeAttempts ||= [];
+  candidate.websiteProbeAttempts.unshift(attempt);
+  // 防膨胀：探测尝试仅保留最近 5 条。此前无限累积曾把 website_probe_attempts_json
+  // 撑到单表 63MB，persistAll 全表 REPLACE 超过 max_allowed_packet 导致连接被服务端断开。
+  if (candidate.websiteProbeAttempts.length > 5) {
+    candidate.websiteProbeAttempts = candidate.websiteProbeAttempts.slice(0, 5);
+  }
+
+  const cached = recentCachedAttempt(
+    store,
+    candidate.teamId,
+    target.domain,
+    Date.now()
+  );
+  if (cached && cached.id !== attempt.id) {
+    attempt.status = "completed";
+    attempt.outcome = cached.outcome;
+    attempt.robotsDecision = cached.robotsDecision;
+    attempt.httpStatus = cached.httpStatus;
+    attempt.responseBytes = 0;
+    attempt.redirected = cached.redirected;
+    attempt.evidence = cached.evidence ? structuredClone(cached.evidence) : null;
+    const cachedPrimaryContact = attempt.evidence?.publicContactEmail
+      || attempt.evidence?.publicContactPhones?.[0]
+      || "";
+    if (!candidate.contactInfo && cachedPrimaryContact) {
+      candidate.contactInfo = cachedPrimaryContact;
+    }
+    if (attempt.evidence) {
+      const built = buildExtractedContacts(attempt.evidence, target.domain);
+      if (built.length) {
+        candidate.extractedContacts = mergeProspectContactEvidence(candidate.extractedContacts || [], built);
+        const person = built.find((contact) => contact.kind === "person" && contact.name);
+        if (person && (!candidate.contact?.trim() || /^(?:待维护|待确认|未知|-|—)$/u.test(candidate.contact.trim()))) {
+          candidate.contact = person.name;
+        }
+      }
+    }
+    attempt.startedAt = createdAt;
+    attempt.completedAt = createdAt;
+    appendEvent(attempt, "completed", "completed", "A same-domain result from the last 24 hours was reused. No additional request was made.", {
+      cachedAttemptId: cached.id,
+      networkAccess: false,
+      outcome: cached.outcome
+    });
+    await persist(candidate);
+    return { attempt, replayed: true };
+  }
+  if (circuitOpen(store, candidate.teamId, target.domain, Date.now())) {
+    attempt.status = "failed";
+    attempt.outcome = "circuit_open";
+    attempt.failureCode = "DOMAIN_CIRCUIT_OPEN";
+    attempt.failureMessage = "Three recent transient failures were recorded for this domain. A 24-hour verification pause is active.";
+    attempt.startedAt = createdAt;
+    attempt.completedAt = createdAt;
+    appendEvent(attempt, "failed", "failed", "Website review ended: repeated same-domain failures triggered a pause. No network request was made.", {
+      networkAccess: false,
+      priorTransientFailures: 3
+    });
+    await persist(candidate);
+    return { attempt, replayed: false };
+  }
+
+  await persist(candidate);
+  scheduleAttemptWork(store, candidate, attempt, target, persist, options);
+  return { attempt, replayed: false };
+}
+
+export function websiteProbeDetail(
+  candidate: WebsiteOpportunity,
+  attemptId = ""
+) {
+  const attempts = candidate.websiteProbeAttempts || [];
+  const attempt = attemptId
+    ? attempts.find((item) => item.id === attemptId)
+    : attempts[0];
+  if (!attempt) {
+    throw new WebsiteProbeError(
+      "WEBSITE_PROBE_ATTEMPT_NOT_FOUND",
+      "This candidate has no website review record",
+      404
+    );
+  }
+  return {
+    enabled: featureEnabled(),
+    attempt,
+    terminal: attempt.status === "completed" || attempt.status === "failed"
+  };
+}
+
+export function websiteProbeCapability() {
+  return {
+    enabled: featureEnabled(),
+    foreignOnly: true,
+    countryPolicy: "Only candidates marked as outside China, Hong Kong, Macao, and Taiwan are eligible",
+    policyVersion: POLICY_VERSION,
+    defaultOff: false,
+    accessMode: "controlled_probe" as const,
+    maxResponseBytes: MAX_RESPONSE_BYTES,
+    cacheHours: 24,
+    maxRedirects: 1,
+    maxContactPages: 1
+  };
+}

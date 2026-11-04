@@ -1,0 +1,12 @@
+/* 仅供「改版前」对照图使用：把漏斗图表配色还原成改动前的硬编码值。
+   这样对照图才是真正的历史状态（荧光黄折线）。 */
+#dashboard.dashboard-v2 {
+  --gj-funnel-line: #dfe104;
+  --gj-funnel-label: #fafafa;
+  --gj-funnel-marker-ring: #09090b;
+  --gj-funnel-entered: #70e1dc;
+  --gj-funnel-pending: #f0a84f;
+  --gj-funnel-valid: #dfe104;
+  --gj-funnel-customer: #9adf73;
+  --gj-funnel-deal: #ff6b8a;
+}

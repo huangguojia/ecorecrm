@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>联系图标条 · 体检与改造</title>
+<style>
+  :root{
+    --ink:#131c2e; --ink-2:#37445b; --muted:#6b7d94; --faint:#94a3b6;
+    --line:#e7ecf4; --line-soft:#f1f5f9; --bg:#f7f9fc; --surface:#fff;
+    --brand:#6366f1; --brand-tint:#eef0ff; --good:#0f8a5f; --bad:#c2410c;
+    --r:10px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:44px 34px 90px}
+
+  header.top{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:34px}
+  .kicker{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--brand);
+    background:var(--brand-tint);border-radius:999px;padding:3px 11px;margin-bottom:14px}
+  h1{margin:0 0 8px;font-size:27px;font-weight:700;letter-spacing:-.02em;line-height:1.25}
+  .sub{color:var(--muted);font-size:13.5px;margin:0}
+  .sub b{color:var(--ink-2);font-weight:600}
+
+  h2{margin:44px 0 6px;font-size:18px;font-weight:700;letter-spacing:-.01em;
+    display:flex;align-items:baseline;gap:10px}
+  h2 .n{flex:0 0 auto;width:24px;height:24px;border-radius:7px;background:var(--brand);color:#fff;
+    font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;
+    letter-spacing:0;transform:translateY(-2px)}
+  h3{margin:26px 0 8px;font-size:14px;font-weight:600;color:var(--ink-2)}
+  p{margin:9px 0}
+  ul,ol{margin:9px 0;padding-left:22px}
+  li{margin:5px 0}
+  code{font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:#eef2f8;
+    border-radius:5px;padding:1.5px 5px;color:#2c3a52}
+  .lead{color:var(--muted);font-size:13.5px;margin:6px 0 16px}
+  .rule{height:1px;background:var(--line);margin:38px 0 0}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+    padding:20px 22px;margin:14px 0;box-shadow:0 1px 2px rgba(23,35,61,.03)}
+
+  .verdict{background:#fff7f2;border:1px solid #f6ddcd;border-left:3px solid #ea8a4c}
+  .verdict .t{font-weight:700;color:#9a3412;font-size:13.5px}
+  .verdict ul{margin:8px 0 0}
+
+  .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+  .stat .k{font-size:11px;font-weight:500;letter-spacing:.02em;color:var(--muted)}
+  .stat .v{font-size:20px;font-weight:700;letter-spacing:-.015em;color:var(--ink);
+    font-variant-numeric:tabular-nums;margin-top:2px}
+  .stat .d{font-size:11px;color:var(--faint);margin-top:2px}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;background:var(--surface);
+    border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  th,td{padding:9px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line-soft);font-size:12.5px}
+  th{background:#f6f8fc;font-weight:600;color:var(--muted);font-size:11px;letter-spacing:.02em;white-space:nowrap}
+  tr:last-child td{border-bottom:0}
+  td.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:#33415c}
+  .tag{display:inline-block;font-size:10.5px;font-weight:600;border-radius:5px;padding:1px 7px;letter-spacing:.02em}
+  .tag.bad{background:#fdece2;color:#b4541c}
+  .tag.ok{background:#e7f7ef;color:#0b6b48}
+  .tag.plan{background:#eef0ff;color:#4f46e5}
+
+  figure{margin:16px 0;background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--r);overflow:hidden}
+  figure img{display:block;width:100%;height:auto}
+  figure .ph{padding:8px 14px;background:#f6f8fc;border-bottom:1px solid var(--line);
+    font-size:11px;font-weight:600;letter-spacing:.03em;color:var(--muted);display:flex;
+    align-items:center;justify-content:space-between}
+  figcaption{padding:9px 14px;font-size:12px;color:var(--muted);border-top:1px solid var(--line-soft)}
+  .stack figure{margin:0;border:0;border-radius:0;border-bottom:1px solid var(--line-soft)}
+  .stack figure:last-child{border-bottom:0}
+  .lbl{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.02em}
+  .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .dot.b{background:#c2410c}.dot.a{background:#15803d}
+
+  .swatch{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+  .sw{border:1px solid var(--line);border-radius:8px;padding:9px 13px;background:#fff;font-size:11.5px;min-width:150px}
+  .sw b{display:block;font-size:12px;font-weight:600;margin-top:3px}
+  .sw .chip{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+
+  .note{border-left:3px solid var(--brand);background:var(--brand-tint);padding:11px 15px;
+    border-radius:0 var(--r) var(--r) 0;font-size:12.5px;margin:14px 0;color:#3730a3}
+  .warn{border-left-color:#ea8a4c;background:#fff7f2;color:#9a3412}
+
+  .before-after{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .before-after figure{margin:0}
+  @media (max-width:820px){.before-after,.grid3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <span class="kicker">GOODJOB CRM · 视觉改造</span>
+  <h1>列表页「联系图标条」体检与改造</h1>
+  <p class="sub">客户 / 线索 / 客户公池三个列表页，点行后出现的快捷联系条（邮箱 · 电话 · WhatsApp · 微信）。<br>
+     <b>结论：4 个图标里有 2 个是自绘近似形，16px 下认不出；按钮用 10px/800 字重，正好撞上已定的排版禁区。已全部重画并规范化。</b></p>
+</header>
+
+<h2><span class="n">1</span>问题诊断</h2>
+<p class="lead">不是"再调调粗细"的问题，是三处结构性缺陷叠在一起，所以整体显得土。</p>
+
+<div class="verdict card">
+  <div class="t">三个根因</div>
+  <ul>
+    <li><b>WhatsApp / 微信是手绘近似形，不是官方标识。</b>原来 WhatsApp 画的是一个不规则气泡加内部一段弧线；微信画的是两个泡泡，其中<b>第二个气泡的路径根本没有闭合</b>（<code>M15.5 10c3 0 5.5 2 5.5 4.5…</code> 没有 <code>Z</code>，也没有回到起点），放大后能看到明显断口。品牌标识的形状用户有强记忆，画得"差不多"＝一眼看出画错了。</li>
+    <li><b>四个图标的视觉重量不齐。</b>邮箱的信封框只有 18×14（在 24 网格里），微信两个泡泡叠在一起显得又小又碎，WhatsApp 气泡又偏大 —— 放在一排里像三个不同来源的图标拼的。</li>
+    <li><b>按钮排版撞了已定的规范。</b><code>font-size:10px</code> + <code>font-weight:800</code>，而界面规范里早已把 800/900 字重和 10px 列为禁用档；圆角 7px 也自成一套（全局是 6px）。空态用 <code>opacity:.5</code> 压暗，导致边框几乎看不见（实测空态文字只剩 <code>rgb(179,187,185)</code>，非常发虚）。</li>
+  </ul>
+</div>
+
+<h3>候选方案验证</h3>
+<p>先把三个方向做成同尺寸放大板实测，而不是凭感觉选：<b>R1 现状</b> / <b>R2 全描边（官方几何）</b> / <b>R3 混排（品牌实心 + 其余描边）</b>。</p>
+
+<figure>
+  <div class="ph"><span>候选对照板 · 16 / 24 / 36 px 真实渲染</span><span>shots-icons/board-candidates.png</span></div>
+  <img src="shots-icons/board-candidates.png" alt="图标候选对照板">
+  <figcaption>关键读数：R1 的 WhatsApp / 微信在 16px 下认不出；R2 全描边形状正确，但品牌 glyph 满铺 24 网格、线宽被缩放压细，16px 下糊成一团；R3 混排在 16px 下最清楚 —— 这正是联系条的实际显示尺寸，故采用 R3。</figcaption>
+</figure>
+
+<p>R3 内部再比三档配重（<code>--glyph-k</code>），最终取 <b>WhatsApp 0.90 / 微信 1.12</b>：WhatsApp glyph 是满铺正方形，缩到 0.9 才与 16px 描边图标等重；微信 glyph 宽高比 1.46:1 天然横长，必须放大到 1.12 视觉高度才追得上。</p>
+
+<h2><span class="n">2</span>改造结果</h2>
+<p class="lead">下图为<b>同一机位、同一行数据</b>（线索第一行 S.E.T. Weighing Systems，仅邮箱有值，其余为空态）的前后对照。</p>
+
+<figure class="stack">
+  <div class="ph"><span><span class="lbl"><i class="dot b"></i>改前 · 10px/800 字重 · 自绘图标 · 空态 opacity .5 发虚</span></span><span>before-dock-leads.png</span></div>
+  <img src="shots-icons/before-dock-leads.png" alt="改前联系条">
+  <div class="ph"><span><span class="lbl"><i class="dot a"></i>改后 · 12px/600 · 官方 glyph · 空态虚线边 + 中性文字</span></span><span>dock-leads.png</span></div>
+  <img src="shots-icons/dock-leads.png" alt="改后联系条">
+</figure>
+
+<div class="grid3">
+  <div class="stat"><div class="k">图标</div><div class="v">4 / 4 重画</div><div class="d">2 个换官方 glyph，2 个换更大更饱满的几何</div></div>
+  <div class="stat"><div class="k">字号 / 字重</div><div class="v">12px · 600</div><div class="d">原 10px / 800，撞排版禁区</div></div>
+  <div class="stat"><div class="k">空态</div><div class="v">虚线边</div><div class="d">替代 opacity .5，边框重新可见</div></div>
+</div>
+
+<h3>这四个图标现在长这样</h3>
+<figure>
+  <div class="ph"><span>改后图标 · 16 / 24 / 32 / 48 px</span><span>shots-icons/icons-board-after.png</span></div>
+  <img src="shots-icons/icons-board-after.png" alt="改后图标放大板">
+  <figcaption>16px 是联系条里的实际尺寸 —— 四个图标的视觉重量已对齐；WhatsApp 圆泡、微信双泡一眼可辨。</figcaption>
+</figure>
+
+<h3>交互态与另一处使用场景</h3>
+<div class="before-after">
+  <figure>
+    <div class="ph"><span>hover（邮箱）</span><span>dock-hover-leads.png</span></div>
+    <img src="shots-icons/dock-hover-leads.png" alt="hover 态">
+    <figcaption>常态白底 + 品牌描边；悬停填充浅品牌底 <code>#eef0ff</code>（实测像素确认），层次靠"描边 → 填充"而非加深颜色。</figcaption>
+  </figure>
+  <figure>
+    <div class="ph"><span>客户全景页（2 列网格）</span><span>detail-contacts.png</span></div>
+    <img src="shots-icons/detail-contacts.png" alt="客户全景页联系按钮">
+    <figcaption>同一套类名，2 列网格 + 长文案（"WhatsApp · 未维护"）。列宽 266px、高 34px，12px 字号下不挤、不换行。</figcaption>
+  </figure>
+</div>
+
+<h3>顺手补上的主题适配</h3>
+<p>原来"有值"态是硬编码绿色（<code>#13704c</code> / <code>#f5fcf8</code> / <code>rgba(22,163,106,.28)</code>），<b>完全不跟随主题</b> —— 切到玫红、板岩主题时，联系条仍然是一片绿。现改用 <code>var(--brand)</code> / <code>var(--brand-ring)</code> / <code>var(--brand-tint)</code>，切主题自动协调：</p>
+
+<figure>
+  <div class="ph"><span>纸白（默认）· 有值态 = 品牌靛蓝 #6366f1</span><span>theme-paper.png</span></div>
+  <img src="shots-icons/theme-paper.png" alt="paper 主题">
+  <div class="ph"><span>海洋 · #0f766e</span><span>theme-ocean.png</span></div>
+  <img src="shots-icons/theme-ocean.png" alt="ocean 主题">
+  <div class="ph"><span>玫红 · #be123c</span><span>theme-rose.png</span></div>
+  <img src="shots-icons/theme-rose.png" alt="rose 主题">
+  <div class="ph"><span>板岩 · #334155</span><span>theme-slate.png</span></div>
+  <img src="shots-icons/theme-slate.png" alt="slate 主题">
+  <figcaption>四个主题下"有值"按钮的实测文字/边框色：<code>rgb(99,102,241)</code> / <code>rgb(15,118,110)</code> / <code>rgb(190,18,60)</code> / <code>rgb(51,65,85)</code> —— 全部随主题走，硬编码绿已清除。</figcaption>
+</figure>
+
+<div class="swatch">
+  <div class="sw"><span class="chip" style="background:#6366f1"></span>品牌色（paper）<b>--brand #6366f1</b></div>
+  <div class="sw"><span class="chip" style="background:#eef0ff"></span>悬停填充<b>--brand-tint #eef0ff</b></div>
+  <div class="sw"><span class="chip" style="background:#94a3b6"></span>空态文字<b>#94a3b6</b></div>
+  <div class="sw"><span class="chip" style="background:#e3e9f2"></span>空态虚线边<b>#e3e9f2 dashed</b></div>
+</div>
+
+<div class="rule"></div>
+
+<h2><span class="n">3</span>代码改动</h2>
+<p class="lead">两处文件，其余未动。没有新增样式块 —— 全部改在原规则所在位置，避免被 body 里的视图内联样式压住。</p>
+
+<table>
+  <tr><th>文件</th><th>位置</th><th>改动</th></tr>
+  <tr><td class="mono">src/prototype-api.ts</td><td class="mono">customerContactIcon()</td><td>4 个图标全部重写：邮箱换 20×16 / rx2 的饱满信封（折线不再从角上起笔）；电话换圆润听筒路径；WhatsApp / 微信换官方 glyph 实心绘制，按 <code>--glyph-k</code> 配重（.9 / 1.12）</td></tr>
+  <tr><td class="mono">src/prototype-api.ts</td><td class="mono">contact-dock-close</td><td>收起按钮的 <code>×</code> 字符换成 SVG 叉线，粗细可控</td></tr>
+  <tr><td class="mono">index.html</td><td class="mono">.customer-contact-action</td><td>10px/800 → 12px/600；圆角 7px → <code>var(--radius-sm)</code>；补 0 13px 内距与 8px 图标间距；加过渡</td></tr>
+  <tr><td class="mono">index.html</td><td class="mono">.is-ready / .is-empty</td><td>硬编码绿 → 品牌变量；空态 <code>opacity:.5</code> → 虚线边 + <code>#94a3b6</code>；hover 由"加深"改"填充浅品牌底"</td></tr>
+  <tr><td class="mono">index.html</td><td class="mono">svg.contact-brand-glyph</td><td>新增一条：品牌 glyph 走 <code>fill:currentColor</code> 并按 <code>calc(16px * var(--glyph-k))</code> 定尺寸</td></tr>
+  <tr><td class="mono">index.html</td><td class="mono">.contact-dock-*</td><td>按钮最小宽 88 → 116px（四个等宽）；菜单身份块字号收敛到 11px/500 · 13px/600 · 11px/400；<code>small</code> 从 8px/700 → 11px/500</td></tr>
+</table>
+
+<div class="note">
+  <b>为什么品牌图标用实心、其余用描边？</b>这是一处刻意的混排：邮箱和电话是通用符号，用户的记忆是"信封/听筒"的轮廓，描边最清晰；WhatsApp 和微信是品牌标识，用户记忆的是"那块形状"，实心 glyph 才认得出。混排的代价是实心块天然更重，所以给品牌 glyph 单独做了 0.90 / 1.12 的配重而不是同尺寸摆放。
+</div>
+
+<h2><span class="n">4</span>验证方式</h2>
+<ul>
+  <li>全部截图来自真实页面（dev 起在 5298，API 代理到后端 4188），非静态复现；客户 / 线索两个列表页实跑，点行触发联系条。</li>
+  <li>改前基线是<b>改造前那一版代码</b>的真实截图（before-dock-leads.png），同一行数据，非事后还原。</li>
+  <li>hover 态用真实指针事件（<code>Input.dispatchMouseEvent</code>）触发后取像素确认：常态 <code>rgb(255,255,255)</code>，悬停 <code>rgb(238,240,255)</code>。</li>
+  <li>主题跟随逐个切 <code>document.documentElement.dataset.theme</code> 后读取按钮计算样式，四主题颜色均正确。</li>
+  <li>脚本：<code>design-preview/review-contact-icons.mjs</code>（巡检 + 取景）、<code>make-icons-board.mjs</code>（候选板）、<code>diag-login.mjs</code>（登录诊断）。</li>
+</ul>
+
+<div class="note warn">
+  <b>尚未处理（本次未动）：</b>客户公池页点行未出现联系条（<code>rows=1</code> 但无 dock），与本次图标改造无关，属于既有行为，待确认是否应支持；<code>#leadNewButton</code> / <code>#leadCreateForm</code> 在源码中无任何引用（点击无反应），也是此前就存在的问题。
+</div>
+
+<p style="margin-top:34px;color:var(--faint);font-size:11.5px">
+  报告由 GoodJob CRM 视觉巡检流程生成 · 素材目录 <code>frontend/design-preview/shots-icons/</code>
+</p>
+
+</div>
+</body>
+</html>

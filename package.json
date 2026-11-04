@@ -1,0 +1,34 @@
+{
+  "name": "ecorecrm",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "scripts": {
+    "pretest": "npm run build --workspace @goodjob/integration-connector-sdk",
+    "dev": "npm run app:dev",
+    "dev:mysql": "npm run app:dev",
+    "dev:services": "concurrently -k -n crm-api,crm-web \"npm run dev:mysql --workspace backend\" \"npm run dev --workspace frontend\"",
+    "app:dev": "node scripts/run-with-profile.mjs development npm run dev:services",
+    "db:migrate:dev": "node scripts/run-with-profile.mjs development npm run db:migrate:mysql --workspace backend",
+    "test:mysql": "node scripts/run-with-profile.mjs test npm run test:mysql:suite --workspace backend",
+    "svn:check-database": "node scripts/check-database-safety.mjs",
+    "build": "npm run build --workspace @goodjob/integration-connector-sdk && npm run build --workspace backend && npm run build --workspace frontend && npm run build --workspace integration-worker && npm run build --workspace @goodjob/local-runner",
+    "test": "npm run test --workspace @goodjob/integration-connector-sdk && npm run test --workspace backend && npm run test --workspace frontend && npm run test --workspace integration-worker && npm run test --workspace @goodjob/local-runner",
+    "test:e2e": "npm run test:e2e --workspace frontend"
+  },
+  "workspaces": [
+    "backend",
+    "frontend",
+    "integration-worker",
+    "integration-sdk",
+    "goodjob-runner"
+  ],
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "dependencies": {
+    "html-to-image": "^1.11.13",
+    "imapflow": "^1.6.5",
+    "mailparser": "^3.9.14"
+  }
+}

@@ -1,0 +1,340 @@
+#!/usr/bin/env node
+/* 生成「输入框体检评分与精致化」报告。
+   数据来自 shots-inputs-before/inputs.json（改前）与 shots-inputs/inputs.json（改后），
+   对照图来自 shots-input-cmp/。
+   用法：node make-input-report.mjs */
+import fs from "node:fs";
+import path from "node:path";
+
+const HERE = path.dirname(new URL(import.meta.url).pathname);
+const load = (p) => JSON.parse(fs.readFileSync(path.join(HERE, p), "utf8"));
+
+const A = load("shots-inputs-before/inputs.json");        // 页面控件 · 改前
+const B = load("shots-inputs/inputs.json");               // 页面控件 · 改后
+const MA = load("shots-modals-before/modals.json");       // 弹窗控件 · 改前
+const MB = load("shots-modals-after/modals.json");        // 弹窗控件 · 改后
+const flat = (d) => d.flatMap((v) => (v.items || []).map((i) => ({ ...i, view: v.vid })));
+const Bbefore = [...flat(A), ...flat(MA)];
+const Bafter = [...flat(B), ...flat(MB)];
+
+const uniq = (a) => [...new Set(a)];
+const numSort = (a) => a.slice().sort((x, y) => parseFloat(x) - parseFloat(y));
+
+/* ---------- 逐界面评分（改前口径） ---------- */
+function score(v) {
+  const sizes = uniq(v.items.map((i) => i.sizeRaw));
+  const radii = uniq(v.items.map((i) => i.radius));
+  const weights = uniq(v.items.map((i) => i.weight));
+  const maxRatio = Math.max(...v.items.map((i) => i.ratio));
+  // 字号分：同界面字号越单一越高；含 9/10px 或 16/18px 这种离群值再扣
+  let fs = sizes.length === 1 ? 9 : sizes.length === 2 ? 7 : sizes.length === 3 ? 5 : sizes.length === 4 ? 3.5 : 2;
+  if (sizes.some((s) => parseFloat(s) <= 10.5 || parseFloat(s) >= 16)) fs -= 1.5;
+  fs = Math.max(1, fs);
+  // 颜值分：圆角种类 + 文字撑满程度 + 离群字重
+  let look = 10 - (radii.length - 1) * 1.6;
+  if (maxRatio >= 0.55) look -= 3; else if (maxRatio >= 0.45) look -= 1.5;
+  if (weights.some((w) => +w >= 800)) look -= 2;
+  else if (weights.some((w) => +w >= 700)) look -= 0.5;
+  look = Math.max(1, Math.round(look * 10) / 10);
+  fs = Math.round(fs * 10) / 10;
+  const bad = Math.min(fs, look);
+  const grade = bad <= 3 ? "严重" : bad <= 5.5 ? "中" : bad <= 7.5 ? "轻" : "合格";
+  return { sizes, radii, weights, maxRatio, fs, look, grade };
+}
+
+const rows = A.filter((v) => v.items && v.items.length)
+  .map((v) => {
+    const s = score(v);
+    const b = B.find((x) => x.vid === v.vid) || { items: [] };
+    const sAfter = uniq((b.items || []).map((i) => i.sizeRaw));
+    const rAfter = uniq((b.items || []).map((i) => i.radius));
+    return { vid: v.vid, label: v.label, n: v.items.length, ...s, sAfter, rAfter };
+  })
+  .sort((x, y) => Math.min(x.fs, x.look) - Math.min(y.fs, y.look));
+
+const agg = {
+  n: Bbefore.length,
+  views: A.filter((v) => v.items && v.items.length).length,
+  modals: MA.filter((v) => v.items && v.items.length).length,
+  sizeB: numSort(uniq(Bbefore.map((i) => i.sizeRaw))),
+  weightB: uniq(Bbefore.map((i) => i.weight)).sort(),
+  radiusB: uniq(Bbefore.map((i) => i.radius)),
+  phB: uniq(Bbefore.filter((i) => i.ph).map((i) => i.phColor)),
+  hB: uniq(Bbefore.map((i) => i.h)),
+  crowdB: Bbefore.filter((i) => i.ratio > 0.45).length,
+  crowdWorse: Bbefore.filter((i) => i.ratio > 0.55).length,
+  sizeA: numSort(uniq(Bafter.map((i) => i.sizeRaw))),
+  weightA: uniq(Bafter.map((i) => i.weight)).sort(),
+  radiusA: uniq(Bafter.map((i) => i.radius)),
+  phA: uniq(Bafter.filter((i) => i.ph).map((i) => i.phColor)),
+  crowdA: Bafter.filter((i) => i.ratio > 0.45).length,
+};
+
+/* ---------- 对照图 ---------- */
+const shotDir = path.join(HERE, "shots-input-cmp");
+const pairs = fs.readdirSync(shotDir)
+  .filter((f) => f.endsWith("-before.png"))
+  .map((f) => {
+    const base = f.replace("-before.png", "");
+    const idx = base.slice(0, 2);
+    const rest = base.slice(3);
+    const isModal = rest.endsWith("-modal");
+    const vid = isModal ? rest.replace(/-modal$/, "") : rest;
+    return { idx, base, vid, isModal };
+  })
+  .filter((p) => fs.existsSync(path.join(shotDir, `${p.base}-after.png`)))
+  .sort((a, b) => a.idx.localeCompare(b.idx));
+
+const TITLES = {
+  "01-customers": "客户 · 筛选工具条",
+  "02-leads": "线索 · 筛选工具条",
+  "03-products": "产品维护 · 搜索与币种",
+  "04-shipments": "发货跟踪 · 搜索",
+  "05-agent-skills": "技能库 · 搜索与筛选",
+  "06-prospect-list": "搜客清单 · 工具条",
+  "07-profile": "个人主页 · 账号资料表单",
+  "08-settings": "系统设置 · 公司资料",
+  "09-settings": "系统设置 · 单据 OCR 来源",
+  "10-settings": "系统设置 · AI 执行来源",
+  "11-memos": "备忘 · 标题与元信息",
+  "12-todo": "待办中心 · 快速新增",
+  "13-maintenance-center": "自动维护 · 规则矩阵",
+  "14-pipeline-modal": "弹窗 · 新增商机",
+  "15-customers-modal": "弹窗 · 新增客户",
+  "16-products-modal": "弹窗 · 新增产品",
+  "17-shipments-modal": "弹窗 · 新增发货单",
+  "18-profile-modal": "弹窗 · 登记发件邮箱",
+  "19-reminders-modal": "弹窗 · 设置提醒规则",
+};
+
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const fmtPx = (arr) => numSort(arr).map((x) => `${parseFloat(x)}px`).join(" / ");
+
+const rowHtml = rows.map((r) => {
+  const cls = (g) => (g === "严重" ? "s-bad" : g === "中" ? "s-mid" : g === "轻" ? "s-ok" : "s-good");
+  return `<tr>
+    <td class="k">${esc(r.label)}<div style="color:#94a3b6;font-size:11px;font-weight:400">${esc(r.vid)} · ${r.n} 个控件</div></td>
+    <td>字号 <code>${esc(r.sizes.join(" / "))}</code><br>圆角 ${r.radii.join(" / ")}<br>字重 ${r.weights.join(" / ")}<br>最挤 ${r.maxRatio.toFixed(2)}</td>
+    <td><span class="score ${cls(r.grade)}">${r.fs.toFixed(1)}</span></td>
+    <td><span class="score ${cls(r.grade)}">${r.look.toFixed(1)}</span></td>
+    <td><span class="chip ${r.grade === "严重" ? "red" : r.grade === "中" ? "amber" : r.grade === "轻" ? "" : "brand"}">${r.grade}</span></td>
+    <td>字号 <code>${esc(r.sAfter.join(" / "))}</code> · 圆角 <code>${esc(r.rAfter.join(" / "))}</code></td>
+  </tr>`;
+}).join("\n");
+
+const pairHtml = pairs.map((p) => {
+  const title = TITLES[p.base] || p.base;
+  return `<div class="pair">
+    <header><b>${esc(title)}</b><em>${esc(p.base)}</em></header>
+    <div class="imgs">
+      <figure><figcaption>改 前</figcaption><img src="./shots-input-cmp/${p.base}-before.png" alt=""></figure>
+      <figure><figcaption>改 后</figcaption><img src="./shots-input-cmp/${p.base}-after.png" alt=""></figure>
+    </div>
+  </div>`;
+}).join("\n");
+
+const html = `<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>输入框（Hint / 字号 / 圆角）体检评分与精致化报告</title>
+<style>
+  :root{
+    --ink:#131c2e; --text:#37425a; --muted:#6b7d94; --note:#94a3b6;
+    --line:#e7ecf4; --line-soft:#f0f4fa; --surface:#fff; --bg:#f4f7fb;
+    --brand:#6366f1; --brand-strong:#4f46e5; --brand-tint:#eef0ff;
+    --red:#c0392b; --amber:#b45309; --green:#1a8f5a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:44px 28px 70px}
+  header.top{margin-bottom:34px}
+  .eyebrow{margin:0 0 8px;color:var(--brand);font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
+  h1{margin:0;font-size:31px;line-height:1.2;color:var(--ink);letter-spacing:-.02em;font-weight:700}
+  .lead{margin:10px 0 0;color:var(--muted);font-size:14px;max-width:80ch}
+  h2{margin:46px 0 14px;font-size:19px;color:var(--ink);letter-spacing:-.01em;display:flex;align-items:baseline;gap:10px}
+  h2 .n{font-size:12px;font-weight:600;color:var(--brand);background:var(--brand-tint);border-radius:999px;padding:2px 9px}
+  h2 + .h2sub{margin:-8px 0 16px;color:var(--muted);font-size:13px}
+  .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 8px}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px 17px}
+  .kpi span{display:block;color:var(--muted);font-size:11px;font-weight:500;letter-spacing:.02em}
+  .kpi b{display:block;margin-top:4px;color:var(--ink);font-size:23px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.15}
+  .kpi b em{font-style:normal;color:var(--note);font-size:14px;font-weight:500;margin-left:6px}
+  .kpi small{display:block;margin-top:3px;color:var(--note);font-size:11px;line-height:1.5}
+  table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+  th{background:#f8fafd;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.04em;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:10px 12px;border-bottom:1px solid var(--line-soft);color:var(--text);vertical-align:top;line-height:1.5}
+  tr:last-child td{border-bottom:0}
+  td.k{color:var(--ink);font-weight:600;white-space:nowrap}
+  code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--brand-strong);background:var(--brand-tint);border-radius:5px;padding:1px 5px}
+  .score{display:inline-block;min-width:44px;text-align:center;border-radius:7px;padding:2px 7px;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+  .s-bad{color:#9a2f22;background:#fdeceb}
+  .s-mid{color:#8a5a08;background:#fdf3e2}
+  .s-ok{color:#166b45;background:#e8f6ee}
+  .s-good{color:#0f5c3a;background:#dff4e9}
+  .chip{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:600;background:#f2f5fa;color:var(--muted);margin:1px 3px 1px 0}
+  .chip.red{background:#fdeceb;color:#9a2f22}
+  .chip.amber{background:#fdf3e2;color:#8a5a08}
+  .chip.brand{background:var(--brand-tint);color:var(--brand-strong)}
+  .spec{margin-top:6px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+  .spec section{padding:18px 20px;border-bottom:1px solid var(--line-soft);display:grid;grid-template-columns:190px 1fr 300px;gap:20px;align-items:center}
+  .spec section:last-child{border-bottom:0}
+  .spec h3{margin:0;font-size:13px;color:var(--ink)}
+  .spec p{margin:0;color:var(--muted);font-size:12px;line-height:1.6}
+  .spec .demo{background:var(--bg);border:1px solid var(--line-soft);border-radius:10px;padding:10px 12px}
+  .spec .demo input{display:block;width:100%;height:32px;border:1px solid var(--ctrl-line,#dbe3ee);border-radius:6px;background:#fff;
+    font:13px/1 -apple-system,"PingFang SC",sans-serif;color:var(--ink);padding:0 10px;outline:0}
+  .spec .demo input.nf{border-color:var(--brand);box-shadow:0 0 0 3px rgba(99,102,241,.18)}
+  .pair{margin:0 0 20px;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .pair header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line-soft);background:#fbfcfe}
+  .pair header b{color:var(--ink);font-size:14px}
+  .pair header em{font-style:normal;color:var(--note);font-size:12px;font-family:ui-monospace,Menlo,monospace}
+  .pair .imgs{display:grid;grid-template-columns:1fr 1fr}
+  .pair figure{margin:0;border-right:1px solid var(--line-soft)}
+  .pair figure:last-child{border-right:0}
+  .pair figcaption{padding:5px 14px;font-size:11px;color:var(--note);letter-spacing:.06em;background:#fcfdff}
+  .pair img{display:block;width:100%}
+  ul.tight{margin:8px 0 0;padding-left:20px;color:var(--muted)}
+  ul.tight li{margin:6px 0}
+  ul.tight b{color:var(--ink)}
+  .note{margin-top:12px;border-left:3px solid var(--brand);background:var(--brand-tint);border-radius:0 10px 10px 0;padding:12px 16px;color:var(--text);font-size:13px}
+  .warn{margin-top:12px;border-left:3px solid #b45309;background:#fdf7ec;border-radius:0 10px 10px 0;padding:12px 16px;color:var(--text);font-size:13px}
+  footer{margin-top:46px;color:var(--note);font-size:12px;border-top:1px solid var(--line);padding-top:16px}
+  @media (max-width:900px){
+    .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .spec section{grid-template-columns:1fr}
+    .pair .imgs{grid-template-columns:1fr}
+    .pair figure{border-right:0;border-bottom:1px solid var(--line-soft)}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">GoodJob CRM · 界面巡检</p>
+    <h1>输入框体检评分与精致化</h1>
+    <p class="lead">对象＝全站所有文本输入框、下拉框、文本域（含页面内、弹窗内、表格内联）。
+      用 CDP 遍历 ${agg.views} 个页面视图 + ${agg.modals} 类弹窗，逐个量「计算字号 / 字重 / 框高 / 圆角 / 占位符颜色 / 聚焦环」，
+      共 <b>${agg.n} 个控件</b>；并单独检查「Hint（占位提示）点击后是否消失」。
+      改前数据由 <code>INPUT_REFINE=off</code> 摘掉新样式块实测得到，与「改后」同一份代码、同一机位。</p>
+  </header>
+
+  <h2><span class="n">结论</span>一句话体检结果</h2>
+  <div class="cards">
+    <div class="kpi"><span>字号档位</span><b>${agg.sizeB.length} → ${agg.sizeA.length}<em>档</em></b>
+      <small>改前 ${agg.sizeB.map((x) => parseFloat(x)).join(" / ")}px</small></div>
+    <div class="kpi"><span>圆角档位</span><b>${agg.radiusB.length} → ${agg.radiusA.length}<em>档</em></b>
+      <small>改前 ${agg.radiusB.join(" / ")}</small></div>
+    <div class="kpi"><span>占位符（Hint）颜色</span><b>${agg.phB.length} → ${agg.phA.length}<em>套</em></b>
+      <small>改前含浏览器默认灰 rgb(117,117,117)</small></div>
+    <div class="kpi"><span>文字撑满框（&gt;0.45）</span><b>${agg.crowdB} → ${agg.crowdA}<em>个</em></b>
+      <small>其中严重撑满（&gt;0.55）${agg.crowdWorse} 个</small></div>
+  </div>
+  <p class="lead" style="margin-top:16px">
+    「土」的根因有三：<b>①输入框根本没有字号规范</b>——CSS 里 78 条规则各写各的，
+    实际渲染出 ${agg.sizeB.length} 档；<code>&lt;select&gt;</code> 和 <code>&lt;textarea&gt;</code> 甚至从没被设过字号，
+    直接吃浏览器默认的 <code>13.33px</code>，而 <code>&lt;input&gt;</code> 继承到 16px，同一个弹窗里三种大小。
+    <b>②文字和框一样高</b>——框高普遍 27~32px，却塞 16px 的字，占比 0.5~0.7，像「勒住」的。
+    <b>③Hint 不像 Hint</b>——占位符是浏览器默认深灰，和已填内容几乎一样重；而且<b>全站没有任何一条聚焦规则让提示消失</b>，
+    点进去提示还赖着，用户会以为里面已经有字了。
+  </p>
+
+  <h2><span class="n">评分</span>逐界面评分表（改前口径）</h2>
+  <p class="h2sub">字号分＝「同界面控件字号是否统一、有无 9/10px 或 16px 离群值」；颜值分＝「圆角种类 + 文字撑满程度 + 离群字重」。
+    两项取低者为定级。</p>
+  <table>
+    <thead><tr>
+      <th>界面</th><th>改前实测</th><th>字号分</th><th>颜值分</th><th>定级</th><th>改后</th>
+    </tr></thead>
+    <tbody>
+${rowHtml}
+    </tbody>
+  </table>
+
+  <h2><span class="n">规范</span>统一后的规则</h2>
+  <p class="h2sub">唯一真相放在 <code>frontend/index.html</code> 尾部的 <code>&lt;style id="input-refine"&gt;</code>。新增界面把选择器补进对应分组即可，不要另起一套。</p>
+  <div class="spec">
+    <section>
+      <h3>① 字号只有 3 档</h3>
+      <p>常规 <b>13px/400</b>（= --fs-sm）· 高密度表格内联 <b>12px</b> · 标题型 <b>14px/600</b>。
+        其余 78 条历史规则一律作废（用 <code>!important</code> 是刻意的：字号必须只有一个来源）。</p>
+      <div class="demo"><input value="常规输入框 · 13px" readonly></div>
+    </section>
+    <section>
+      <h3>② Hint 点击即消失</h3>
+      <p>占位符一律 <code>#94a3b6</code>（视觉重量明显低于正文），
+        聚焦即 <code>color: transparent</code> ——「如果是 Hint，点击后就应该消失」。失焦自动回来。</p>
+      <div class="demo"><input class="nf" placeholder="聚焦后这行提示会消失"></div>
+    </section>
+    <section>
+      <h3>③ 圆角只有 1 种</h3>
+      <p>全部统一 <code>--radius-sm</code> = <b>6px</b>。复选框 / 单选 / 滑块 / 文件 / 取色不吃圆角。
+        唯二例外：登录页（独立一屏，保留 12px 柔角）、备注标题（只有一条底线）。</p>
+      <div class="demo"><input value="圆角 6px" readonly></div>
+    </section>
+    <section>
+      <h3>④ 聚焦环归一</h3>
+      <p>改前全站 41 条聚焦规则、6 套互不相干的光环色（teal / 各色 hex / 不可见）。
+        现在一律 <code>var(--brand)</code> 描边 + <code>var(--brand-ring)</code> 光环；语义色（单证缺字段红）除外。</p>
+      <div class="demo"><input class="nf" value="聚焦：品牌色描边 + 光环" readonly></div>
+    </section>
+  </div>
+
+  <h2><span class="n">Hint</span>「点了不消失」是怎么修的（含实证）</h2>
+  <ul class="tight">
+    <li><b>占位符本身</b>：加 <code>:focus::placeholder / :focus-visible::placeholder</code> → 聚焦即透明。
+      改前全站 0 条这样的规则。</li>
+    <li><b>把提示写进 <code>value</code> 的地方</b>：备注页标题无选中时执行 <code>titleEditor.value = "暂无备忘"</code>，
+      这不是 Hint 而是真值 —— 点它当然不消失，也不能编辑。已改为 <code>value = ""</code>，走原生 placeholder
+      （输入框本来就有 <code>placeholder="选择或新建备忘"</code>）。</li>
+    <li><b>下拉框的「请选择」</b>：这类是首项占位，不是 Hint，不去动它（点了会正常选中）。</li>
+  </ul>
+  <div class="note">
+    <b>实证结果：39 / 39 通过。</b>用 <code>design-preview/verify-hint.mjs</code> 在真实浏览器里逐个
+    <code>focus()</code> 后读 <code>getComputedStyle(el,'::placeholder').color</code> ——
+    失焦时全部为 <code>rgb(148,163,182)</code>，聚焦后全部变为 <code>rgba(0,0,0,0)</code>（透明）。
+    覆盖客户 / 线索 / 产品 / 设置 / 个人主页 / 备忘 / 技能库 / 搜客清单 / 搜客雷达 9 个视图。
+  </div>
+  <ul class="tight">
+    <li><b>两点方法论坑</b>（否则会误判成「没生效」）：
+      ① headless Chrome 的窗口没有系统焦点，<code>:focus</code> 根本不匹配（虽然
+      <code>document.activeElement</code> 是对的）—— 必须开 <code>Emulation.setFocusEmulationEnabled</code>；
+      ② 折叠的 <code>&lt;details&gt;</code> 里的控件压根拿不到焦点（<code>focus()</code> 是空操作），
+      但 <code>getComputedStyle</code> 照样返回值 —— 这类要单独排除，否则永远「失败」。全站共 5 处属此类
+      （搜客清单的开发信面板、搜客雷达的链接框、技能库的调试指令框）。</li>
+  </ul>
+
+  <h2><span class="n">对照</span>${pairs.length} 组同机位改前 / 改后</h2>
+  <p class="h2sub">同一份代码上把 <code>&lt;style id="input-refine"&gt;</code> 摘掉拍「改前」、装回再拍「改后」，机位零偏差。</p>
+${pairHtml}
+
+  <h2><span class="n">附带</span>顺手发现的两处问题</h2>
+  <div class="warn">
+    <b>① 线索页的「新增线索」按钮点了没反应。</b>
+    <code>index.html</code> 里 <code>#leadNewButton</code> 和它下面的 <code>&lt;form id="leadCreateForm" class="lead-create-form is-hidden"&gt;</code>
+    在整个 <code>src/</code> 里<b>没有任何引用</b>（全站搜 <code>leadNewButton</code>/<code>leadCreateForm</code> 均无命中），
+    点击不会出现表单。这是既有问题、不是本次改动引入 —— 已实测确认，等你确认后再决定是接线还是摘掉按钮。
+  </div>
+  <div class="note">
+    <b>② 「文字撑满」的两个残留是误报。</b>
+    <code>待办中心·快速新增</code> 和 <code>搜客雷达·候选业务方向</code> 这两处量出来是 0.67~0.72，
+    但它们的 <code>&lt;input&gt;</code> 是<b>无边框透明内联字段</b>（<code>border:0; background:transparent</code>，
+    高度 18px 只是文字行高），真正视觉上的框是外层的 42px 药丸 / 表格单元 —— 文字占比其实是 30% 左右，属正常。
+  </div>
+
+  <footer>
+    GoodJob CRM · 2026-10-14 · 巡检脚本 <code>design-preview/review-inputs.mjs</code>（页面）、
+    <code>review-modals.mjs</code>（弹窗）、<code>shoot-inputs-compare.mjs</code>（同机位出图）、
+    本报告 <code>make-input-report.mjs</code>。
+  </footer>
+</div>
+</body>
+</html>
+`;
+
+fs.writeFileSync(path.join(HERE, "input-report.html"), html);
+console.log("input-report.html", html.length, "bytes,", rows.length, "views,", pairs.length, "pairs");

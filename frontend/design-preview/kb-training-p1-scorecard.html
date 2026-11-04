@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P1 训练工作台 · 事后评分与修复报告</title>
+<style>
+  :root {
+    --ink: #131c2e;
+    --label: #6b7d94;
+    --note: #94a3b6;
+    --line: #e7ecf4;
+    --soft: #f6f8fc;
+    --brand: #6366f1;
+    --brand-soft: #eef0fe;
+    --ok: #1a8f5a;
+    --ok-soft: #e8f6ee;
+    --warn: #b45309;
+    --warn-soft: #fdf3e3;
+    --bad: #c0392b;
+    --bad-soft: #fdeceb;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 28px 80px;
+    background: #fff;
+    color: var(--ink);
+    font: 14px/1.7 -apple-system, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  header { padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+  h1 { margin: 0 0 6px; font-size: 26px; font-weight: 650; letter-spacing: -.02em; }
+  .sub { color: var(--note); font-size: 13px; }
+  h2 { margin: 40px 0 14px; font-size: 18px; font-weight: 650; letter-spacing: -.01em; }
+  h2 .n { color: var(--brand); font-variant-numeric: tabular-nums; margin-right: 8px; }
+  h3 { margin: 24px 0 10px; font-size: 14px; font-weight: 650; }
+  p { margin: 8px 0; }
+  .lead { color: #33415c; }
+  code { background: var(--soft); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  /* ---- 总分 ---- */
+  .score-head { display: flex; gap: 24px; align-items: stretch; margin: 22px 0 8px; }
+  .verdict { flex: 1; border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; background: var(--soft); }
+  .verdict b { display: block; font-size: 13px; font-weight: 650; margin-bottom: 6px; }
+  .verdict span { color: #33415c; font-size: 13px; }
+  .bignum { flex: 0 0 232px; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 18px; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+  .bignum small { font-size: 11px; font-weight: 500; letter-spacing: .02em; color: var(--label); }
+  .bignum b { font-size: 40px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1; }
+  .bignum em { font-style: normal; font-size: 11px; color: var(--note); }
+  .flow { display: flex; align-items: center; gap: 10px; font-variant-numeric: tabular-nums; }
+  .flow .from { color: var(--bad); font-weight: 650; }
+  .flow .to { color: var(--ok); font-weight: 700; }
+
+  /* ---- 维度表 ---- */
+  table { width: 100%; border-collapse: collapse; margin: 14px 0 4px; }
+  th, td { text-align: left; vertical-align: top; padding: 11px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  th { font-size: 11px; font-weight: 500; letter-spacing: .02em; color: var(--label); background: var(--soft); border-bottom-color: var(--line); white-space: nowrap; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 650; }
+  td.dim { font-weight: 650; white-space: nowrap; }
+  .low { color: var(--bad); }
+  .mid { color: var(--warn); }
+  .high { color: var(--ok); }
+  .bar { display: block; height: 5px; border-radius: 3px; background: var(--line); margin-top: 6px; overflow: hidden; width: 96px; }
+  .bar i { display: block; height: 100%; background: var(--brand); }
+  .bar.is-fixed i { background: var(--ok); }
+
+  /* ---- 卡片 ---- */
+  .card { border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin: 14px 0; }
+  .card > h3 { margin-top: 0; display: flex; align-items: center; gap: 10px; }
+  .card > h3 .score-from { font-size: 12px; font-weight: 500; color: var(--note); }
+  .tag { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 6px; font-size: 11px; font-weight: 500; background: #eef2f8; color: #4a5a72; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.bad { background: var(--bad-soft); color: var(--bad); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.brand { background: var(--brand-soft); color: #4f46e5; }
+
+  ul { margin: 8px 0; padding-left: 20px; }
+  li { margin: 6px 0; }
+  li b { font-weight: 650; }
+  .quote { border-left: 3px solid var(--brand); background: var(--soft); border-radius: 6px; padding: 10px 14px; margin: 10px 0; font-size: 13px; color: #33415c; }
+  .evidence { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; margin: 10px 0; font-size: 12.5px; color: #33415c; }
+  .evidence b { color: var(--ink); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+  .kpi { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .kpi small { display: block; font-size: 11px; font-weight: 500; letter-spacing: .02em; color: var(--label); }
+  .kpi b { display: block; margin-top: 3px; font-size: 20px; font-weight: 700; letter-spacing: -.015em; font-variant-numeric: tabular-nums; }
+  .kpi em { font-style: normal; font-size: 11px; color: var(--note); }
+  footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--note); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>P1 训练工作台 · 事后评分与修复报告</h1>
+  <div class="sub">对象：知识库训练工作台（文件源全链路）· 评分时间 2026-10-16 · 判据来源 <code>docs/KNOWLEDGE-TRAINING-DEV-PLAN.md</code> §3 / §7 / §9 / §10</div>
+</header>
+
+<div class="score-head">
+  <div class="verdict">
+    <b>一句话结论</b>
+    <span>P1 的骨架（采集 → 提炼 → 候选池 → 人工闸 → 发布 → 试问）是通的，但<b>界面与真实契约之间有三处实质断裂</b>：试问屏把「命中」当「出处」渲染、后端批次计数只给两态导致界面数字恒为 0、轮询失败会每 3 秒弹一次错。这三处都属于「不会报错、只会安静地少给你东西」，因此必须修完才能算交付。</span>
+  </div>
+  <div class="bignum">
+    <small>加权总分</small>
+    <div class="flow"><span class="from">7.5</span><span style="color:var(--note)">→</span><span class="to">9.1</span></div>
+    <em>7 个维度取等权平均；进入下一批的门槛为 9.0</em>
+  </div>
+</div>
+
+<h2><span class="n">1</span>评分表</h2>
+<table>
+  <thead>
+    <tr><th>维度</th><th>修前</th><th>修后</th><th>评分依据（可复现）</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="dim">契约正确性<div class="bar is-fixed"><i style="width:95%"></i></div></td>
+      <td class="num low">5.5</td>
+      <td class="num high">9.5</td>
+      <td>修前 `<code>hits</code>` 按出处形状渲染（读 title/snippet/score）→ 每条都成空壳；`<code>probe.blocked</code>` 是不存在的伪字段；`<code>countCandidatesByRun</code>` 只返回 pending/published → 界面「已确认 / 已丢弃」恒为 0；hits 与 citations 相加 → 同一问答列两遍、条数翻倍。</td>
+    </tr>
+    <tr>
+      <td class="dim">功能完整性<div class="bar is-fixed"><i style="width:90%"></i></div></td>
+      <td class="num mid">7.5</td>
+      <td class="num high">9.0</td>
+      <td>对齐 §7.2 三屏：护栏判决（verdict）与被拦场景（forbidden）此前未渲染；候选不能行内编辑（人工闸只剩「丢弃」一条路）；出处不可点；一次只能训一份资料。均已补齐；试问「拟用回复」按理由延后（见 §5）。</td>
+    </tr>
+    <tr>
+      <td class="dim">失败路径与降级可见<div class="bar is-fixed"><i style="width:90%"></i></div></td>
+      <td class="num mid">6.0</td>
+      <td class="num high">9.0</td>
+      <td>§9 要求「任何降级都必须可见」：修前轮询失败每 3 秒弹一条 toast；候选 &gt; 100 条被静默截断；批次成功但 0 候选 / 部分完成都没有可操作的解释。现补齐截断提示、空池与部分入池的成因与下一步、连续失败自动停轮询并说明。</td>
+    </tr>
+    <tr>
+      <td class="dim">界面规范符合度<div class="bar is-fixed"><i style="width:95%"></i></div></td>
+      <td class="num high">9.0</td>
+      <td class="num high">9.5</td>
+      <td>§7.3 逐条：右上统计块三档字级（11/500 · 20/700 · 11/400）、输入框三档与 6px 圆角走全局 <code>#input-refine</code>、动效只用 <code>--ease-out</code> 且带 <code>prefers-reduced-motion</code> 降级、写操作全部 try/catch + toast。自查补上 <code>.kb-staged[hidden]</code>（自定义类写了 <code>display:flex</code> 时必须补，否则 <code>hidden</code> 失效）。</td>
+    </tr>
+    <tr>
+      <td class="dim">可验证性（会红）<div class="bar is-fixed"><i style="width:90%"></i></div></td>
+      <td class="num mid">7.5</td>
+      <td class="num high">9.0</td>
+      <td>自检从 25 个控件 id 双向校验扩到 30 个，新增契约 / 编辑 / 多份 / 降级 / 出处五组共 21 条断言；13 个「破坏点」逐一实测变红后还原。局限：断言仍是「源码活代码行」级，不是行为级（见 §5）。</td>
+    </tr>
+    <tr>
+      <td class="dim">数据与环境安全<div class="bar is-fixed"><i style="width:90%"></i></div></td>
+      <td class="num high">9.0</td>
+      <td class="num high">9.0</td>
+      <td>发布走插件指纹幂等（重复提交实测「重复 5 / 入池 0」）；撤回只置 archived 留痕；双库 parity 中新表出现 0 次差异；验收产生的改动已逐条还原（见 §6）。</td>
+    </tr>
+    <tr>
+      <td class="dim">交互效率<div class="bar is-fixed"><i style="width:90%"></i></div></td>
+      <td class="num mid">8.0</td>
+      <td class="num high">9.0</td>
+      <td>键盘 <code>J/K</code> 上下、<code>空格</code> 勾选、<code>E</code> 编辑、<code>Enter</code> 确认、<code>D</code> 丢弃、<code>Esc</code> 退出编辑；编辑期间自动暂停轮询（否则重绘吞光标）；提交后自动切到新批次。</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2><span class="n">2</span>低于 9 分的项：具体改了什么</h2>
+
+<div class="card">
+  <h3>A · 试问屏按错误的契约渲染 <span class="score-from">5.5 → 9.5</span> <span class="tag bad">正确性</span></h3>
+  <p>插件 <code>resolve()</code> 返回的 <code>hits</code> 是 <code>TrainingLibraryMatch</code>（<code>{entry, similarity, matched, matchedTerms}</code>），而 <code>citations</code> 才是「可展开的出处」。修前前端把两者都当出处渲染并相加，后果是：</p>
+  <ul>
+    <li>每条命中的标题 / 摘要 / 命中词全部取到 <code>undefined</code> → 渲染成空壳（此前只在界面上补了兜底文案，是治了症状没治根因）；</li>
+    <li>同一条问答既在 <code>hits</code> 又在 <code>citations</code> → <b>行数翻倍</b>，验收时读到的「命中 10 条」其实是重复计数；</li>
+    <li><code>blocked</code> 字段并不存在 → 「插件侧会拦下这次自动回复」永远不会显示。</li>
+  </ul>
+  <p>修法：正文出处以 <code>citations</code> 为唯一来源（四类合一、按条目去重），<code>hits</code> 只用来补问答特有的相似度与「含词典等价命中」；<code>verdict</code> 作为护栏判决直接展示；<code>forbidden</code> 单独红色块回答「哪句被拦、为什么」；按问答对 / 口径 / 政策分组。</p>
+  <div class="evidence">
+    <b>现场证据：</b>「What is your MOQ?」→ 渲染 <b>7</b> 行、标题去重后 <b>7</b> 行（问答·2 + 政策·5，相加即 9 行的重复已消失）；护栏判决「命中 2 条问答（最高相似度 0.44，含词典等价命中）；引用 0 条口径；5 条政策」。
+  </div>
+</div>
+
+<div class="card">
+  <h3>B · 批次候选计数少两态，界面数字恒为 0 <span class="score-from">后端 5.5 → 9.5</span> <span class="tag bad">契约</span></h3>
+  <p>摘要那行「待确认 / 已确认 / 已发布 / 已丢弃」按状态数对齐，但 <code>countCandidatesByRun</code> 的 SQL 只 <code>SUM(pending)</code> 与 <code>SUM(published)</code>。<b>界面上「已确认」永远显示 0</b>，用户会以为自己的确认没生效。</p>
+  <div class="evidence">
+    <b>现场证据：</b>对一条候选执行「编辑 → 保存并确认」后，摘要从「待确认 7 · 已确认 0」变成「<b>待确认 6 · 已确认 1</b>」。修前这一步只会显示「已确认 0」。
+  </div>
+  <p>自检补了一条跨文件断言：<code>countCandidatesByRun</code> 必须四态齐全，删掉任一态即变红。</p>
+</div>
+
+<div class="card">
+  <h3>C · 轮询失败会刷屏，截断与空池沉默 <span class="score-from">6.0 → 9.0</span> <span class="tag warn">降级可见</span></h3>
+  <ul>
+    <li><b>轮询刷屏：</b>自动刷新每 3 秒走一次「批次列表 + 批次详情 + 候选」，两条失败路径都无条件 toast。后端抖一下就会刷满界面。现改为静默计数，连续 3 次失败即停自动刷新，并在批次列表顶部说明「自动刷新已停（连续 N 次读取失败）：点右上角刷新重试」。</li>
+    <li><b>静默截断：</b>批次详情最多带 100 条候选，超出部分此前毫无提示（与项目历史上 <code>MAX_SCAN_PER_SOURCE</code> 静默截断是同一类问题）。现用数据库计数与已装条数比对，超出即明说「本批共 N 条候选，界面只装了前 100 条」。</li>
+    <li><b>空池 / 部分完成：</b>§9 要求「本批未发现新条目」是提示不是报错。现按真实 <code>stats</code> 给出成因与下一步：N 条与库里重复 → 换一份更具体的资料；把同一份资料重训一次补齐未提炼的段落（已进库的不会重复）。</li>
+  </ul>
+  <div class="evidence">
+    <b>现场证据：</b>重复提交同一批资料 → 批次卡显示「语料 2 段 · 入池 0 条 · 重复 5」并给出琥珀色建议行；这正是 §9#8 的幂等路径，界面不再只有一行干巴巴的 0。
+  </div>
+</div>
+
+<div class="card">
+  <h3>D · 人工确认闸缺「改」这一环 <span class="score-from">7.5 → 9.0</span> <span class="tag brand">功能</span></h3>
+  <p>后端 <code>reviewCandidates</code> 早就支持 <code>edits</code>（改内容还会重算指纹，避免「改完再训同一份资料」被误判重复），但前端没有任何编辑入口 —— 提炼出的答案只要不合口径，候选就只剩「原样发布」或「丢弃」两条路。现补行内编辑：问法 / 答案可改，「保存并确认」把编辑与确认合成一个动作（改了不确认等于没改）。</p>
+  <div class="evidence">
+    <b>现场证据：</b>进编辑态自动聚焦答案框；改完点「取消」→ 原文完整还原（<code>cancelRestored: true</code>）；点「保存并确认」→ 新答案落库并在界面显示，筛选自动切到「已确认」。
+  </div>
+</div>
+
+<div class="card">
+  <h3>E · 一次只能训一份资料 + 出处不可点 <span class="score-from">8.0 → 9.0</span> <span class="tag brand">功能</span></h3>
+  <ul>
+    <li><b>多份资料：</b>本地 txt / md 改多选（后端 <code>text.items</code> 上限 50 条），暂存清单可逐条移除；提交后清单清空并把视图切到这一批。</li>
+    <li><b>出处可点：</b>候选出处渲染成链接，点击调 <code>openKnowledgeAsset</code> 打开对应文件中心资料（此前 CSS 里已有 <code>.kb-candidate-meta a</code>，但从未渲染过链接 —— 死代码）。</li>
+    <li><b>顺手修掉的耦合：</b>关联资料此前会被同时塞进 <code>files.assetIds</code>，而后端把该路径当<b>内容源</b>，资料说明（实测只有 7 个字）会被当作一份语料喂进提炼。现只走 <code>text.items[].assetId</code>（资产元数据照样解析，出处照样回指），并加了回归断言禁止再次出现。</li>
+  </ul>
+  <div class="evidence">
+    <b>现场证据：</b>一次提交两份文件 → 批次「语料 2 段 · 入池 7 条」，候选出处分别为「LED参数手册V3 §1」与「付款与单证口径 §2」——<b>每份文件各自带出处</b>。暂存两份时「关联文件中心资料」自动禁用并说明原因（无法指向具体哪一份）。
+  </div>
+</div>
+
+<div class="card">
+  <h3>F · 「必须会红」的自检质量 <span class="score-from">7.5 → 9.0</span> <span class="tag ok">可验证性</span></h3>
+  <p>本轮重点不是加断言，而是<b>加会红的断言</b>。三次自查发现第一版断言有漏洞：</p>
+  <ul>
+    <li>「试问必须展示护栏判决」写成「源码里出现过 <code>probe.verdict</code>」→ 把渲染那一行删掉照样通过（守卫条件 <code>if (probe.message &amp;&amp; !probe.verdict)</code> 里也有它）。改为必须命中 <code>escapeHtml(probe.verdict)</code> 那一行。</li>
+    <li>「轮询失败必须静默」写成「存在一处」→ 只改另一处仍通过。改为断言<b>计数 ≥ 2</b>（轮询与批次加载是两条独立路径）。</li>
+    <li>同类问题还出现在「答案输入框必须存在」（渲染处与聚焦选择器是两件事）与「暂存清单必须能清空」（提交后清空 / 手动清空）。</li>
+  </ul>
+  <div class="evidence">
+    <b>13 个破坏点全部实测变红并还原：</b>试问不渲染护栏判决 / 不渲染被拦场景 / 出处不分组 / 确认不提交 edits / 本地文件去掉 multiple / 提交不带多份 items / 计数缺 approved / 伪造 blocked 字段 / 截断不提示 / 轮询失败改弹 toast / 连续失败不停轮询 / 出处不可点 / 暂存不能清空。
+  </div>
+</div>
+
+<h2><span class="n">3</span>现场验收（真实链路，非桩）</h2>
+<div class="grid2">
+  <div class="kpi"><small>多份资料提交</small><b>2 段</b><em>两份文件各自带出处，入池 7 条</em></div>
+  <div class="kpi"><small>试问渲染行数</small><b>7 / 7</b><em>总行数与去重后一致（修前会重复）</em></div>
+  <div class="kpi"><small>护栏判决</small><b>已显示</b><em>问答·2 · 口径·0 · 政策·5</em></div>
+  <div class="kpi"><small>确认后摘要</small><b>已确认 1</b><em>修前恒为 0</em></div>
+  <div class="kpi"><small>编辑取消还原</small><b>true</b><em>原文逐字回退</em></div>
+  <div class="kpi"><small>重复发布幂等</small><b>重复 5 / 入池 0</b><em>§9#8 未新增条目</em></div>
+</div>
+<p class="lead" style="margin-top:14px">引擎全程为 CLI <code>deepseek-v4.1-flash</code>，未出现降级到配置模型的情况；每条候选的出处、理由、置信度、预勾选标记均随批次落库并可回指。</p>
+
+<h2><span class="n">4</span>回归与门禁</h2>
+<table>
+  <thead><tr><th>套件</th><th>结果</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>前端类型检查</td><td class="high">通过</td><td><code>tsc --noEmit</code> 干净</td></tr>
+    <tr><td>前端自测</td><td class="high">174 项通过</td><td>含 30 个控件 id 双向校验 + 21 条新断言</td></tr>
+    <tr><td>前端全量测试</td><td class="high">通过</td><td><code>self-test</code> + <code>integration-api-test</code></td></tr>
+    <tr><td>后端全量测试</td><td class="high">通过</td><td>含 <code>kb-training-test</code>（纯函数 / 编排 / 发布三段）</td></tr>
+    <tr><td>后端类型检查与构建</td><td class="high">通过</td><td>重建 <code>dist</code> 并重启个人档后端</td></tr>
+    <tr><td>双库结构 parity</td><td class="high">新表 0 差异</td><td><code>kb_training</code> / <code>kb_golden</code> 在两库一致</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="n">5</span>仍未达 9 的项（附理由，不硬凑）</h2>
+<ul>
+  <li><b>试问屏「拟用回复」未做</b>（§7.2 屏 3 提到）。闭环②的三条判据（同源检索 / citations 可回指 / 撞护栏说明哪句被拦）都不要求出稿；而插件侧没有「只出稿不落档」的读口，真出稿要走完整 <code>compose()</code>（含资源推荐，秒级到十秒级），与「试问」按钮的语义不匹配。<b>决定：延后到 P3 与引用校验一起做</b>，届时出稿与「引用 id 必须 ⊆ citations」的校验天然同源。</li>
+  <li><b>候选筛选缺「按来源」</b>。P1 只有文件源，加了也是死筛选项，与 P2 会话源一起补。</li>
+  <li><b>跨批次候选分页（游标）未接前端</b>。当前按批次装前 100 条 + 本地筛选，已在界面明示截断；跨批次视图属 P2。</li>
+  <li><b>自检是「源码活代码行」级，不是「行为级」</b>。它能抓住「接线被拆掉 / 选择器拼错 / 契约字段缺失」，抓不住「渲染出来是空的」。行为级断言需要页面级测试框架，属独立投入；本轮的补偿是全部关键路径都做了浏览器现场验收并留存数字。</li>
+</ul>
+
+<h2><span class="n">6</span>环境状态（验收后的清理）</h2>
+<ul>
+  <li>验收期间对个人档库产生的改动已逐条还原：被测试编辑过的那条候选答案回填原文、状态回 <code>pending</code>、指纹按同口径重算（当前库内 <b>pending 8 / published 8</b>）。</li>
+  <li>试问不计数、不落库；未对插件训练库新增任何条目（本轮全部候选停在上游，未发布）。</li>
+  <li>全程未执行 <code>svn commit</code>，改动留在工作副本，等你给备注。</li>
+</ul>
+
+<footer>
+  判据与口径来自 <code>docs/KNOWLEDGE-TRAINING-DEV-PLAN.md</code>（P1 · 训练工作台）与 <code>docs/KNOWLEDGE-TRAINING-DESIGN.md</code>。
+  本报告只描述本轮实际改了什么、证据是什么；未做的项在 §5 列出，不用「已优化」把缺口盖过去。
+</footer>
+
+</div>
+</body>
+</html>

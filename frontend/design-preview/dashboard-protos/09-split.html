@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>09 · 双栏聚焦</title>
+<link rel="stylesheet" href="base.css">
+<style>
+  :root { --paper:#f3f4f0; --line:#e2e6e0; }
+  body { background:var(--paper); }
+  .stage { padding:22px 28px 40px; }
+  .split { max-width:1340px; }
+
+  .top { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+  .top h1 { margin:0; font-size:17px; font-weight:700; color:var(--ink); }
+  .top .tag { font-family:var(--mono); font-size:8.5px; letter-spacing:.14em; color:var(--faint); }
+  .top .right { margin-left:auto; display:flex; gap:8px; }
+  .btn { height:27px; padding:0 12px; border:1px solid var(--line); border-radius:7px; background:#fff; font-size:10.5px; font-weight:600; color:var(--text); cursor:pointer; }
+
+  .cols { display:grid; grid-template-columns:minmax(0,0.86fr) minmax(0,1.14fr); gap:14px; }
+
+  /* 左：目标 */
+  .goalpanel { position:relative; overflow:hidden; padding:22px 22px 20px; border-radius:14px; background:#18211e; color:#e8ede9; }
+  .goalpanel::before { content:""; position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px); background-size:38px 38px; }
+  .goalpanel > * { position:relative; }
+  .gp-eyebrow { font-family:var(--mono); font-size:8.5px; letter-spacing:.16em; color:#8fa39c; }
+  .gp-title { margin:10px 0 0; font-size:13px; font-weight:600; color:#dfe7e3; }
+  .gp-num { display:flex; align-items:flex-end; gap:8px; margin-top:16px; }
+  .gp-num b { font-size:50px; font-weight:700; line-height:.9; letter-spacing:-.03em; color:#fff; font-variant-numeric:tabular-nums; }
+  .gp-num span { padding-bottom:5px; font-size:11px; color:#93a59f; }
+  .gp-bar { position:relative; height:8px; margin-top:18px; border-radius:100px; background:rgba(255,255,255,.1); overflow:visible; }
+  .gp-bar i { position:absolute; inset:0 auto 0 0; width:69%; border-radius:100px; background:linear-gradient(90deg,#c9183f,#ff5b7c); }
+  .gp-bar u { position:absolute; top:-4px; bottom:-4px; left:74%; width:1px; background:rgba(255,255,255,.45); }
+  .gp-scale { display:flex; justify-content:space-between; margin-top:8px; font-family:var(--mono); font-size:8px; color:#7e8f89; }
+  .gp-scale em { font-style:normal; color:#ffa3b4; }
+
+  .ladder { margin-top:22px; padding-top:16px; border-top:1px solid rgba(255,255,255,.1); }
+  .lad { display:grid; grid-template-columns:16px 1fr auto; gap:10px; align-items:center; padding:7px 0; }
+  .lad .c { width:7px; height:7px; border-radius:50%; border:1.5px solid #5e736c; }
+  .lad.done .c { background:#6fd3a4; border-color:#6fd3a4; }
+  .lad.now .c { background:#ff5b7c; border-color:#ff5b7c; box-shadow:0 0 0 3px rgba(255,91,124,.18); }
+  .lad .n { font-size:10.5px; color:#a9bab4; }
+  .lad.done .n { color:#7f938c; text-decoration:line-through; }
+  .lad.now .n { color:#fff; font-weight:600; }
+  .lad .v { font-family:var(--mono); font-size:9px; color:#8b9d97; }
+  .lad.now .v { color:#ffa3b4; }
+
+  .gp-foot { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:18px; }
+  .gp-foot div { padding:9px 10px; border:1px solid rgba(255,255,255,.1); border-radius:7px; background:rgba(255,255,255,.03); }
+  .gp-foot span { display:block; font-size:8.5px; color:#8b9d97; }
+  .gp-foot b { display:block; margin-top:3px; font-size:13px; font-weight:600; color:#fff; font-variant-numeric:tabular-nums; }
+
+  /* 右：三个动作 */
+  .rightcol { display:flex; flex-direction:column; gap:12px; }
+  .sec-h { display:flex; align-items:baseline; justify-content:space-between; }
+  .sec-h h2 { margin:0; font-size:10px; font-weight:700; letter-spacing:.12em; color:var(--ink); }
+  .sec-h span { font-family:var(--mono); font-size:8.5px; letter-spacing:.1em; color:var(--faint); }
+
+  .acts { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .act { display:flex; flex-direction:column; padding:13px 13px 12px; border:1px solid var(--line); border-radius:11px; background:#fff; box-shadow:0 1px 2px rgba(20,28,24,.03); }
+  .act.first { border-color:#efd2da; background:linear-gradient(180deg,#fff9fa,#fff); }
+  .act .no { font-family:var(--serif); font-size:20px; color:#d5ddd7; line-height:1; }
+  .act.first .no { color:var(--brand); }
+  .act h3 { margin:8px 0 0; font-size:12px; font-weight:600; line-height:1.5; color:var(--ink); }
+  .act p { margin:5px 0 0; font-size:9.5px; line-height:1.6; color:var(--muted); }
+  .act .foot { display:flex; align-items:center; gap:6px; margin-top:auto; padding-top:10px; }
+  .act .foot .amt { font-family:var(--mono); font-size:10px; color:var(--ink); font-weight:600; }
+  .act .foot .due { margin-left:auto; font-size:8.5px; color:var(--muted); }
+  .act .foot .due.late { color:var(--brand); font-weight:600; }
+
+  .qcard { border:1px solid var(--line); border-radius:11px; background:#fff; }
+  .qhead { display:flex; align-items:center; gap:8px; padding:11px 14px 8px; }
+  .qhead h2 { margin:0; font-size:10px; font-weight:700; letter-spacing:.1em; color:var(--ink); }
+  .qhead em { margin-left:auto; font-family:var(--mono); font-size:8.5px; font-style:normal; color:var(--faint); }
+  .qr { display:grid; grid-template-columns:22px minmax(0,1fr) 74px 60px; gap:10px; align-items:center; padding:9px 14px; border-top:1px solid var(--line-soft); }
+  .qr .b { width:22px; height:22px; display:grid; place-items:center; border-radius:6px; background:#f2f4f1; font-size:9px; font-weight:700; color:#5f6d66; }
+  .qr.hot .b { background:var(--brand-tint); color:var(--brand-deep); }
+  .qr b { display:block; font-size:10.5px; font-weight:600; color:var(--ink); }
+  .qr span { display:block; margin-top:1px; font-size:9px; color:var(--muted); }
+  .qr .amt { text-align:right; font-family:var(--mono); font-size:9.5px; color:var(--ink); }
+  .qr .due { text-align:right; font-size:8.5px; color:var(--muted); }
+  .qr .due.late { color:var(--brand); font-weight:600; }
+
+  .minis { display:grid; grid-template-columns:1.1fr 1fr 1fr; gap:10px; }
+  .mini { padding:11px 13px; border:1px solid var(--line); border-radius:10px; background:#fff; }
+  .mini h3 { margin:0 0 8px; font-size:9px; font-weight:700; letter-spacing:.1em; color:var(--ink); }
+  .mr { display:flex; align-items:baseline; justify-content:space-between; padding:4px 0; font-size:9.5px; color:var(--muted); border-bottom:1px solid var(--line-soft); }
+  .mr:last-child { border-bottom:0; }
+  .mr b { font-family:var(--mono); font-size:9.5px; color:var(--ink); }
+  .mr em { font-style:normal; font-family:var(--mono); font-size:8px; }
+  .riskline { display:flex; gap:7px; padding:5px 0; font-size:9.5px; line-height:1.5; color:var(--muted); }
+  .riskline i { width:4px; height:4px; margin-top:5px; border-radius:50%; background:#c6cfc9; flex:none; }
+  .riskline.hi i { background:var(--brand); }
+  .riskline b { color:var(--ink); font-weight:600; }
+
+  @media (max-width:1150px) { .cols { grid-template-columns:1fr; } .acts, .minis { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" id="rail"></aside>
+  <main class="stage">
+    <div class="wrap split">
+      <header class="top">
+        <h1>本周作战</h1>
+        <span class="tag">WEEK 43 · 目标 → 动作</span>
+        <div class="right">
+          <span class="chip amber"><i></i>3 项逾期</span>
+          <button class="btn">晨会视图</button>
+          <button class="btn">导出周报</button>
+        </div>
+      </header>
+
+      <div class="cols">
+        <!-- 左 -->
+        <section class="goalpanel">
+          <div class="gp-eyebrow">MONTHLY TARGET / 10 月</div>
+          <p class="gp-title">距本月目标还差 $188k，剩 8 天。</p>
+          <div class="gp-num"><b>$412k</b><span>/ $600k</span></div>
+          <div class="gp-bar"><i></i><u></u></div>
+          <div class="gp-scale"><span>已成交 69%</span><em>时间进度 74%</em><span>目标线</span></div>
+
+          <div class="ladder">
+            <div class="lad done"><span class="c"></span><span class="n">线索池补足 150 条</span><span class="v">156</span></div>
+            <div class="lad done"><span class="c"></span><span class="n">报价转化 ≥ 30%</span><span class="v">39%</span></div>
+            <div class="lad now"><span class="c"></span><span class="n">本周签下 2 单（$70k）</span><span class="v">$0 / $70k</span></div>
+            <div class="lad"><span class="c"></span><span class="n">Nova 认证文件闭环</span><span class="v">待办</span></div>
+            <div class="lad"><span class="c"></span><span class="n">澳州 61k 进入合同</span><span class="v">10-27</span></div>
+          </div>
+
+          <div class="gp-foot">
+            <div><span>加权管道</span><b>$1.24M</b></div>
+            <div><span>赢单率</span><b>31%</b></div>
+            <div><span>平均客单</span><b>$34.3k</b></div>
+            <div><span>平均周期</span><b>37 天</b></div>
+          </div>
+        </section>
+
+        <!-- 右 -->
+        <div class="rightcol">
+          <div class="sec-h"><h2>今天只做三件事</h2><span>PICK 3 · 09:58</span></div>
+          <div class="acts">
+            <article class="act first">
+              <div class="no">01</div>
+              <h3>补 Nova 的 CE 文件，10:30 电话确认交期</h3>
+              <p>报价 10-25 到期，客户今天打开 PDF 3 次。</p>
+              <div class="foot"><span class="amt">$42,000</span><span class="due late">10:30</span></div>
+            </article>
+            <article class="act">
+              <div class="no">02</div>
+              <h3>发 Ali Trading 的 FOB 修正报价</h3>
+              <p>替换运费口径，附 3 张产品实拍。</p>
+              <div class="foot"><span class="amt">$28,000</span><span class="due">14:00</span></div>
+            </article>
+            <article class="act">
+              <div class="no">03</div>
+              <h3>催 Sakura 的样品测试反馈</h3>
+              <p>只问是否需要测试视频，不催结论。</p>
+              <div class="foot"><span class="amt">$16,500</span><span class="due late">逾期 2 天</span></div>
+            </article>
+          </div>
+
+          <div class="qcard">
+            <div class="qhead"><h2>其余队列</h2><em>还有 9 条</em></div>
+            <div class="qr hot">
+              <span class="b">P</span>
+              <div><b>Pacific Weigh Pty</b><span>技术视频会议 · 林楠</span></div>
+              <span class="amt">$61,000</span><span class="due">明天 09:00</span>
+            </div>
+            <div class="qr">
+              <span class="b">D</span>
+              <div><b>Delta Weighing B.V.</b><span>付款条款：对方要 60 天账期</span></div>
+              <span class="amt">$52,000</span><span class="due">10-27</span>
+            </div>
+            <div class="qr">
+              <span class="b">M</span>
+              <div><b>Metro 衡器 · 巴西</b><span>等待对方寄样</span></div>
+              <span class="amt">$9,800</span><span class="due">10-26</span>
+            </div>
+            <div class="qr">
+              <span class="b">N</span>
+              <div><b>Northline Supply</b><span>新询盘 · 需 FDA 与校准证书</span></div>
+              <span class="amt">$118,700</span><span class="due">今天回复</span>
+            </div>
+          </div>
+
+          <div class="minis">
+            <div class="mini">
+              <h3>汇率</h3>
+              <div class="mr"><span>USD/CNY</span><b>6.6743</b><em style="color:var(--green)">-0.18%</em></div>
+              <div class="mr"><span>EUR/CNY</span><b>7.8142</b><em style="color:var(--brand)">+0.06%</em></div>
+              <div class="mr"><span>GBP/CNY</span><b>8.9610</b><em style="color:var(--brand)">+0.11%</em></div>
+            </div>
+            <div class="mini">
+              <h3>风险</h3>
+              <div class="riskline hi"><i></i><span><b>Nova 沉默 9 天</b></span></div>
+              <div class="riskline"><i></i><span>USD 跌破 6.68 · 敞口 $86k</span></div>
+              <div class="riskline"><i></i><span>Sakura 样品 5 天未反馈</span></div>
+            </div>
+            <div class="mini">
+              <h3>竞标</h3>
+              <div class="mr"><span>Kenya 框架</span><b>$240k</b></div>
+              <div class="mr"><span>QLD TAFE</span><b>$96k</b></div>
+              <div class="mr"><span>Nairobi 教学</span><b>$38k</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="shell.js"></script>
+</body>
+</html>

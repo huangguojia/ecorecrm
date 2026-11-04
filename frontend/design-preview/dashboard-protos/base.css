@@ -1,0 +1,126 @@
+/* ============================================================
+   GoodJob 工作台重设计 · 共享底座
+   设计原则：纸张中性色打底，品牌绯红 #be123c 只做「信号色」；
+   荧光黄（#f2ff00 / acid yellow）全面剔除，警示改用暖赭 #a85a06。
+   ============================================================ */
+:root {
+  --paper: #f4f5f2;
+  --paper-2: #eceee9;
+  --surface: #ffffff;
+  --surface-2: #fafbf8;
+  --ink: #111816;
+  --text: #3b4642;
+  --muted: #69756f;
+  --faint: #77837d;
+  --line: #e3e8e4;
+  --line-soft: #eef1ed;
+
+  --brand: #be123c;
+  --brand-deep: #8c0e2d;
+  --brand-tint: #fbe9ee;
+  --teal: #0e7490;
+  --teal-tint: #e6f2f6;
+  --green: #157f45;
+  --green-tint: #e7f4ec;
+  --amber: #a85a06;
+  --amber-tint: #fbf1e0;
+  --violet: #6d28d9;
+  --violet-tint: #f1ecfd;
+
+  --r-xs: 4px;
+  --r-sm: 7px;
+  --r: 11px;
+  --r-lg: 18px;
+
+  --sh-1: 0 1px 2px rgba(17, 24, 22, .045), 0 1px 1px rgba(17, 24, 22, .03);
+  --sh-2: 0 2px 6px rgba(17, 24, 22, .04), 0 14px 30px -20px rgba(17, 24, 22, .22);
+  --sh-3: 0 30px 60px -40px rgba(17, 24, 22, .45);
+
+  --font: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  --serif: "Songti SC", "Source Han Serif SC", "Noto Serif SC", Georgia, "Times New Roman", serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--paper);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; }
+.num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.serif { font-family: var(--serif); }
+
+/* ---------- 应用外壳 ---------- */
+.app { display: grid; grid-template-columns: 206px minmax(0, 1fr); min-height: 100vh; }
+.rail {
+  position: sticky; top: 0; align-self: start;
+  height: 100vh; display: flex; flex-direction: column;
+  padding: 18px 12px 14px;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+}
+.rail-brand { display: flex; align-items: center; gap: 9px; padding: 4px 8px 18px; }
+.rail-mark {
+  width: 26px; height: 26px; flex: none; display: grid; place-items: center;
+  border-radius: 7px; background: var(--brand); color: #fff;
+  font-size: 11px; font-weight: 800; letter-spacing: .02em;
+}
+.rail-name { font-size: 13px; font-weight: 700; color: var(--ink); letter-spacing: .01em; line-height: 1.1; }
+.rail-name small { display: block; margin-top: 2px; font-size: 8.5px; font-weight: 500; color: var(--faint); letter-spacing: .08em; }
+.rail-group { margin-top: 10px; }
+.rail-group > span {
+  display: block; padding: 0 10px 6px; font-size: 9px; font-weight: 700;
+  letter-spacing: .14em; color: var(--faint); text-transform: uppercase;
+}
+.rail-item {
+  display: flex; align-items: center; gap: 9px;
+  height: 31px; padding: 0 10px; margin-bottom: 1px;
+  border-radius: var(--r-sm); color: #4c5854; font-size: 12px;
+}
+.rail-item svg { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: .72; }
+.rail-item em { margin-left: auto; font-size: 9.5px; font-style: normal; color: var(--faint); }
+.rail-item.active { background: var(--brand-tint); color: var(--brand-deep); font-weight: 600; }
+.rail-item.active svg { opacity: 1; stroke: var(--brand); }
+.rail-item.active em { color: var(--brand); }
+.rail-foot { margin-top: auto; padding: 10px 10px 0; border-top: 1px solid var(--line-soft); font-size: 9.5px; color: var(--faint); line-height: 1.6; }
+
+.stage { min-width: 0; padding: 26px 34px 46px; }
+.wrap { max-width: 1360px; margin: 0 auto; }
+
+/* ---------- 通用原子 ---------- */
+.eyebrow { font-family: var(--mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--faint); }
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 21px; padding: 0 8px; border-radius: 100px;
+  border: 1px solid var(--line); background: var(--surface);
+  font-size: 9.5px; font-weight: 600; color: var(--muted);
+}
+.chip i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.chip.brand { color: var(--brand-deep); border-color: #f0cdd6; background: var(--brand-tint); }
+.chip.green { color: var(--green); border-color: #cfe9da; background: var(--green-tint); }
+.chip.amber { color: var(--amber); border-color: #eeddc3; background: var(--amber-tint); }
+.chip.teal { color: var(--teal); border-color: #cbe4ec; background: var(--teal-tint); }
+.chip.violet { color: var(--violet); border-color: #ddd2f7; background: var(--violet-tint); }
+
+.up { color: var(--brand); }
+.down { color: var(--green); }
+.rule { height: 1px; background: var(--line); border: 0; margin: 0; }
+
+/* 通用迷你柱/线图（纯 CSS，无需 JS） */
+.spark { display: flex; align-items: flex-end; gap: 3px; height: 26px; }
+.spark span { flex: 1; border-radius: 1px 1px 0 0; background: #d8e2dd; }
+.spark span.hi { background: var(--brand); }
+
+@media (max-width: 1180px) {
+  .app { grid-template-columns: 1fr; }
+  .rail { display: none; }
+  .stage { padding: 20px; }
+}

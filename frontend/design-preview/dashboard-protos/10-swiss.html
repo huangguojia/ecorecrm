@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>10 · 瑞士网格</title>
+<link rel="stylesheet" href="base.css">
+<style>
+  :root { --paper:#f1f1ee; --line:#141414; --line-soft:#d8d8d2; }
+  body { background:var(--paper); font-size:12px; }
+  .rail { border-right:1px solid var(--line); }
+  .rail-item.active { background:#141414; color:#fff; }
+  .rail-item.active svg { stroke:#fff; }
+  .rail-item.active em { color:#fff; }
+  .stage { padding:22px 30px 40px; }
+  .swiss { max-width:1380px; }
+
+  .mast { display:grid; grid-template-columns:repeat(12,1fr); gap:0; align-items:end; padding-bottom:10px; border-bottom:2px solid var(--line); }
+  .mast .brand { grid-column:span 5; }
+  .mast h1 { margin:0; font-size:13px; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:var(--ink); }
+  .mast .meta { grid-column:span 7; display:flex; justify-content:flex-end; gap:26px; font-family:var(--mono); font-size:8.5px; letter-spacing:.1em; color:var(--muted); }
+  .mast .meta b { color:var(--ink); font-weight:600; }
+
+  .hero { display:grid; grid-template-columns:repeat(12,1fr); gap:0; padding:18px 0 16px; border-bottom:1px solid var(--line); }
+  .hero-main { grid-column:span 8; padding-right:26px; }
+  .hero-side { grid-column:span 4; border-left:1px solid var(--line-soft); padding-left:24px; }
+  .kicker { display:flex; align-items:center; gap:7px; font-family:var(--mono); font-size:8px; letter-spacing:.18em; color:var(--brand); }
+  .kicker i { width:7px; height:7px; background:var(--brand); }
+  .hero h2 { margin:12px 0 0; max-width:24ch; font-size:33px; font-weight:600; line-height:1.22; letter-spacing:-.025em; color:var(--ink); }
+  .hero h2 u { text-decoration:none; box-shadow:inset 0 -.18em 0 #f2c9d3; }
+  .hero p { margin:10px 0 0; max-width:56ch; font-size:11px; line-height:1.75; color:var(--muted); }
+
+  .bigrow { display:grid; grid-template-columns:repeat(4,1fr); gap:0; margin-top:18px; border-top:1px solid var(--line); }
+  .bc { padding:14px 14px 0 0; border-right:1px solid var(--line-soft); }
+  .bc:last-child { border-right:0; }
+  .bc + .bc { padding-left:14px; }
+  .bc span { display:block; font-family:var(--mono); font-size:8px; letter-spacing:.12em; color:var(--muted); text-transform:uppercase; }
+  .bc b { display:block; margin-top:6px; font-size:30px; font-weight:600; line-height:1; letter-spacing:-.03em; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .bc b i { font-size:11px; font-style:normal; font-weight:500; color:var(--muted); letter-spacing:0; }
+  .bc u { display:block; margin-top:6px; font-size:9px; text-decoration:none; color:var(--muted); }
+  .bc u em { font-style:normal; color:var(--brand); }
+
+  .goalside .lbl { font-family:var(--mono); font-size:8px; letter-spacing:.12em; color:var(--muted); }
+  .goalside .big { margin-top:8px; font-size:44px; font-weight:700; line-height:.92; letter-spacing:-.04em; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .goalside .big small { font-size:12px; font-weight:500; letter-spacing:0; color:var(--muted); }
+  .bar2 { display:flex; height:10px; margin-top:14px; border:1px solid var(--line); }
+  .bar2 i { width:69%; background:var(--brand); }
+  .bar2 u { width:5%; background:repeating-linear-gradient(45deg,#fff,#fff 2px,#c9c9c3 2px,#c9c9c3 3px); }
+  .goalside .legend { display:flex; justify-content:space-between; margin-top:6px; font-family:var(--mono); font-size:8px; color:var(--muted); }
+  .goalside table { width:100%; border-collapse:collapse; margin-top:12px; }
+  .goalside td { padding:5px 0; border-top:1px solid var(--line-soft); font-size:9.5px; color:var(--muted); }
+  .goalside td + td { text-align:right; font-family:var(--mono); color:var(--ink); }
+
+  .body { display:grid; grid-template-columns:repeat(12,1fr); gap:0; margin-top:20px; }
+  .col-l { grid-column:span 7; padding-right:26px; }
+  .col-r { grid-column:span 5; border-left:1px solid var(--line-soft); padding-left:24px; }
+
+  .shead { display:flex; align-items:baseline; justify-content:space-between; padding-bottom:7px; border-bottom:1px solid var(--line); }
+  .shead h2 { margin:0; font-size:10px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--ink); }
+  .shead span { font-family:var(--mono); font-size:8px; letter-spacing:.1em; color:var(--muted); }
+  .shead .num { font-family:var(--mono); font-size:9px; color:var(--brand); }
+
+  table.q2 { width:100%; border-collapse:collapse; }
+  table.q2 th { padding:6px 6px 6px 0; text-align:left; font-family:var(--mono); font-size:8px; font-weight:500; letter-spacing:.12em; color:var(--muted); border-bottom:1px solid var(--line-soft); text-transform:uppercase; }
+  table.q2 td { padding:9px 6px 9px 0; border-bottom:1px solid var(--line-soft); font-size:10.5px; color:var(--text); vertical-align:middle; }
+  table.q2 tr:last-child td { border-bottom:0; }
+  table.q2 tr.hot td { background:#fbebef; }
+  table.q2 .idx { font-family:var(--mono); font-size:8.5px; color:#5c6862; }  table.q2 .nm { font-weight:600; color:var(--ink); }
+  table.q2 .nm small { display:block; margin-top:1px; font-size:9px; font-weight:400; color:var(--muted); }
+  table.q2 .am { text-align:right; font-family:var(--mono); color:var(--ink); }
+  table.q2 .du { text-align:right; font-family:var(--mono); font-size:9px; color:var(--muted); }
+  table.q2 .du.late { color:var(--brand); font-weight:600; }
+
+  .steps { margin-top:12px; }
+  .step { display:grid; grid-template-columns:56px 1fr 46px; gap:10px; align-items:center; padding:5px 0; }
+  .step .n { font-size:9.5px; color:var(--muted); }
+  .step .bar { display:flex; align-items:center; gap:2px; }
+  .step .bar i { height:11px; background:#141414; }
+  .step:nth-child(2) .bar i { background:#2c2c2c; }
+  .step:nth-child(3) .bar i { background:#474747; }
+  .step:nth-child(4) .bar i { background:#6b6b6b; }
+  .step:nth-child(5) .bar i { background:var(--brand); }
+  .step .v { text-align:right; font-family:var(--mono); font-size:9.5px; color:var(--ink); }
+
+  .block { margin-top:20px; }
+  .risk3 { display:grid; grid-template-columns:8px 1fr; gap:10px; padding:9px 0; border-bottom:1px solid var(--line-soft); }
+  .risk3 .sq { width:8px; height:8px; margin-top:3px; background:#c9c9c3; }
+  .risk3.hi .sq { background:var(--brand); }
+  .risk3 b { display:block; font-size:10.5px; font-weight:600; color:var(--ink); }
+  .risk3 span { display:block; margin-top:2px; font-size:9px; line-height:1.55; color:var(--muted); }
+  .risk3 em { font-style:normal; font-family:var(--mono); font-size:8px; color:var(--muted); }
+
+  .rates3 { display:grid; grid-template-columns:1fr 1fr; gap:0 20px; }
+  .r3 { display:flex; justify-content:space-between; align-items:baseline; padding:5px 0; border-bottom:1px solid var(--line-soft); font-family:var(--mono); font-size:8.5px; color:var(--muted); }
+  .r3 b { font-size:10.5px; color:var(--ink); }
+  .r3 em { font-style:normal; font-size:8px; }
+
+  .tn3 { padding:8px 0; border-bottom:1px solid var(--line-soft); font-size:10px; }
+  .tn3 b { font-weight:600; color:var(--ink); }
+  .tn3 span { display:block; margin-top:2px; font-family:var(--mono); font-size:8.5px; color:var(--muted); }
+  .tn3 em { font-style:normal; color:var(--brand); }
+
+  .foot { display:flex; justify-content:space-between; margin-top:26px; padding-top:8px; border-top:1px solid var(--line); font-family:var(--mono); font-size:8px; letter-spacing:.12em; color:var(--muted); }
+
+  @media (max-width:1150px) {
+    .hero-main, .hero-side, .col-l, .col-r { grid-column:span 12; border-left:0; padding-left:0; padding-right:0; }
+    .hero-side, .col-r { margin-top:18px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" id="rail"></aside>
+  <main class="stage">
+    <div class="wrap swiss">
+      <header class="mast">
+        <div class="brand"><h1>Goodjob / Daily Board</h1></div>
+        <div class="meta">
+          <span>2026.10.23 / FRI</span>
+          <span>数据范围 <b>本人业务</b></span>
+          <span>更新 <b>01:06</b></span>
+          <span><b>LIVE</b></span>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div class="hero-main">
+          <div class="kicker"><i></i>01 / PRIMARY SIGNAL</div>
+          <h2>先把 <u>Nova Metrics</u> 的 CE 文件补齐，10:30 电话里锁死交期。</h2>
+          <p>谈判中 · $42,000 · 报价 10-25 到期。客户沉默 9 天，但今天 09:42 打开了报价单 3 次 —— 这是等你给确定答复，不是流失。今天不打，这一单就顺延到 11 月。</p>
+
+          <div class="bigrow">
+            <div class="bc"><span>今日待跟进</span><b>12<i> 条</i></b><u>逾期 <em>3 条</em></u></div>
+            <div class="bc"><span>高风险敞口</span><b>$86<i>k</i></b><u>3 单 · 占管道 21%</u></div>
+            <div class="bc"><span>本月成交</span><b>$412<i>k</i></b><u>目标 600k · <em>69%</em></u></div>
+            <div class="bc"><span>新增线索</span><b>28<i> 条</i></b><u>有效 16 · 56%</u></div>
+          </div>
+        </div>
+
+        <div class="hero-side goalside">
+          <div class="lbl">MONTHLY TARGET</div>
+          <div class="big">69%<small> / 100</small></div>
+          <div class="bar2"><i></i><u></u></div>
+          <div class="legend"><span>412 / 600k</span><span>时间 74%</span></div>
+          <table>
+            <tr><td>距目标</td><td>$188k</td></tr>
+            <tr><td>加权管道</td><td>$1.24M</td></tr>
+            <tr><td>赢单率</td><td>31%</td></tr>
+            <tr><td>平均周期</td><td>37 天</td></tr>
+          </table>
+        </div>
+      </section>
+
+      <div class="body">
+        <div class="col-l">
+          <div class="shead"><h2>跟进队列</h2><span>4 / 12</span></div>
+          <table class="q2">
+            <thead><tr><th>#</th><th>客户 / 下一步</th><th style="text-align:right">金额</th><th style="text-align:right">时限</th></tr></thead>
+            <tbody>
+              <tr class="hot">
+                <td class="idx">01</td>
+                <td class="nm">Nova Metrics GmbH<small>确认 CE 认证文件 · 陈露</small></td>
+                <td class="am">$42,000</td><td class="du late">10:30</td>
+              </tr>
+              <tr>
+                <td class="idx">02</td>
+                <td class="nm">Pacific Weigh Pty<small>技术视频会议 · 林楠</small></td>
+                <td class="am">$61,000</td><td class="du">明天 09:00</td>
+              </tr>
+              <tr>
+                <td class="idx">03</td>
+                <td class="nm">Ali Trading LLC<small>FOB 报价修正 · 陈露</small></td>
+                <td class="am">$28,000</td><td class="du">14:00</td>
+              </tr>
+              <tr class="hot">
+                <td class="idx">04</td>
+                <td class="nm">Sakura Scale Co.<small>样品测试反馈 · 王磊</small></td>
+                <td class="am">$16,500</td><td class="du late">逾期 2 天</td>
+              </tr>
+              <tr>
+                <td class="idx">05</td>
+                <td class="nm">Delta Weighing B.V.<small>付款条款谈判 · 陈露</small></td>
+                <td class="am">$52,000</td><td class="du">10-27</td>
+              </tr>
+              <tr>
+                <td class="idx">06</td>
+                <td class="nm">Metro 衡器 · 巴西<small>等待对方寄样 · 周舟</small></td>
+                <td class="am">$9,800</td><td class="du">10-26</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="block">
+            <div class="shead"><h2>阶段存量</h2><span>PIPELINE / 30D</span></div>
+            <div class="steps">
+              <div class="step"><span class="n">新线索</span><span class="bar"><i style="width:94%"></i></span><span class="v">156</span></div>
+              <div class="step"><span class="n">有效</span><span class="bar"><i style="width:53%"></i></span><span class="v">88</span></div>
+              <div class="step"><span class="n">已报价</span><span class="bar"><i style="width:21%"></i></span><span class="v">34</span></div>
+              <div class="step"><span class="n">谈判中</span><span class="bar"><i style="width:8%"></i></span><span class="v">12</span></div>
+              <div class="step"><span class="n">已成交</span><span class="bar"><i style="width:3.2%"></i></span><span class="v">5</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-r">
+          <div class="shead"><h2>风险信号</h2><span class="num">3</span></div>
+          <div class="risk3 hi"><span class="sq"></span><div><b>Nova Metrics 已 9 天未回邮件</b><span>报价打开 3 次，建议改电话触达 <em>· 09:42</em></span></div></div>
+          <div class="risk3"><span class="sq"></span><div><b>USD/CNY 跌破 6.68</b><span>未锁汇 $86k，毛利 -1.4pt <em>· 07:50</em></span></div></div>
+          <div class="risk3"><span class="sq"></span><div><b>Sakura 样品签收 5 天</b><span>测试结果未回，交期无法承诺 <em>· 08:12</em></span></div></div>
+
+          <div class="block">
+            <div class="shead"><h2>汇率</h2><span>01:06</span></div>
+            <div class="rates3">
+              <div class="r3"><span>USD/CNY</span><b>6.6743</b><em style="color:var(--green)">-0.18</em></div>
+              <div class="r3"><span>EUR/CNY</span><b>7.8142</b><em style="color:var(--brand)">+0.06</em></div>
+              <div class="r3"><span>GBP/CNY</span><b>8.9610</b><em style="color:var(--brand)">+0.11</em></div>
+              <div class="r3"><span>JPY/CNY</span><b>0.0441</b><em style="color:var(--green)">-0.03</em></div>
+              <div class="r3"><span>AUD/CNY</span><b>4.4318</b><em style="color:var(--brand)">+0.09</em></div>
+              <div class="r3"><span>USD/EUR</span><b>0.8539</b><em style="color:var(--green)">-0.24</em></div>
+            </div>
+          </div>
+
+          <div class="block">
+            <div class="shead"><h2>海外竞标</h2><span>2 NEW</span></div>
+            <div class="tn3"><b>Kenya Medical Supplies Agency</b><span>电子台秤年度框架 · USD 240k · 11-06 · <em>匹配 82%</em></span></div>
+            <div class="tn3"><b>Queensland TAFE</b><span>实验室精密天平 3 年 · AUD 96k · 11-12 · 匹配 64%</span></div>
+            <div class="tn3"><b>University of Nairobi</b><span>教学天平 120 台 · USD 38k · 11-19 · 匹配 58%</span></div>
+          </div>
+
+          <div class="block">
+            <div class="shead"><h2>团队</h2><span>MONTH</span></div>
+            <div class="risk3" style="grid-template-columns:1fr auto;border-bottom:0;padding:7px 0"><div><b>陈露</b><span>3 单 · 赢单率 78%</span></div><div style="font-family:var(--mono);font-size:10px;color:var(--ink)">$128k</div></div>
+            <div class="risk3" style="grid-template-columns:1fr auto;border-bottom:0;padding:7px 0"><div><b>林楠</b><span>2 单 · 赢单率 64%</span></div><div style="font-family:var(--mono);font-size:10px;color:var(--ink)">$96k</div></div>
+            <div class="risk3" style="grid-template-columns:1fr auto;border-bottom:0;padding:7px 0"><div><b>王磊</b><span>2 单 · 赢单率 51%</span></div><div style="font-family:var(--mono);font-size:10px;color:var(--ink)">$74k</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="foot"><span>GOODJOB / OPERATING BOARD</span><span>数据每 60 秒刷新 · 最后同步 01:06</span></div>
+    </div>
+  </main>
+</div>
+<script src="shell.js"></script>
+</body>
+</html>

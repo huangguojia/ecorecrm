@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>04 · 时间轴台账</title>
+<link rel="stylesheet" href="base.css">
+<style>
+  :root { --paper:#f6f6f3; --line:#e4e6e1; }
+  body { background:var(--paper); }
+  .stage { padding:26px 34px 44px; }
+  .ledger { max-width:1330px; }
+
+  .head { display:flex; align-items:flex-start; justify-content:space-between; padding-bottom:16px; border-bottom:1px solid var(--line); }
+  .head-l { display:flex; align-items:baseline; gap:16px; }
+  .head-l h1 { margin:0; font-size:19px; font-weight:700; color:var(--ink); letter-spacing:-.01em; }
+  .head-l .now { font-family:var(--mono); font-size:9.5px; letter-spacing:.12em; color:var(--muted); }
+  .head-r { display:flex; align-items:center; gap:14px; }
+  .prog { display:flex; align-items:center; gap:8px; font-size:10px; color:var(--muted); }
+  .prog .bar { width:110px; height:4px; border-radius:100px; background:#e7eae5; overflow:hidden; }
+  .prog .bar i { display:block; height:100%; width:38%; background:var(--brand); border-radius:100px; }
+  .prog b { font-variant-numeric:tabular-nums; color:var(--ink); }
+  .btn { height:27px; padding:0 12px; border:1px solid var(--line); border-radius:7px; background:#fff; font-size:10.5px; font-weight:600; color:var(--text); cursor:pointer; }
+
+  .body { display:grid; grid-template-columns:minmax(0,1.72fr) minmax(0,1fr); gap:30px; margin-top:22px; }
+  .col-title { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .col-title h2 { margin:0; font-size:10px; font-weight:700; letter-spacing:.12em; color:var(--ink); }
+  .col-title span { font-family:var(--mono); font-size:8.5px; letter-spacing:.1em; color:var(--faint); }
+
+  /* 时间轴 */
+  .timeline { position:relative; padding-left:66px; }
+  .timeline::before { content:""; position:absolute; left:47px; top:6px; bottom:10px; width:1px; background:var(--line); }
+  .hour { position:relative; padding-bottom:12px; }
+  .hour > .t { position:absolute; left:-66px; top:0; width:38px; text-align:right; font-family:var(--mono); font-size:9px; letter-spacing:.04em; color:var(--faint); }
+  .hour.empty { min-height:42px; }
+
+  .ev { position:relative; display:flex; gap:11px; margin:0 0 8px 0; padding:11px 13px; border:1px solid var(--line); border-left:3px solid #cfd6d1; border-radius:0 8px 8px 0; background:#fff; box-shadow:0 1px 1px rgba(20,28,24,.02); }
+  .ev::before { content:""; position:absolute; left:-24px; top:16px; width:6px; height:6px; border-radius:50%; background:#fff; border:1.5px solid #c6cfc9; }
+  .ev.call { border-left-color:var(--brand); }
+  .ev.call::before { border-color:var(--brand); background:var(--brand); }
+  .ev.meet { border-left-color:var(--teal); }
+  .ev.task { border-left-color:#b9a06a; }
+  .ev-in { flex:1; min-width:0; }
+  .ev-top { display:flex; align-items:center; gap:7px; }
+  .ev-top b { font-size:11.5px; font-weight:600; color:var(--ink); }
+  .ev-in p { margin:4px 0 0; font-size:10px; color:var(--muted); }
+  .ev-meta { display:flex; gap:10px; margin-top:7px; font-family:var(--mono); font-size:8.5px; color:var(--faint); }
+  .ev-meta i { font-style:normal; color:var(--brand); }
+  .ev-act { display:flex; align-items:center; gap:6px; }
+  .ev-act button { height:23px; padding:0 9px; border:1px solid var(--line); border-radius:5px; background:#fff; font-size:9.5px; color:var(--text); cursor:pointer; white-space:nowrap; }
+  .ev-act button.cta { border-color:var(--brand); color:var(--brand-deep); background:var(--brand-tint); font-weight:600; }
+
+  .nowline { position:relative; height:10px; margin:0 0 10px; }
+  .nowline::before { content:""; position:absolute; left:-19px; right:0; top:4px; height:1px; background:var(--brand); opacity:.5; }
+  .nowline span { position:absolute; left:-23px; top:1px; width:7px; height:7px; border-radius:50%; background:var(--brand); box-shadow:0 0 0 3px rgba(190,18,60,.14); }
+  .nowline em { position:absolute; right:0; top:-6px; padding-left:6px; background:var(--paper); font-family:var(--mono); font-size:8.5px; font-style:normal; letter-spacing:.08em; color:var(--brand); }
+
+  /* 右侧台账 */
+  .side-block { margin-bottom:22px; }
+  .tally { display:grid; grid-template-columns:1fr 1fr; border-top:1px solid var(--line); border-left:1px solid var(--line); }
+  .tally div { padding:11px 12px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); }
+  .tally span { display:block; font-size:9px; color:var(--muted); }
+  .tally b { display:block; margin-top:4px; font-size:19px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
+  .tally b small { font-size:11px; font-weight:500; color:var(--muted); }
+  .tally div.hot b { color:var(--brand); }
+
+  .risk-row { display:grid; grid-template-columns:6px minmax(0,1fr) auto; gap:9px; align-items:start; padding:9px 0; border-bottom:1px solid var(--line-soft); }
+  .risk-row .bar { width:3px; height:100%; min-height:26px; border-radius:2px; background:#d8ded9; }
+  .risk-row.hi .bar { background:var(--brand); }
+  .risk-row b { display:block; font-size:10.5px; font-weight:600; color:var(--ink); line-height:1.4; }
+  .risk-row span { display:block; margin-top:2px; font-size:9.5px; color:var(--muted); line-height:1.5; }
+  .risk-row time { font-family:var(--mono); font-size:8px; color:var(--faint); }
+
+  .rate { display:flex; align-items:baseline; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line-soft); }
+  .rate span { font-family:var(--mono); font-size:9px; color:var(--muted); }
+  .rate b { font-size:11.5px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .rate em { font-style:normal; font-family:var(--mono); font-size:8px; }
+
+  .tn { padding:9px 0; border-bottom:1px solid var(--line-soft); }
+  .tn b { display:block; font-size:10px; font-weight:600; line-height:1.45; color:var(--ink); }
+  .tn span { display:block; margin-top:3px; font-family:var(--mono); font-size:8.5px; color:var(--muted); }
+
+  .note { padding:11px 12px; border:1px dashed #ded3c0; border-radius:8px; background:#fdfaf3; font-size:9.5px; line-height:1.65; color:#7d663f; }
+  .note b { color:#6b5122; }
+
+  @media (max-width:1080px) { .body { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" id="rail"></aside>
+  <main class="stage">
+    <div class="wrap ledger">
+      <header class="head">
+        <div class="head-l">
+          <h1>今天 · 10 月 23 日 周五</h1>
+          <span class="now">09:58 CST · 已工作 1h58</span>
+        </div>
+        <div class="head-r">
+          <div class="prog"><span>今日进度</span><div class="bar"><i></i></div><b>38%</b></div>
+          <span class="chip brand"><i></i>3 项逾期</span>
+          <button class="btn">晨会视图</button>
+        </div>
+      </header>
+
+      <div class="body">
+        <div>
+          <div class="col-title"><h2>日程与动作</h2><span>TIMELINE · 08:00—18:00</span></div>
+          <div class="timeline">
+            <div class="hour empty"><span class="t">08</span>
+              <div class="ev task" style="margin-top:2px">
+                <div class="ev-in">
+                  <div class="ev-top"><b>晨间系统扫描完成</b><span class="chip amber" style="height:18px;font-size:8.5px">自动</span></div>
+                  <p>发现 3 条逾期待办、1 条客户沉默风险、USD/CNY 跌破 6.68。</p>
+                </div>
+                <div class="ev-act"><button>看详情</button></div>
+              </div>
+            </div>
+
+            <div class="hour empty"><span class="t">09</span>
+              <div class="ev task" style="margin-top:2px">
+                <div class="ev-in">
+                  <div class="ev-top"><b>Ali Trading 回复询盘</b></div>
+                  <p>对方要求 FOB 宁波价，并询问 500 台的交期。</p>
+                  <div class="ev-meta"><span>线索 L-8842</span><span>高意向</span><span><i>$28,000</i></span></div>
+                </div>
+                <div class="ev-act"><button>转为待办</button></div>
+              </div>
+            </div>
+
+            <div class="nowline"><span></span><em>现在 09:58</em></div>
+
+            <div class="hour"><span class="t">10</span>
+              <div class="ev call">
+                <div class="ev-in">
+                  <div class="ev-top"><b>WhatsApp 通话 · Nova Metrics</b><span class="chip brand" style="height:18px;font-size:8.5px"><i></i>即将开始</span></div>
+                  <p>Hans Weber / 采购总监 · 议题：CE 认证文件 + 交期锁定</p>
+                  <div class="ev-meta"><span>商机 $42,000</span><span>沉默 9 天</span><span><i>报价 10-25 到期</i></span></div>
+                </div>
+                <div class="ev-act"><button class="cta">通话提纲</button></div>
+              </div>
+              <div class="ev meet">
+                <div class="ev-in">
+                  <div class="ev-top"><b>内部评审：澳州 61k 报价</b></div>
+                  <p>林楠 + 财务，确认海运费与 3 年质保成本。</p>
+                  <div class="ev-meta"><span>11:20—11:50</span><span>会议室 B</span></div>
+                </div>
+                <div class="ev-act"><button>加入</button></div>
+              </div>
+            </div>
+
+            <div class="hour"><span class="t">14</span>
+              <div class="ev task">
+                <div class="ev-in">
+                  <div class="ev-top"><b>报价复核 · Ali Trading</b></div>
+                  <p>FOB 条款修正，替换运费口径，附 3 张产品实拍。</p>
+                </div>
+                <div class="ev-act"><button>打开报价</button></div>
+              </div>
+            </div>
+
+            <div class="hour"><span class="t">16</span>
+              <div class="ev task" style="border-left-color:var(--brand)">
+                <div class="ev-in">
+                  <div class="ev-top"><b>样品发运 · Sakura</b><span class="chip amber" style="height:18px;font-size:8.5px">逾期 2 天</span></div>
+                  <p>顺丰国际 7734 2190，客户签收超 5 天未反馈测试结果。</p>
+                </div>
+                <div class="ev-act"><button class="cta">催反馈</button></div>
+              </div>
+            </div>
+
+            <div class="hour empty"><span class="t">18</span></div>
+          </div>
+        </div>
+
+        <aside>
+          <div class="side-block">
+            <div class="col-title"><h2>今日台账</h2><span>LEDGER</span></div>
+            <div class="tally">
+              <div><span>待跟进</span><b>12<small> 条</small></b></div>
+              <div class="hot"><span>已逾期</span><b>3<small> 条</small></b></div>
+              <div><span>高风险敞口</span><b>$86<small>k</small></b></div>
+              <div><span>本月成交</span><b>$412<small>k</small></b></div>
+              <div><span>完成率</span><b>69<small>%</small></b></div>
+              <div><span>新增线索</span><b>28<small> 条</small></b></div>
+            </div>
+          </div>
+
+          <div class="side-block">
+            <div class="col-title"><h2>风险与卡点</h2><span>3 条</span></div>
+            <div class="risk-row hi">
+              <div class="bar"></div>
+              <div><b>Nova Metrics 沉默 9 天</b><span>报价后未回邮件，今天打开 PDF 3 次</span></div>
+              <time>09:42</time>
+            </div>
+            <div class="risk-row">
+              <div class="bar"></div>
+              <div><b>USD/CNY 跌破 6.68</b><span>未锁汇 $86k，毛利 -1.4pt</span></div>
+              <time>07:50</time>
+            </div>
+            <div class="risk-row">
+              <div class="bar"></div>
+              <div><b>Sakura 样品签收 5 天</b><span>测试结果未回，交期无法承诺</span></div>
+              <time>08:12</time>
+            </div>
+          </div>
+
+          <div class="side-block">
+            <div class="col-title"><h2>汇率</h2><span>01:06</span></div>
+            <div class="rate"><span>USD/CNY</span><b>6.6743</b><em style="color:var(--green)">-0.18%</em></div>
+            <div class="rate"><span>EUR/CNY</span><b>7.8142</b><em style="color:var(--brand)">+0.06%</em></div>
+            <div class="rate"><span>GBP/CNY</span><b>8.9610</b><em style="color:var(--brand)">+0.11%</em></div>
+            <div class="rate"><span>JPY/CNY</span><b>0.0441</b><em style="color:var(--green)">-0.03%</em></div>
+          </div>
+
+          <div class="side-block">
+            <div class="col-title"><h2>海外竞标</h2><span>2 条新</span></div>
+            <div class="tn"><b>Kenya Medical Supplies · 电子台秤年度框架</b><span>USD 240k · 11-06 截止 · 匹配 82%</span></div>
+            <div class="tn"><b>Queensland TAFE · 实验室天平 3 年</b><span>AUD 96k · 11-12 截止 · 匹配 64%</span></div>
+          </div>
+
+          <div class="note"><b>今日提醒：</b>Nova 报价 10-25 到期。若今天无法确认交期，建议先发一封「延展有效期至 10-30」的短邮件，避免商机被判过期。</div>
+        </aside>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="shell.js"></script>
+</body>
+</html>

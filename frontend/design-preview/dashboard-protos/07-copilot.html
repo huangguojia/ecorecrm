@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>07 · AI 副驾</title>
+<link rel="stylesheet" href="base.css">
+<style>
+  :root { --paper:#f5f5f2; --line:#e4e7e1; }
+  body { background:var(--paper); }
+  .stage { padding:22px 28px 30px; }
+  .copilot { max-width:1340px; display:grid; grid-template-columns:minmax(0,1.55fr) minmax(0,1fr); gap:16px; }
+
+  .topbar { grid-column:1 / -1; display:flex; align-items:center; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+  .topbar h1 { margin:0; font-size:16px; font-weight:700; color:var(--ink); }
+  .topbar h1 span { margin-left:7px; font-family:var(--mono); font-size:8.5px; font-weight:400; letter-spacing:.16em; color:var(--faint); }
+  .topbar .right { margin-left:auto; display:flex; align-items:center; gap:8px; }
+
+  /* 对话区 */
+  .chat { display:flex; flex-direction:column; min-height:660px; border:1px solid var(--line); border-radius:13px; background:#fff; box-shadow:0 12px 30px -28px rgba(20,28,24,.4); }
+  .chat-head { display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line-soft); }
+  .ai-mark { width:26px; height:26px; display:grid; place-items:center; border-radius:8px; background:var(--ink); color:#fff; font-size:9px; font-weight:700; letter-spacing:.02em; }
+  .chat-head b { display:block; font-size:11.5px; font-weight:600; color:var(--ink); }
+  .chat-head span { display:block; font-size:9px; color:var(--muted); }
+  .chat-head .state { margin-left:auto; display:flex; align-items:center; gap:5px; font-size:9px; color:var(--green); }
+  .chat-head .state i { width:5px; height:5px; border-radius:50%; background:var(--green); }
+
+  .thread { flex:1; padding:18px 18px 6px; }
+  .day { display:flex; align-items:center; gap:10px; margin-bottom:14px; font-family:var(--mono); font-size:8.5px; letter-spacing:.1em; color:var(--faint); }
+  .day::before, .day::after { content:""; flex:1; height:1px; background:var(--line-soft); }
+
+  .msg { display:flex; gap:9px; margin-bottom:14px; }
+  .msg .av { width:24px; height:24px; flex:none; display:grid; place-items:center; border-radius:7px; background:#f0f2ee; font-size:8.5px; font-weight:700; color:#5c6a63; }
+  .msg .bubble { max-width:92%; padding:11px 13px; border-radius:10px 10px 10px 3px; background:#f7f8f5; font-size:11.5px; line-height:1.72; color:var(--text); }
+  .msg .bubble b { color:var(--ink); font-weight:600; }
+  .msg .bubble .who { display:block; margin-bottom:4px; font-size:9px; color:var(--faint); }
+
+  .msg.ai .av { background:var(--brand); color:#fff; }
+  .msg.ai .bubble { background:#fff; border:1px solid var(--line); box-shadow:0 1px 2px rgba(20,28,24,.03); }
+  .msg.user { justify-content:flex-end; }
+  .msg.user .bubble { background:var(--brand-tint); border:1px solid #f2d3db; border-radius:10px 10px 3px 10px; color:#7c1029; }
+
+  .verdict { margin:12px 0 0; border:1px solid #f0d6dc; border-radius:9px; overflow:hidden; background:#fffafb; }
+  .verdict-h { display:flex; align-items:center; gap:6px; padding:8px 11px; background:var(--brand-tint); font-family:var(--mono); font-size:8.5px; letter-spacing:.12em; color:var(--brand-deep); }
+  .verdict-b { padding:11px 12px; }
+  .verdict-b h3 { margin:0; font-size:13.5px; font-weight:600; line-height:1.55; color:var(--ink); }
+  .verdict-b dl { margin:9px 0 0; display:grid; gap:6px; }
+  .verdict-b dt { float:left; width:56px; font-size:9px; font-weight:600; color:var(--brand); }
+  .verdict-b dd { margin:0 0 0 56px; font-size:10.5px; line-height:1.6; color:var(--muted); }
+  .verdict-b .acts { display:flex; gap:7px; margin-top:11px; }
+  .verdict-b .acts button { height:25px; padding:0 11px; border-radius:6px; border:1px solid #efd0d8; background:#fff; font-size:10px; color:#8c0e2d; font-weight:600; cursor:pointer; }
+  .verdict-b .acts button.go { border-color:var(--brand); background:var(--brand); color:#fff; }
+
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .chips button { height:24px; padding:0 10px; border:1px solid var(--line); border-radius:100px; background:#fff; font-size:9.5px; color:var(--text); cursor:pointer; }
+  .chips button:hover { border-color:#cdd8d1; background:#fafbf8; }
+  .chips .lbl { display:flex; align-items:center; font-size:9px; color:var(--faint); margin-right:2px; }
+
+  .composer { display:flex; align-items:center; gap:8px; margin:6px 14px 14px; padding:7px 7px 7px 12px; border:1px solid var(--line); border-radius:10px; background:#fff; }
+  .composer input { flex:1; border:0; outline:0; font-size:11px; color:var(--text); background:transparent; }
+  .composer input::placeholder { color:var(--faint); }
+  .composer button { height:26px; padding:0 12px; border:0; border-radius:7px; background:var(--ink); color:#fff; font-size:10px; font-weight:600; cursor:pointer; }
+
+  /* 右侧 */
+  .rail2 { display:flex; flex-direction:column; gap:12px; }
+  .pcard { padding:13px 14px; border:1px solid var(--line); border-radius:11px; background:#fff; }
+  .pcard h3 { display:flex; align-items:center; margin:0 0 10px; font-size:9.5px; font-weight:700; letter-spacing:.1em; color:var(--ink); }
+  .pcard h3 em { margin-left:auto; font-family:var(--mono); font-size:8.5px; font-style:normal; font-weight:400; color:var(--faint); }
+
+  .todo2 { display:grid; grid-template-columns:15px minmax(0,1fr) auto; gap:8px; align-items:start; padding:8px 0; border-bottom:1px solid var(--line-soft); }
+  .todo2:last-of-type { border-bottom:0; }
+  .todo2 .bx { width:13px; height:13px; margin-top:2px; border:1.4px solid #ccd6cf; border-radius:4px; }
+  .todo2.on .bx { border-color:var(--brand); background:var(--brand); position:relative; }
+  .todo2.on .bx::after { content:""; position:absolute; left:2px; top:0; width:6px; height:9px; border:solid #fff; border-width:0 1.5px 1.5px 0; transform:rotate(42deg); }
+  .todo2 b { display:block; font-size:10.5px; font-weight:600; color:var(--ink); line-height:1.4; }
+  .todo2.on b { color:var(--faint); text-decoration:line-through; }
+  .todo2 span { display:block; margin-top:2px; font-size:9px; color:var(--muted); }
+  .todo2 time { font-family:var(--mono); font-size:8.5px; color:var(--faint); }
+  .todo2 time.late { color:var(--brand); }
+
+  .stat2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .stat2 div { padding:9px 10px; border:1px solid var(--line-soft); border-radius:8px; background:var(--surface-2); }
+  .stat2 span { display:block; font-size:9px; color:var(--muted); }
+  .stat2 b { display:block; margin-top:3px; font-size:15px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .stat2 b i { font-size:10px; font-style:normal; font-weight:500; color:var(--muted); }
+
+  .risk2 { display:flex; gap:8px; padding:7px 0; border-bottom:1px solid var(--line-soft); }
+  .risk2:last-of-type { border-bottom:0; }
+  .risk2 .d { width:5px; height:5px; margin-top:5px; border-radius:50%; background:#c3ccc6; }
+  .risk2.hi .d { background:var(--brand); }
+  .risk2 b { display:block; font-size:10px; font-weight:600; color:var(--ink); }
+  .risk2 span { display:block; margin-top:1px; font-size:9px; color:var(--muted); line-height:1.5; }
+
+  .rate2 { display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--line-soft); font-size:10px; }
+  .rate2:last-of-type { border-bottom:0; }
+  .rate2 span { font-family:var(--mono); font-size:8.5px; color:var(--muted); }
+  .rate2 b { font-variant-numeric:tabular-nums; color:var(--ink); font-weight:600; }
+  .rate2 em { font-style:normal; font-family:var(--mono); font-size:8px; }
+
+  @media (max-width:1100px) { .copilot { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" id="rail"></aside>
+  <main class="stage">
+    <div class="wrap copilot">
+      <header class="topbar">
+        <h1>工作台<span>COPILOT</span></h1>
+        <div class="right">
+          <span class="chip green"><i></i>已同步 12 个数据源</span>
+          <span class="chip">2026-10-23 · 周五</span>
+        </div>
+      </header>
+
+      <section class="chat">
+        <div class="chat-head">
+          <div class="ai-mark">AI</div>
+          <div><b>经营副驾</b><span>基于你的 12 个待办、34 个商机与今日实时动态</span></div>
+          <div class="state"><i></i>在线</div>
+        </div>
+
+        <div class="thread">
+          <div class="day">2026-10-23 · 早晨简报</div>
+
+          <div class="msg ai">
+            <div class="av">AI</div>
+            <div class="bubble">
+              早上好，陈露。今天有 <b>12 条</b>待跟进，其中 <b>3 条已逾期</b>；本月完成 <b>69%</b>，落后时间进度 5 个点。
+            </div>
+          </div>
+
+          <div class="msg ai">
+            <div class="av">AI</div>
+            <div class="bubble">
+              <div class="verdict">
+                <div class="verdict-h">今日判断 · PRIMARY SIGNAL</div>
+                <div class="verdict-b">
+                  <h3>先补 Nova Metrics 的 CE 文件，10:30 电话里锁死交期。</h3>
+                  <dl>
+                    <dt>判断依据</dt><dd>谈判中 · $42,000 · 报价 10-25 到期；沉默 9 天，但今天 09:42 打开报价单 3 次。</dd>
+                    <dt>建议动作</dt><dd>通话确认认证清单 → 当场发 PDF → 交期从 30 天改为可承诺的 11-20。</dd>
+                    <dt>业务影响</dt><dd>本周确认，本月成交 $454k，完成率 69% → 76%。</dd>
+                  </dl>
+                  <div class="acts"><button class="go">生成通话提纲</button><button>查看客户档案</button><button>稍后提醒</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="msg user">
+            <div class="bubble">那 Sakura 那单呢？客户一直没回测试结果。</div>
+          </div>
+
+          <div class="msg ai">
+            <div class="av">AI</div>
+            <div class="bubble">
+              Sakura 样品 <b>10-18 已签收</b>，今天第 5 天。日本客户通常需要 3—7 天做进料检验，<b>还不算异常</b>。<br>
+              建议：今天下午发一条 WhatsApp，只问「是否需要我们提供测试视频」，不要催结论。我可以现在起草，日文原文 + 中文对照。
+            </div>
+          </div>
+
+          <div class="msg ai">
+            <div class="av">AI</div>
+            <div class="bubble">
+              另外提醒一句：<b>USD/CNY 已跌破 6.68</b>，你有 $86,000 未锁汇。要不要我按今天的中间价算一版锁汇 vs 不锁汇的毛利对比？
+            </div>
+          </div>
+
+          <div class="chips">
+            <span class="lbl">可以这样问</span>
+            <button>本周还差多少钱？</button>
+            <button>哪个客户最可能本周签单？</button>
+            <button>帮我排明天的跟进顺序</button>
+            <button>锁汇对比</button>
+          </div>
+        </div>
+
+        <div class="composer">
+          <input placeholder="问点什么，比如「这周还有哪些单可能签？」">
+          <button>发送</button>
+        </div>
+      </section>
+
+      <aside class="rail2">
+        <div class="pcard">
+          <h3>今日动作<em>2 / 5 完成</em></h3>
+          <div class="todo2 on"><span class="bx"></span><div><b>晨间扫描：3 条逾期</b><span>系统自动完成</span></div><time>08:00</time></div>
+          <div class="todo2 on"><span class="bx"></span><div><b>Ali Trading 回复询盘</b><span>已标记高意向</span></div><time>09:10</time></div>
+          <div class="todo2"><span class="bx"></span><div><b>Nova Metrics 通话提纲</b><span>CE 文件 + 交期锁定</span></div><time class="late">10:30</time></div>
+          <div class="todo2"><span class="bx"></span><div><b>澳州 61k 内部评审</b><span>林楠 + 财务</span></div><time>11:20</time></div>
+          <div class="todo2"><span class="bx"></span><div><b>Sakura 测试视频</b><span>WhatsApp 单点询问</span></div><time class="late">16:30</time></div>
+        </div>
+
+        <div class="pcard">
+          <h3>今日数字<em>LIVE</em></h3>
+          <div class="stat2">
+            <div><span>待跟进</span><b>12 <i>条</i></b></div>
+            <div><span>已逾期</span><b style="color:var(--brand)">3 <i>条</i></b></div>
+            <div><span>高风险敞口</span><b>$86<i>k</i></b></div>
+            <div><span>本月成交</span><b>$412<i>k</i></b></div>
+          </div>
+        </div>
+
+        <div class="pcard">
+          <h3>需要留意<em>3 条</em></h3>
+          <div class="risk2 hi"><span class="d"></span><div><b>Nova Metrics 沉默 9 天</b><span>报价打开 3 次，等确定答复</span></div></div>
+          <div class="risk2"><span class="d"></span><div><b>USD/CNY 跌破 6.68</b><span>未锁汇 $86k · 毛利 -1.4pt</span></div></div>
+          <div class="risk2"><span class="d"></span><div><b>Sakura 样品 5 天未反馈</b><span>在正常检验窗口内</span></div></div>
+        </div>
+
+        <div class="pcard">
+          <h3>今日汇率<em>01:06</em></h3>
+          <div class="rate2"><span>USD/CNY</span><b>6.6743</b><em style="color:var(--green)">-0.18%</em></div>
+          <div class="rate2"><span>EUR/CNY</span><b>7.8142</b><em style="color:var(--brand)">+0.06%</em></div>
+          <div class="rate2"><span>GBP/CNY</span><b>8.9610</b><em style="color:var(--brand)">+0.11%</em></div>
+        </div>
+
+        <div class="pcard">
+          <h3>海外竞标<em>2 条新</em></h3>
+          <div class="risk2"><span class="d" style="background:var(--teal)"></span><div><b>Kenya Medical Supplies · 电子台秤年度框架</b><span>USD 240k · 11-06 截止 · 匹配 82%</span></div></div>
+          <div class="risk2"><span class="d" style="background:var(--teal)"></span><div><b>Queensland TAFE · 实验室天平 3 年</b><span>AUD 96k · 11-12 截止 · 匹配 64%</span></div></div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+<script src="shell.js"></script>
+</body>
+</html>

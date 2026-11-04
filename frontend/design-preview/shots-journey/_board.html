@@ -1,0 +1,139 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+    :root{
+    --bg: #f2f6f5;
+    --surface: #ffffff;
+    --surface-2: #f4f7f7;
+    --surface-3: #eaf0ef;
+    --ink: #10211f;
+    --text: #2b3a36;
+    --muted: #6a7975;
+    --line: #e1e8e6;
+    --line-soft: #eef3f2;
+    --nav: #2b0e17;
+    --nav-soft: #411522;
+    --brand: #be123c;
+    --brand-strong: #9f1239;
+    --brand-2: #db2777;
+    --brand-tint: #fdecee;
+    --brand-ring: rgba(190, 18, 60, .18);
+    --aqua: #0e7490;
+    --green: #15803d;
+    --green-tint: #e7f6ee;
+    --amber: #b45309;
+    --amber-tint: #fbf1dc;
+    --rose: #be123c;
+    --rose-tint: #fdeceb;
+    --violet: #64748b;
+    --shadow-xs: 0 1px 2px rgba(16, 33, 31, .06);
+    --shadow-sm: 0 4px 14px rgba(16, 33, 31, .08);
+    --shadow: 0 12px 36px rgba(16, 33, 31, .10);
+    --shadow-soft: 0 6px 20px rgba(16, 33, 31, .06);
+    --radius: 8px;
+    --radius-sm: 6px;
+    --radius-xs: 5px;
+    --fs-caption: 12px;
+    --fs-sm: 13px;
+    --fs-body: 14px;
+    --fs-md: 15px;
+    --fs-lg: 17px;
+    --fs-xl: 20px;
+    --fs-2xl: 25px;
+    --fw-regular: 400;
+    --fw-medium: 500;
+    --fw-semibold: 600;
+    --fw-bold: 700;
+    --ease-out: cubic-bezier(.22, 1, .36, 1);
+    --ease-expo: cubic-bezier(.16, 1, .3, 1);
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Roboto, Arial, sans-serif;
+    }
+    body{margin:0;padding:26px 30px;background:#fff;font:13px/1.4 -apple-system,"PingFang SC",sans-serif;color:#1d2738}
+    h2{margin:0 0 4px;font-size:15px}
+    .sub{color:#8290a3;font-size:11px;margin-bottom:20px}
+    h3{margin:22px 0 10px;font-size:12px;color:#6b7d94;letter-spacing:.04em}
+    .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px 14px}
+    .cell{display:flex;flex-direction:column;align-items:center;gap:5px}
+    .dot{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      background:#fff;border:1.5px solid var(--c);color:var(--c);box-shadow:0 1px 3px rgba(16,33,31,.07)}
+    .dot svg{width:17px;height:17px;display:block;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+    .dot svg.contact-brand-glyph{width:calc(15px * var(--glyph-k,1));height:calc(15px * var(--glyph-k,1));fill:currentColor;stroke:none}
+    .dot.is-latest{background:var(--c);color:#fff}
+    .ty{font-size:11px;font-weight:600}
+    .cl{font-size:9px;color:#9aa7b8}
+  </style></head><body>
+    <h2>客户旅程 · 节点图标</h2>
+    <div class="sub">共 18 种（客户跟进 6 + 商机事件 12）。图标与配色直接解析自 prototype-api.ts，与线上同源。</div>
+    <h3>普通节点</h3><div class="grid"><div class="cell" style="--c:var(--brand)">
+    <div class="dot"><svg viewBox="0 0 24 24"><path d="M13.83 16.57a1 1 0 0 0 1.21-.3l.36-.47A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.47.35a1 1 0 0 0-.29 1.23 14 14 0 0 0 6.39 6.39"/></svg></div>
+    <span class="ty">call</span><span class="cl">brand</span></div><div class="cell" style="--c:var(--amber)">
+    <div class="dot"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.99 5.73a2 2 0 0 1-2.02 0L2 7"/></svg></div>
+    <span class="ty">email</span><span class="cl">amber</span></div><div class="cell" style="--c:var(--green)">
+    <div class="dot"><svg viewBox="0 0 24 24" class="contact-brand-glyph" style="--glyph-k:.9"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg></div>
+    <span class="ty">whatsapp</span><span class="cl">green</span></div><div class="cell" style="--c:var(--aqua)">
+    <div class="dot"><svg viewBox="0 0 24 24" class="contact-brand-glyph" style="--glyph-k:1.12"><path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348ZM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178A1.17 1.17 0 0 1 4.623 7.17c0-.651.52-1.18 1.162-1.18Zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178 1.17 1.17 0 0 1-1.162-1.178c0-.651.52-1.18 1.162-1.18Zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 0 1 .598.082l1.584.926a.272.272 0 0 0 .14.047c.134 0 .24-.111.24-.247 0-.06-.023-.12-.038-.177l-.327-1.233a.582.582 0 0 1-.023-.156.49.49 0 0 1 .201-.398C23.024 18.48 24 16.82 24 14.98c0-3.21-2.931-5.837-6.656-6.088V8.89c-.135-.01-.27-.027-.407-.03Zm-2.53 3.274c.535 0 .969.44.969.982a.976.976 0 0 1-.969.983.976.976 0 0 1-.969-.983c0-.542.434-.982.97-.982Zm4.844 0c.535 0 .969.44.969.982a.976.976 0 0 1-.969.983.976.976 0 0 1-.969-.983c0-.542.434-.982.969-.982Z"/></svg></div>
+    <span class="ty">wechat</span><span class="cl">aqua</span></div><div class="cell" style="--c:var(--brand)">
+    <div class="dot"><svg viewBox="0 0 24 24"><path d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20"/><circle cx="9.5" cy="7.5" r="3.5"/><path d="M21 20v-1.5a4 4 0 0 0-3-3.87"/><path d="M15.5 4.1a3.5 3.5 0 0 1 0 7"/></svg></div>
+    <span class="ty">meeting</span><span class="cl">brand</span></div><div class="cell" style="--c:var(--muted)">
+    <div class="dot"><svg viewBox="0 0 24 24"><path d="M4 20h4L19.5 8.5a2.12 2.12 0 0 0-3-3L5 17z"/><path d="m14.5 6.5 3 3"/></svg></div>
+    <span class="ty">note</span><span class="cl">muted</span></div><div class="cell" style="--c:var(--aqua)">
+    <div class="dot"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 8.5v7M8.5 12h7"/></svg></div>
+    <span class="ty">created</span><span class="cl">aqua</span></div><div class="cell" style="--c:var(--muted)">
+    <div class="dot"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></div>
+    <span class="ty">updated</span><span class="cl">muted</span></div><div class="cell" style="--c:var(--brand)">
+    <div class="dot"><svg viewBox="0 0 24 24"><path d="M5 3v18"/><path d="M5 4h13l-2.5 4L18 12H5"/></svg></div>
+    <span class="ty">stage</span><span class="cl">brand</span></div><div class="cell" style="--c:var(--brand)">
+    <div class="dot"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M8 3v4M16 3v4M3.5 9.5h17"/><path d="m9.5 14.5 1.8 1.8 3.6-3.8"/></svg></div>
+    <span class="ty">follow_up</span><span class="cl">brand</span></div><div class="cell" style="--c:var(--amber)">
+    <div class="dot"><svg viewBox="0 0 24 24"><path d="M3 3h8l10 10-8 8L3 11z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg></div>
+    <span class="ty">quote</span><span class="cl">amber</span></div><div class="cell" style="--c:var(--rose)">
+    <div class="dot"><svg viewBox="0 0 24 24"><path d="M20.5 7.8v8.4a2 2 0 0 1-1 1.74l-6.5 3.7a2 2 0 0 1-2 0l-6.5-3.7a2 2 0 0 1-1-1.74V7.8a2 2 0 0 1 1-1.74l6.5-3.7a2 2 0 0 1 2 0l6.5 3.7a2 2 0 0 1 1 1.74Z"/><path d="m3.6 6.9 8.4 4.8 8.4-4.8"/><path d="M12 21.5v-9.8"/></svg></div>
+    <span class="ty">sample</span><span class="cl">rose</span></div><div class="cell" style="--c:var(--brand)">
+    <div class="dot"><svg viewBox="0 0 24 24"><path d="M4 8h13l-3.5-3.5"/><path d="M20 16H7l3.5 3.5"/></svg></div>
+    <span class="ty">negotiation</span><span class="cl">brand</span></div><div class="cell" style="--c:var(--green)">
+    <div class="dot"><svg viewBox="0 0 24 24"><rect x="2.5" y="6.5" width="19" height="11" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 10v4M18 10v4"/></svg></div>
+    <span class="ty">payment</span><span class="cl">green</span></div><div class="cell" style="--c:var(--amber)">
+    <div class="dot"><svg viewBox="0 0 24 24"><path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8z"/><path d="M14 3v5h5"/><path d="M9 13.5h6M9 17h4"/></svg></div>
+    <span class="ty">document</span><span class="cl">amber</span></div><div class="cell" style="--c:var(--green)">
+    <div class="dot"><svg viewBox="0 0 24 24"><path d="M6 3h12v6a6 6 0 0 1-12 0z"/><path d="M6 5H4.2a1.8 1.8 0 0 0 0 3.6H6"/><path d="M18 5h1.8a1.8 1.8 0 0 1 0 3.6H18"/><path d="M12 15v4"/><path d="M8 21h8"/></svg></div>
+    <span class="ty">won</span><span class="cl">green</span></div><div class="cell" style="--c:var(--rose)">
+    <div class="dot"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m14.8 9.2-5.6 5.6M9.2 9.2l5.6 5.6"/></svg></div>
+    <span class="ty">lost</span><span class="cl">rose</span></div><div class="cell" style="--c:var(--muted)">
+    <div class="dot"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4.5" rx="1.2"/><path d="M5 8.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19V8.5"/><path d="M10 12.5h4"/></svg></div>
+    <span class="ty">archived</span><span class="cl">muted</span></div></div>
+    <h3>最新节点（实心）</h3><div class="grid"><div class="cell" style="--c:var(--brand)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24"><path d="M13.83 16.57a1 1 0 0 0 1.21-.3l.36-.47A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.47.35a1 1 0 0 0-.29 1.23 14 14 0 0 0 6.39 6.39"/></svg></div>
+    <span class="ty">call</span><span class="cl">brand</span></div><div class="cell" style="--c:var(--amber)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.99 5.73a2 2 0 0 1-2.02 0L2 7"/></svg></div>
+    <span class="ty">email</span><span class="cl">amber</span></div><div class="cell" style="--c:var(--green)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24" class="contact-brand-glyph" style="--glyph-k:.9"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg></div>
+    <span class="ty">whatsapp</span><span class="cl">green</span></div><div class="cell" style="--c:var(--aqua)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24" class="contact-brand-glyph" style="--glyph-k:1.12"><path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348ZM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178A1.17 1.17 0 0 1 4.623 7.17c0-.651.52-1.18 1.162-1.18Zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178 1.17 1.17 0 0 1-1.162-1.178c0-.651.52-1.18 1.162-1.18Zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 0 1 .598.082l1.584.926a.272.272 0 0 0 .14.047c.134 0 .24-.111.24-.247 0-.06-.023-.12-.038-.177l-.327-1.233a.582.582 0 0 1-.023-.156.49.49 0 0 1 .201-.398C23.024 18.48 24 16.82 24 14.98c0-3.21-2.931-5.837-6.656-6.088V8.89c-.135-.01-.27-.027-.407-.03Zm-2.53 3.274c.535 0 .969.44.969.982a.976.976 0 0 1-.969.983.976.976 0 0 1-.969-.983c0-.542.434-.982.97-.982Zm4.844 0c.535 0 .969.44.969.982a.976.976 0 0 1-.969.983.976.976 0 0 1-.969-.983c0-.542.434-.982.969-.982Z"/></svg></div>
+    <span class="ty">wechat</span><span class="cl">aqua</span></div><div class="cell" style="--c:var(--brand)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24"><path d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20"/><circle cx="9.5" cy="7.5" r="3.5"/><path d="M21 20v-1.5a4 4 0 0 0-3-3.87"/><path d="M15.5 4.1a3.5 3.5 0 0 1 0 7"/></svg></div>
+    <span class="ty">meeting</span><span class="cl">brand</span></div><div class="cell" style="--c:var(--muted)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24"><path d="M4 20h4L19.5 8.5a2.12 2.12 0 0 0-3-3L5 17z"/><path d="m14.5 6.5 3 3"/></svg></div>
+    <span class="ty">note</span><span class="cl">muted</span></div><div class="cell" style="--c:var(--aqua)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 8.5v7M8.5 12h7"/></svg></div>
+    <span class="ty">created</span><span class="cl">aqua</span></div><div class="cell" style="--c:var(--muted)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></div>
+    <span class="ty">updated</span><span class="cl">muted</span></div><div class="cell" style="--c:var(--brand)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24"><path d="M5 3v18"/><path d="M5 4h13l-2.5 4L18 12H5"/></svg></div>
+    <span class="ty">stage</span><span class="cl">brand</span></div><div class="cell" style="--c:var(--brand)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M8 3v4M16 3v4M3.5 9.5h17"/><path d="m9.5 14.5 1.8 1.8 3.6-3.8"/></svg></div>
+    <span class="ty">follow_up</span><span class="cl">brand</span></div><div class="cell" style="--c:var(--amber)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24"><path d="M3 3h8l10 10-8 8L3 11z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg></div>
+    <span class="ty">quote</span><span class="cl">amber</span></div><div class="cell" style="--c:var(--rose)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24"><path d="M20.5 7.8v8.4a2 2 0 0 1-1 1.74l-6.5 3.7a2 2 0 0 1-2 0l-6.5-3.7a2 2 0 0 1-1-1.74V7.8a2 2 0 0 1 1-1.74l6.5-3.7a2 2 0 0 1 2 0l6.5 3.7a2 2 0 0 1 1 1.74Z"/><path d="m3.6 6.9 8.4 4.8 8.4-4.8"/><path d="M12 21.5v-9.8"/></svg></div>
+    <span class="ty">sample</span><span class="cl">rose</span></div><div class="cell" style="--c:var(--brand)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24"><path d="M4 8h13l-3.5-3.5"/><path d="M20 16H7l3.5 3.5"/></svg></div>
+    <span class="ty">negotiation</span><span class="cl">brand</span></div><div class="cell" style="--c:var(--green)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24"><rect x="2.5" y="6.5" width="19" height="11" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 10v4M18 10v4"/></svg></div>
+    <span class="ty">payment</span><span class="cl">green</span></div><div class="cell" style="--c:var(--amber)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24"><path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8z"/><path d="M14 3v5h5"/><path d="M9 13.5h6M9 17h4"/></svg></div>
+    <span class="ty">document</span><span class="cl">amber</span></div><div class="cell" style="--c:var(--green)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24"><path d="M6 3h12v6a6 6 0 0 1-12 0z"/><path d="M6 5H4.2a1.8 1.8 0 0 0 0 3.6H6"/><path d="M18 5h1.8a1.8 1.8 0 0 1 0 3.6H18"/><path d="M12 15v4"/><path d="M8 21h8"/></svg></div>
+    <span class="ty">won</span><span class="cl">green</span></div><div class="cell" style="--c:var(--rose)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m14.8 9.2-5.6 5.6M9.2 9.2l5.6 5.6"/></svg></div>
+    <span class="ty">lost</span><span class="cl">rose</span></div><div class="cell" style="--c:var(--muted)">
+    <div class="dot is-latest"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4.5" rx="1.2"/><path d="M5 8.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19V8.5"/><path d="M10 12.5h4"/></svg></div>
+    <span class="ty">archived</span><span class="cl">muted</span></div></div>
+  </body></html>

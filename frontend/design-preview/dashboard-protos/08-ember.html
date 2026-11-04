@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>08 · 墨金夜间版</title>
+<link rel="stylesheet" href="base.css">
+<style>
+  :root {
+    --paper:#14100e; --surface:#1b1613; --surface-2:#211b17;
+    --ink:#f2ece4; --text:#d8d0c6; --muted:#a2988c; --faint:#7d7469;
+    --line:#2c2521; --line-soft:#241e1a;
+    --brand:#e2405f; --brand-deep:#ff7189; --brand-tint:#2e1620;
+    --green:#5cbf8a; --green-tint:#16241d; --amber:#d08b45; --amber-tint:#2a1f13;
+    --teal:#4aa8bd; --teal-tint:#122026;
+  }
+  body { background:var(--paper); color:var(--text); }
+  .rail { background:#100d0b; border-right:1px solid var(--line); }
+  .rail-name { color:#efe8df; }
+  .rail-name small { color:#6f675e; }
+  .rail-group > span { color:#6f675e; }
+  .rail-item { color:#a79d91; }
+  .rail-item.active { background:#2b1519; color:#ff8095; }
+  .rail-item.active svg { stroke:#ff8095; }
+  .rail-item.active em { color:#ff8095; }
+  .rail-foot { color:#6f675e; border-top-color:var(--line); }
+  .stage { padding:22px 30px 42px; }
+  .ember { max-width:1370px; }
+
+  .top { display:flex; align-items:center; gap:14px; padding-bottom:14px; margin-bottom:18px; border-bottom:1px solid var(--line); }
+  .top h1 { margin:0; font-family:var(--serif); font-size:21px; font-weight:400; letter-spacing:.01em; color:var(--ink); }
+  .top h1 em { font-style:normal; color:var(--brand); }
+  .top .meta { font-family:var(--mono); font-size:8.5px; letter-spacing:.14em; color:#6f675e; }
+  .top .right { margin-left:auto; display:flex; align-items:center; gap:8px; }
+  .gbtn { height:27px; padding:0 12px; border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--text); font-size:10px; cursor:pointer; }
+  .gbtn.solid { border-color:var(--brand); background:var(--brand); color:#fff; font-weight:600; }
+  .live { display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:8.5px; letter-spacing:.12em; color:#8b8175; }
+  .live i { width:5px; height:5px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px rgba(92,191,138,.12); }
+
+  .grid { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:12px; }
+  .card { border:1px solid var(--line); border-radius:10px; background:var(--surface); }
+
+  /* 主卡 */
+  .hero { grid-column:span 8; position:relative; overflow:hidden; padding:20px 22px; border-radius:12px; border:1px solid #34241d; background:radial-gradient(120% 130% at 100% 0%, #3a1a22 0%, #221816 42%, #1a1512 100%); }
+  .hero::after { content:""; position:absolute; right:-60px; top:-60px; width:300px; height:300px; border-radius:50%; background:radial-gradient(circle,rgba(226,64,95,.18),transparent 65%); }
+  .hero .eyebrow { color:#9a8b7e; }
+  .hero h2 { position:relative; z-index:1; margin:12px 0 0; max-width:32ch; font-family:var(--serif); font-size:28px; font-weight:400; line-height:1.4; color:var(--ink); }
+  .hero h2 em { font-style:normal; color:#ff7189; }
+  .hero p { position:relative; z-index:1; margin:10px 0 0; max-width:56ch; font-size:11.5px; line-height:1.75; color:#b0a396; }
+  .hero-row { position:relative; z-index:1; display:grid; grid-template-columns:repeat(4,1fr); gap:1px; margin-top:20px; padding-top:16px; border-top:1px solid #33261f; }
+  .hero-row div { padding-right:12px; }
+  .hero-row span { display:block; font-family:var(--mono); font-size:8px; letter-spacing:.1em; color:#8a7d70; }
+  .hero-row b { display:block; margin-top:5px; font-size:18px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .hero-row small { display:block; margin-top:2px; font-size:8.5px; color:#95887a; }
+  .hero-acts { position:relative; z-index:1; display:flex; gap:8px; margin-top:16px; }
+  .hero-acts button { height:27px; padding:0 13px; border-radius:6px; border:1px solid #42302a; background:transparent; color:#ddd2c6; font-size:10px; cursor:pointer; }
+  .hero-acts button.go { border-color:transparent; background:#f2ece4; color:#20140f; font-weight:600; }
+
+  /* 环形 */
+  .score { grid-column:span 4; padding:16px 18px; display:flex; flex-direction:column; }
+  .score h3 { margin:0; font-family:var(--mono); font-size:8.5px; font-weight:400; letter-spacing:.14em; color:#8a7d70; }
+  .score-ring { position:relative; width:132px; height:132px; margin:14px auto 0; border-radius:50%; background:conic-gradient(var(--brand) 0 69%, #2c2420 69% 100%); display:grid; place-items:center; }
+  .score-ring::before { content:""; position:absolute; width:106px; height:106px; border-radius:50%; background:#1b1613; }
+  .score-ring .in { position:relative; text-align:center; }
+  .score-ring b { display:block; font-size:27px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+  .score-ring span { display:block; margin-top:1px; font-size:8.5px; color:#8a7d70; }
+  .score-foot { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:16px; }
+  .score-foot div { padding:8px 10px; border:1px solid var(--line-soft); border-radius:7px; background:var(--surface-2); }
+  .score-foot span { display:block; font-size:8.5px; color:#8a7d70; }
+  .score-foot b { display:block; margin-top:2px; font-size:12px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+
+  /* 队列 */
+  .queue { grid-column:span 7; padding-bottom:6px; }
+  .card-h { display:flex; align-items:center; gap:8px; padding:13px 16px 10px; }
+  .card-h h3 { margin:0; font-family:var(--mono); font-size:8.5px; font-weight:400; letter-spacing:.14em; color:#9a8b7e; }
+  .card-h em { margin-left:auto; font-family:var(--mono); font-size:8px; font-style:normal; color:#7d7469; }
+  .qi { display:grid; grid-template-columns:26px minmax(0,1fr) 76px 62px; gap:11px; align-items:center; padding:10px 16px; border-top:1px solid var(--line-soft); }
+  .qi .av { width:26px; height:26px; display:grid; place-items:center; border-radius:7px; background:#241d19; font-size:9.5px; font-weight:600; color:#a99c8e; }
+  .qi.hot .av { background:#331820; color:#ff8499; }
+  .qi b { display:block; font-size:11px; font-weight:600; color:var(--ink); }
+  .qi span { display:block; margin-top:2px; font-size:9.5px; color:#96897c; }
+  .qi .amt { text-align:right; font-family:var(--mono); font-size:10px; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .qi .due { text-align:right; font-size:9px; color:#8a7d70; }
+  .qi .due.late { color:#ff7189; font-weight:600; }
+
+  /* 风险 */
+  .risk { grid-column:span 5; padding-bottom:6px; }
+  .ri { padding:10px 16px; border-top:1px solid var(--line-soft); }
+  .ri b { display:block; font-size:10.5px; font-weight:600; color:var(--ink); }
+  .ri span { display:block; margin-top:3px; font-size:9.5px; line-height:1.6; color:#96897c; }
+  .ri .t { display:inline-block; margin-bottom:5px; padding:1px 6px; border-radius:3px; background:#241d19; font-family:var(--mono); font-size:8px; letter-spacing:.08em; color:#9a8b7e; }
+  .ri.hi .t { background:#331820; color:#ff8499; }
+
+  /* 底部三块 */
+  .rates { grid-column:span 4; padding-bottom:10px; }
+  .rr { display:flex; align-items:baseline; justify-content:space-between; padding:7px 16px; border-top:1px solid var(--line-soft); font-size:10px; }
+  .rr span { font-family:var(--mono); font-size:8.5px; color:#8a7d70; }
+  .rr b { color:var(--ink); font-variant-numeric:tabular-nums; }
+  .rr em { font-style:normal; font-family:var(--mono); font-size:8px; width:42px; text-align:right; }
+
+  .tender { grid-column:span 4; padding-bottom:10px; }
+  .tn { padding:9px 16px; border-top:1px solid var(--line-soft); }
+  .tn b { display:block; font-size:10px; font-weight:600; line-height:1.5; color:var(--ink); }
+  .tn span { display:block; margin-top:3px; font-family:var(--mono); font-size:8.5px; color:#8a7d70; }
+  .tn em { font-style:normal; color:#ff7189; }
+
+  .team { grid-column:span 4; padding-bottom:12px; }
+  .tm { display:grid; grid-template-columns:20px 44px 1fr 40px; gap:8px; align-items:center; padding:6px 16px; font-size:9.5px; }
+  .tm .rk { font-family:var(--mono); font-size:8px; color:#7d7469; }
+  .tm .nm { color:var(--ink); font-weight:600; }
+  .tm .bar { height:4px; border-radius:100px; background:#2a2220; overflow:hidden; }
+  .tm .bar i { display:block; height:100%; border-radius:100px; background:#8f3a47; }
+  .tm:first-of-type .bar i { background:var(--brand); }
+  .tm .v { text-align:right; font-family:var(--mono); font-size:8.5px; color:#96897c; }
+
+  @media (max-width:1180px) { .hero, .score, .queue, .risk, .rates, .tender, .team { grid-column:span 12; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" id="rail"></aside>
+  <main class="stage">
+    <div class="wrap ember">
+      <header class="top">
+        <h1>今天，先做<em>最要紧</em>的那一件</h1>
+        <span class="meta">2026-10-23 FRI · 01:06</span>
+        <div class="right">
+          <span class="live"><i></i>LIVE</span>
+          <button class="gbtn">晨会视图</button>
+          <button class="gbtn solid">＋ 新待办</button>
+        </div>
+      </header>
+
+      <div class="grid">
+        <section class="hero">
+          <div class="eyebrow">PRIMARY SIGNAL · 今日判断</div>
+          <h2>先补 <em>Nova Metrics</em> 的 CE 文件，10:30 通话里锁死交期。</h2>
+          <p>9 天没回邮件，但今天打开报价单 3 次 —— 客户在等一个确定答复，不是要放弃。再发邮件没用，直接打电话。</p>
+          <div class="hero-row">
+            <div><span>高风险敞口</span><b>$86.0k</b><small>3 单 · 占管道 21%</small></div>
+            <div><span>高优待办</span><b>5 项</b><small>3 项已逾期</small></div>
+            <div><span>预计成交</span><b>$454k</b><small>本月 · 76% 目标</small></div>
+            <div><span>新增线索</span><b>28</b><small>有效 16 · 56%</small></div>
+          </div>
+          <div class="hero-acts"><button class="go">查看判断依据</button><button>生成通话提纲</button><button>推迟到明天</button></div>
+        </section>
+
+        <section class="card score">
+          <h3>本月目标</h3>
+          <div class="score-ring"><div class="in"><b>69%</b><span>$412k / $600k</span></div></div>
+          <div class="score-foot">
+            <div><span>距目标</span><b>$188k</b></div>
+            <div><span>时间进度</span><b>74%</b></div>
+            <div><span>加权管道</span><b>$1.24M</b></div>
+            <div><span>赢单率</span><b>31%</b></div>
+          </div>
+        </section>
+
+        <section class="card queue">
+          <div class="card-h"><h3>跟进队列</h3><em>4 / 12 条</em></div>
+          <div class="qi hot">
+            <div class="av">N</div>
+            <div><b>Nova Metrics GmbH</b><span>确认 CE 认证文件 · 陈露</span></div>
+            <div class="amt">$42,000</div><div class="due late">10:30</div>
+          </div>
+          <div class="qi">
+            <div class="av">P</div>
+            <div><b>Pacific Weigh Pty</b><span>技术视频会议 · 林楠</span></div>
+            <div class="amt">$61,000</div><div class="due">明天 09:00</div>
+          </div>
+          <div class="qi">
+            <div class="av">A</div>
+            <div><b>Ali Trading LLC</b><span>FOB 报价修正 · 陈露</span></div>
+            <div class="amt">$28,000</div><div class="due">14:00</div>
+          </div>
+          <div class="qi hot">
+            <div class="av">S</div>
+            <div><b>Sakura Scale Co.</b><span>样品测试反馈 · 王磊</span></div>
+            <div class="amt">$16,500</div><div class="due late">逾期 2 天</div>
+          </div>
+          <div class="qi">
+            <div class="av">D</div>
+            <div><b>Delta Weighing B.V.</b><span>付款条款谈判 · 陈露</span></div>
+            <div class="amt">$52,000</div><div class="due">10-27</div>
+          </div>
+        </section>
+
+        <section class="card risk">
+          <div class="card-h"><h3>风险信号</h3><em>3 条</em></div>
+          <div class="ri hi"><span class="t">沉默风险</span><b>Nova Metrics 已 9 天未回邮件</b><span>报价后静默，但今天打开 PDF 3 次。换电话线触达，别再发邮件。</span></div>
+          <div class="ri"><span class="t">汇率</span><b>USD/CNY 跌破 6.68</b><span>未锁汇订单 $86,000，毛利预计 -1.4 个点。</span></div>
+          <div class="ri"><span class="t">流程卡点</span><b>Sakura 样品签收 5 天</b><span>客户未反馈测试结果，交期承诺无法推进。</span></div>
+        </section>
+
+        <section class="card rates">
+          <div class="card-h"><h3>今日汇率</h3><em>01:06</em></div>
+          <div class="rr"><span>USD/CNY</span><b>6.6743</b><em style="color:var(--green)">-0.18%</em></div>
+          <div class="rr"><span>EUR/CNY</span><b>7.8142</b><em style="color:var(--brand)">+0.06%</em></div>
+          <div class="rr"><span>GBP/CNY</span><b>8.9610</b><em style="color:var(--brand)">+0.11%</em></div>
+          <div class="rr"><span>AUD/CNY</span><b>4.4318</b><em style="color:var(--brand)">+0.09%</em></div>
+        </section>
+
+        <section class="card tender">
+          <div class="card-h"><h3>海外竞标</h3><em>2 条新</em></div>
+          <div class="tn"><b>Kenya Medical Supplies Agency · 电子台秤年度框架</b><span>USD 240k · 11-06 · <em>匹配 82%</em></span></div>
+          <div class="tn"><b>Queensland TAFE · 实验室天平 3 年供货</b><span>AUD 96k · 11-12 · 匹配 64%</span></div>
+          <div class="tn"><b>University of Nairobi · 教学天平 120 台</b><span>USD 38k · 11-19 · 匹配 58%</span></div>
+        </section>
+
+        <section class="card team">
+          <div class="card-h"><h3>本月团队</h3><em>4 人</em></div>
+          <div class="tm"><span class="rk">01</span><span class="nm">陈露</span><div class="bar"><i style="width:100%"></i></div><span class="v">$128k</span></div>
+          <div class="tm"><span class="rk">02</span><span class="nm">林楠</span><div class="bar"><i style="width:75%"></i></div><span class="v">$96k</span></div>
+          <div class="tm"><span class="rk">03</span><span class="nm">王磊</span><div class="bar"><i style="width:58%"></i></div><span class="v">$74k</span></div>
+          <div class="tm"><span class="rk">04</span><span class="nm">周舟</span><div class="bar"><i style="width:30%"></i></div><span class="v">$38k</span></div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="shell.js"></script>
+</body>
+</html>

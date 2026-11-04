@@ -1,0 +1,81 @@
+import { aiGenerateLeads } from "./ai-model-runtime.js";
+import {
+  defineProvider,
+  type LeadQuery
+} from "./provider-contract.js";
+import type { AiModelConfig } from "./types.js";
+
+export const AI_SEARCH_ADAPTER_VERSION = "ai-search-control-v1";
+
+export function aiSearchTimeoutMs() {
+  // 实测中转站 gpt-5.5 一次 Web Search 调用可达 50~90s，75s 默认值经常掐断正常响应；
+  // 2026-09-19 又出现连续 3 次 110s 整被掐（历史成功样本最长 52s），默认再放宽到 150s。
+  const configured = Number(process.env.AI_SEARCH_TIMEOUT_MS || 150_000);
+  return Number.isFinite(configured)
+    ? Math.max(20_000, Math.min(180_000, configured))
+    : 150_000;
+}
+
+export function createAiSearchProvider(config: AiModelConfig) {
+  const base = new URL(config.baseUrl);
+  const fullEndpoint = /\/(?:chat\/completions|messages)$/iu.test(base.pathname);
+  const basePath = fullEndpoint || base.pathname.endsWith("/")
+    ? base.pathname
+    : `${base.pathname}/`;
+  return defineProvider({
+    id: "ai_search",
+    adapterVersion: AI_SEARCH_ADAPTER_VERSION,
+    name: "AI 搜索",
+    tier: "ai",
+    category: "ai",
+    requiresKey: false,
+    capabilities: ["ai", "company"],
+    docsUrl: "",
+    keyHint: "",
+    defaultBaseUrl: config.baseUrl,
+    costNote:
+      "调用当前账号已配置的 AI 模型，候选结果必须人工核实。",
+    networkPolicy: {
+      allowedHosts: [base.hostname.toLocaleLowerCase()],
+      allowedPathPrefixes: [basePath],
+      allowedMethods: ["POST"],
+      timeoutMs: aiSearchTimeoutMs(),
+      maxResponseBytes: 2 * 1024 * 1024
+    },
+    async search({ query }, credential, tools) {
+      const legacyQuery: LeadQuery = {
+        goal: query.goal,
+        productKeywords: query.productKeywords.join(", "),
+        countries: query.countries.join(", "),
+        industry: query.industries.join(", "),
+        customerType: query.customerTypes.join(", "),
+        excludeKeywords: query.excludeKeywords.join(", "),
+        limit: query.limit
+      };
+      const records = await aiGenerateLeads(
+        legacyQuery,
+        { ...config, apiKey: credential.apiKey },
+        (url, init) => tools.http.fetch(url, init),
+        aiSearchTimeoutMs()
+      );
+      return {
+        records,
+        rawCount: records.length,
+        invalidCount: 0,
+        nextCursor: null,
+        exhausted: true,
+        usage: {
+          requestCount: 1,
+          estimated: false,
+          display: ""
+        }
+      };
+    },
+    async health() {
+      return {
+        ok: true,
+        message: "AI 搜索复用当前账号已验证的模型配置"
+      };
+    }
+  });
+}

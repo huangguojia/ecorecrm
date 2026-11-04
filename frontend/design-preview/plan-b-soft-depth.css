@@ -1,0 +1,467 @@
+/* ==========================================================================
+   方案 B · 柔光层叠（Soft Depth）
+   --------------------------------------------------------------------------
+   设计主张：同样是浅色晨白，但用「光」和「层」建立品质感。
+   ・页面底：淡靛蓝径向柔光，不是平的灰
+   ・卡片：大圆角 + 多层柔阴影（浮起来），顶部一道品牌渐变线
+   ・数字：更大更重，成为视觉落点；标签退为小字
+   差异点：A 是「平铺的纸」，B 是「叠起来的卡」。
+   ========================================================================== */
+
+#dashboard.dashboard-v2 {
+  --kinetic-bg: #f4f6fc;
+  --kinetic-surface: #ffffff;
+  --kinetic-surface-2: #f7f9fe;
+  --kinetic-ink: #171f33;
+  --kinetic-muted: #566080;
+  --kinetic-dim: #8790a8;
+  --kinetic-line: #e6eaf6;
+  --kinetic-accent: #6366f1;
+  --kinetic-danger: #e11d48;
+  --kinetic-cyan: #0d9488;
+
+  --pb-brand: #6366f1;
+  --pb-brand-strong: #4f46e5;
+  --pb-brand-soft: #a5b4fc;
+  --pb-ink: #171f33;
+  --pb-text: #4a5470;
+  --pb-muted: #8790a8;
+  --pb-line: #e6eaf6;
+  --pb-radius: 18px;
+  --pb-shadow: 0 1px 2px rgba(23, 31, 51, .04), 0 20px 48px -20px rgba(23, 31, 51, .18);
+
+  --gj-funnel-line: #6366f1;
+  --gj-funnel-label: #171f33;
+  --gj-funnel-marker-ring: #ffffff;
+  --gj-funnel-entered: #c7d2fe;
+  --gj-funnel-pending: #a5b4fc;
+  --gj-funnel-valid: #818cf8;
+  --gj-funnel-customer: #6366f1;
+  --gj-funnel-deal: #4f46e5;
+
+  display: block;
+  max-width: none;
+  min-height: calc(100dvh - 64px);
+  margin: -8px -22px -24px;
+  padding: 28px 30px 44px;
+  color: var(--pb-text);
+  background:
+    radial-gradient(1100px 520px at 12% -8%, #e9edff 0%, rgba(233, 237, 255, 0) 62%),
+    radial-gradient(760px 420px at 92% 4%, #eef1ff 0%, rgba(238, 241, 255, 0) 58%),
+    #f4f6fc;
+  overflow: visible;
+}
+
+body:has(#dashboard.active) .main,
+body:has(#dashboard.active) .workspace { background: #f4f6fc; }
+
+/* ---------- 页头：柔光护栏 + 更大标题 ---------- */
+#dashboard.dashboard-v2 .dashboard-masthead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+  min-height: 0;
+  margin: 0 0 20px;
+  padding: 26px 28px;
+  border: 1px solid rgba(99, 102, 241, .14);
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .96) 0%, rgba(246, 248, 255, .92) 100%);
+  box-shadow: var(--pb-shadow);
+  position: relative;
+  overflow: hidden;
+}
+#dashboard.dashboard-v2 .dashboard-masthead::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--pb-brand), var(--pb-brand-soft) 55%, rgba(165, 180, 252, 0));
+}
+#dashboard.dashboard-v2 .dashboard-masthead::after {
+  content: "";
+  position: absolute;
+  right: -60px;
+  top: -70px;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99, 102, 241, .10) 0%, rgba(99, 102, 241, 0) 68%);
+  pointer-events: none;
+}
+
+#dashboard.dashboard-v2 .dashboard-index {
+  align-self: center;
+  min-width: 88px;
+  padding: 13px 15px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(160deg, var(--pb-brand) 0%, var(--pb-brand-strong) 100%);
+  color: #fff;
+  font: 700 13px/1.35 var(--font-sans);
+  text-align: center;
+  box-shadow: 0 10px 22px -10px rgba(79, 70, 229, .55);
+}
+#dashboard.dashboard-v2 .dashboard-kicker {
+  margin: 0 0 10px;
+  color: var(--pb-brand);
+  font: 800 10.5px/1 var(--font-sans);
+  letter-spacing: .2em;
+}
+#dashboard.dashboard-v2 .dashboard-heading h1 {
+  margin: 0;
+  color: var(--pb-ink);
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1.22;
+  letter-spacing: -.032em;
+}
+#dashboard.dashboard-v2 .dashboard-heading h1 em {
+  font-style: normal;
+  background: linear-gradient(96deg, var(--pb-brand) 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+#dashboard.dashboard-v2 .dashboard-subline { margin: 10px 0 0; color: var(--pb-muted); font-size: 13.5px; }
+#dashboard.dashboard-v2 .dashboard-masthead-side { align-items: center; gap: 12px; }
+#dashboard.dashboard-v2 .dashboard-live-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border: 1px solid rgba(99, 102, 241, .18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .8);
+  color: var(--pb-brand-strong);
+  font: 700 10px/1 var(--font-sans);
+  letter-spacing: .14em;
+}
+#dashboard.dashboard-v2 .dashboard-live-mark i {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, .16);
+  animation: pb-live 2.6s ease-in-out infinite;
+}
+@keyframes pb-live { 50% { opacity: .4; } }
+
+/* ---------- 汇率条 ---------- */
+#dashboard.dashboard-v2 .dashboard-ticker {
+  margin: 0 0 18px;
+  border: 1px solid var(--pb-line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .82);
+  box-shadow: 0 6px 18px -12px rgba(23, 31, 51, .22);
+  overflow: hidden;
+}
+#dashboard.dashboard-v2 .dashboard-ticker-track { animation-duration: 58s; }
+#dashboard.dashboard-v2 .dashboard-ticker-segment { color: var(--pb-ink); font-size: 12.5px; }
+#dashboard.dashboard-v2 .dashboard-ticker-label { color: var(--pb-muted); font-weight: 600; }
+#dashboard.dashboard-v2 .dashboard-ticker-segment b { color: #d9dfef; }
+#dashboard.dashboard-v2 .dashboard-rate-key { color: var(--pb-muted); }
+#dashboard.dashboard-v2 .dashboard-rate-value { color: var(--pb-ink); font-weight: 700; }
+#dashboard.dashboard-v2 .dashboard-rate-meta { color: var(--pb-muted); opacity: 1; }
+#dashboard.dashboard-v2 .dashboard-rate-empty { color: var(--pb-muted); }
+
+/* ---------- 范围条 ---------- */
+#dashboard.dashboard-v2 .scope-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0 0 18px;
+  padding: 12px 18px;
+  border: 1px solid var(--pb-line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .78);
+  color: var(--pb-muted);
+  font-size: 12px;
+}
+#dashboard.dashboard-v2 .scope-banner b { color: var(--pb-ink); font-weight: 600; }
+#dashboard.dashboard-v2 .scope-tag {
+  border: 1px solid rgba(99, 102, 241, .16);
+  border-radius: 999px;
+  background: #eef1ff;
+  color: var(--pb-brand-strong);
+  font-size: 11px;
+  font-weight: 600;
+}
+#dashboard.dashboard-v2 .scope-tag.personal { background: #f2f4fb; color: var(--pb-muted); border-color: var(--pb-line); }
+
+/* ---------- 卡片基线：浮起来 ---------- */
+#dashboard.dashboard-v2 .panel,
+#dashboard.dashboard-v2 .panel.focus-panel,
+#dashboard.dashboard-v2 .lead-funnel-panel,
+#dashboard.dashboard-v2 .tender-daily-panel,
+#dashboard.dashboard-v2 .dashboard-task-panel,
+#dashboard.dashboard-v2 .dashboard-pipeline-panel,
+#dashboard.dashboard-v2 .morning-panel {
+  border: 1px solid var(--pb-line);
+  border-radius: var(--pb-radius);
+  background: #fff;
+  box-shadow: var(--pb-shadow);
+  transition: transform .24s var(--ease-out), box-shadow .24s var(--ease-out);
+  position: relative;
+}
+#dashboard.dashboard-v2 .morning-panel,
+#dashboard.dashboard-v2 .panel.focus-panel,
+#dashboard.dashboard-v2 .lead-funnel-panel,
+#dashboard.dashboard-v2 .tender-daily-panel,
+#dashboard.dashboard-v2 .dashboard-grid > .panel { padding: 20px 22px; }
+
+/* 顶部渐变细线（层叠感的来源） */
+#dashboard.dashboard-v2 .morning-panel::before,
+#dashboard.dashboard-v2 .panel.focus-panel::before,
+#dashboard.dashboard-v2 .lead-funnel-panel::before,
+#dashboard.dashboard-v2 .tender-daily-panel::before,
+#dashboard.dashboard-v2 .dashboard-grid > .panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  border-radius: var(--pb-radius) var(--pb-radius) 0 0;
+  background: linear-gradient(90deg, var(--pb-brand) 0%, var(--pb-brand-soft) 48%, rgba(165, 180, 252, 0) 92%);
+}
+#dashboard.dashboard-v2 .panel.focus-panel::after { display: none; }
+#dashboard.dashboard-v2 .dashboard-grid > .panel:hover { transform: translateY(-2px); }
+
+/* ---------- 晨会指挥带 ---------- */
+#dashboard.dashboard-v2 .morning-panel .section-title h2 {
+  color: var(--pb-ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+}
+#dashboard.dashboard-v2 .morning-panel .section-title .icon {
+  width: 30px; height: 30px;
+  border-radius: 10px;
+  background: #eef1ff;
+  color: var(--pb-brand-strong);
+}
+#dashboard.dashboard-v2 .morning-grid { gap: 14px; margin-top: 16px; }
+#dashboard.dashboard-v2 .morning-card {
+  padding: 16px 18px;
+  border: 1px solid #eef1fa;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fbfcff 0%, #f6f8ff 100%);
+}
+#dashboard.dashboard-v2 .morning-card span { margin-bottom: 9px; color: var(--pb-muted); font-size: 11px; font-weight: 600; }
+#dashboard.dashboard-v2 .morning-card b {
+  color: var(--pb-ink);
+  font-size: 21px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.015em;
+}
+
+/* ---------- 主判断区 ---------- */
+#dashboard.dashboard-v2 .command-center {
+  display: grid;
+  grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr);
+  gap: 18px;
+  margin: 0 0 18px;
+}
+#dashboard.dashboard-v2 .dashboard-period-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--pb-line);
+  border-radius: 12px;
+  background: #f5f7fd;
+}
+#dashboard.dashboard-v2 .dashboard-period-tabs button {
+  padding: 7px 16px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--pb-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: .16s var(--ease-out);
+}
+#dashboard.dashboard-v2 .dashboard-period-tabs button.active {
+  color: #fff;
+  background: linear-gradient(150deg, var(--pb-brand) 0%, var(--pb-brand-strong) 100%);
+  box-shadow: 0 8px 18px -8px rgba(79, 70, 229, .6);
+}
+#dashboard.dashboard-v2 .focus-top #dashboardUpdatedAt { color: var(--pb-muted); font-size: 11.5px; }
+#dashboard.dashboard-v2 .focus-title { margin: 22px 0 18px; }
+#dashboard.dashboard-v2 .focus-overline { color: var(--pb-muted); font: 700 10px/1 var(--font-sans); letter-spacing: .18em; }
+#dashboard.dashboard-v2 .focus-title h2 {
+  margin: 12px 0 8px;
+  color: var(--pb-ink);
+  font-size: 25px;
+  font-weight: 800;
+  line-height: 1.34;
+  letter-spacing: -.024em;
+}
+#dashboard.dashboard-v2 .focus-title p { margin: 0; color: var(--pb-text); font-size: 13px; line-height: 1.64; }
+#dashboard.dashboard-v2 .briefing-why {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 16px 0 0;
+  border-top: 1px solid #eef1fa;
+}
+#dashboard.dashboard-v2 .briefing-why > div { padding: 0; border: 0; background: none; }
+#dashboard.dashboard-v2 .briefing-why b { display: block; margin-bottom: 6px; color: var(--pb-brand-strong); font-size: 11px; font-weight: 700; }
+#dashboard.dashboard-v2 .briefing-why span,
+#dashboard.dashboard-v2 .briefing-why > div > span { color: var(--pb-text); font-size: 12.5px; line-height: 1.62; }
+#dashboard.dashboard-v2 .focus-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 20px;
+  border-top: 1px solid #eef1fa;
+}
+#dashboard.dashboard-v2 .focus-metric { padding: 18px 16px 2px 0; border: 0; background: none; }
+#dashboard.dashboard-v2 .focus-metric + .focus-metric { padding-left: 18px; border-left: 1px solid #eef1fa; }
+#dashboard.dashboard-v2 .focus-metric span { color: var(--pb-muted); font-size: 11px; font-weight: 600; }
+#dashboard.dashboard-v2 .focus-metric b {
+  display: block;
+  margin: 9px 0 4px;
+  color: var(--pb-brand-strong);
+  font-size: 27px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.025em;
+}
+#dashboard.dashboard-v2 .focus-metric small { color: #98a1b8; font-size: 11px; }
+
+/* ---------- 线索漏斗 ---------- */
+#dashboard.dashboard-v2 .lead-funnel-live {
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: #eef1ff;
+  color: var(--pb-brand-strong);
+  font-size: 11px;
+  font-weight: 600;
+}
+#dashboard.dashboard-v2 .lead-funnel-live::before { background: var(--pb-brand); }
+#dashboard.dashboard-v2 .lead-funnel-stage-row { border-radius: 10px; color: var(--pb-text); }
+#dashboard.dashboard-v2 .lead-funnel-stage-row:hover,
+#dashboard.dashboard-v2 .lead-funnel-stage-row:focus-visible { background: #f3f5ff; }
+#dashboard.dashboard-v2 .lead-funnel-stage-dot { box-shadow: none; }
+#dashboard.dashboard-v2 .lead-funnel-stage-row small { color: var(--pb-muted); }
+#dashboard.dashboard-v2 .lead-funnel-summary { border-top: 1px solid #eef1fa; }
+#dashboard.dashboard-v2 .lead-funnel-summary span { color: var(--pb-muted); }
+#dashboard.dashboard-v2 .lead-funnel-summary b { color: var(--pb-ink); font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+#dashboard.dashboard-v2 .lead-funnel-filtered { border-color: var(--pb-line); background: #f8fafe; color: var(--pb-muted); }
+#dashboard.dashboard-v2 .lead-funnel-filtered b { color: var(--pb-ink); }
+
+/* ---------- 竞标日报 / 任务 / 管道 ---------- */
+#dashboard.dashboard-v2 .tender-daily-panel { border-top: 1px solid var(--pb-line); margin-bottom: 18px; }
+#dashboard.dashboard-v2 .tender-daily-panel .section-title .icon,
+#dashboard.dashboard-v2 .dashboard-grid .section-title .icon {
+  border-radius: 10px;
+  background: #eef1ff;
+  color: var(--pb-brand-strong);
+}
+#dashboard.dashboard-v2 .panel-index { color: var(--pb-muted); font-weight: 700; letter-spacing: .14em; }
+#dashboard.dashboard-v2 .section-head h2 { color: var(--pb-ink); }
+#dashboard.dashboard-v2 .tender-daily-sub { color: var(--pb-muted); font-size: 12px; }
+#dashboard.dashboard-v2 .dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+#dashboard.dashboard-v2 .btn {
+  height: 33px;
+  border: 1px solid var(--pb-line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--pb-text);
+  font-size: 12px;
+  font-weight: 600;
+  transition: .16s var(--ease-out);
+}
+#dashboard.dashboard-v2 .btn:hover { border-color: #cbd3e8; color: var(--pb-brand-strong); box-shadow: 0 6px 16px -10px rgba(23, 31, 51, .4); }
+#dashboard.dashboard-v2 .badge.amber { background: #fdf3e3; color: #a45b09; border: 1px solid #f3e0c2; }
+
+/* ---------- 跟进优先级队列 ---------- */
+#dashboard.dashboard-v2 .dashboard-index .dashboard-index-date { color: #fff; }
+#dashboard.dashboard-v2 .priority-score {
+  min-width: 48px;
+  padding: 7px 9px;
+  border: 1px solid rgba(99, 102, 241, .18);
+  border-radius: 11px;
+  background: #eef1ff;
+  color: var(--pb-brand-strong);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+#dashboard.dashboard-v2 .task {
+  border: 1px solid #eef1fa;
+  border-radius: 14px;
+  background: #fbfcff;
+}
+#dashboard.dashboard-v2 .task:hover {
+  border-color: #dbe2f8;
+  background: #fff;
+  box-shadow: 0 16px 34px -22px rgba(23, 31, 51, .55);
+}
+#dashboard.dashboard-v2 .task h3 { color: var(--pb-ink); }
+#dashboard.dashboard-v2 .task p { color: var(--pb-text); }
+#dashboard.dashboard-v2 .task-line { background: var(--brand); }
+#dashboard.dashboard-v2 .bar-row { border-bottom-color: #eef1fa; }
+#dashboard.dashboard-v2 .bar-row > span { color: var(--pb-muted); }
+#dashboard.dashboard-v2 .bar-row > b { color: var(--pb-ink); font-variant-numeric: tabular-nums; }
+#dashboard.dashboard-v2 .track { background: #eef1f9; }
+#dashboard.dashboard-v2 .fill { background: var(--pb-brand); }
+#dashboard.dashboard-v2 .fill.amber { background: #d97706; }
+#dashboard.dashboard-v2 .fill.red { background: #e11d48; }
+#dashboard.dashboard-v2 .fill.green,
+#dashboard.dashboard-v2 .fill.aqua,
+#dashboard.dashboard-v2 .fill.violet { background: var(--pb-brand); }
+#dashboard.dashboard-v2 .todo-history-empty { color: var(--pb-muted); }
+
+/* ---------- 页脚 ---------- */
+#dashboard.dashboard-v2 .dashboard-footer-note {
+  margin: 20px 0 0;
+  padding: 15px 0 0;
+  border-top: 1px solid var(--pb-line);
+  color: #98a1b8;
+  font-size: 11px;
+  letter-spacing: .04em;
+}
+
+/* ---------- CLI 等待块（原为硬编码蓝渐变） ---------- */
+#dashboard.dashboard-v2 .cli-wait {
+  margin: 14px 0 0;
+  border-color: var(--pb-line);
+  border-radius: 12px;
+  background: #f4f6fd;
+}
+#dashboard.dashboard-v2 .cli-wait-msg { color: var(--pb-ink); }
+#dashboard.dashboard-v2 .cli-wait-text small { color: var(--pb-muted); }
+#dashboard.dashboard-v2 .cli-wait-text .cli-wait-elapsed { color: var(--pb-brand-strong); }
+#dashboard.dashboard-v2 .cli-wait-found { color: #15803d; }
+#dashboard.dashboard-v2 .cli-wait-orbit i { border-top-color: var(--pb-brand); }
+
+/* ---------- 指标装饰线统一为品牌色族 ---------- */
+#dashboard.dashboard-v2 .focus-metric::before,
+#dashboard.dashboard-v2 .focus-metric:nth-child(1)::before,
+#dashboard.dashboard-v2 .focus-metric:nth-child(2)::before,
+#dashboard.dashboard-v2 .focus-metric:nth-child(3)::before,
+#dashboard.dashboard-v2 .focus-metric:nth-child(4)::before {
+  background: linear-gradient(90deg, var(--pb-brand), var(--pb-brand-soft));
+  opacity: 1;
+}
+
+/* ---------- 窄屏 ---------- */
+@media (max-width: 1180px) {
+  #dashboard.dashboard-v2 { margin: -8px -16px -24px; padding: 20px 18px 34px; }
+  #dashboard.dashboard-v2 .dashboard-masthead { grid-template-columns: auto minmax(0, 1fr); padding: 20px; }
+  #dashboard.dashboard-v2 .dashboard-masthead-side { grid-column: 1 / -1; justify-content: flex-start; }
+  #dashboard.dashboard-v2 .command-center,
+  #dashboard.dashboard-v2 .dashboard-grid { grid-template-columns: minmax(0, 1fr); }
+  #dashboard.dashboard-v2 .briefing-why { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  #dashboard.dashboard-v2 .focus-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #dashboard.dashboard-v2 .focus-metric:nth-child(3) { padding-left: 0; border-left: 0; }
+}

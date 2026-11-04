@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>03 · Bento 卡片</title>
+<link rel="stylesheet" href="base.css">
+<style>
+  :root { --paper:#f1f3ef; }
+  body { background:var(--paper); }
+  .stage { padding:24px 30px 44px; }
+  .bento-wrap { max-width:1360px; }
+
+  .head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:18px; }
+  .head h1 { margin:0; font-size:21px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+  .head h1 span { color:var(--brand); }
+  .head p { margin:6px 0 0; font-size:11.5px; color:var(--muted); }
+  .head .right { display:flex; gap:8px; align-items:center; }
+  .avatar-stack { display:flex; margin-right:6px; }
+  .avatar-stack i { width:24px; height:24px; margin-left:-7px; display:grid; place-items:center; border:2px solid var(--paper); border-radius:50%; background:#e5e9e4; font-size:9px; font-style:normal; font-weight:700; color:#5c6a63; }
+  .avatar-stack i:first-child { margin-left:0; background:var(--brand); color:#fff; }
+  .btn { height:29px; padding:0 13px; border:1px solid var(--line); border-radius:8px; background:#fff; font-size:11px; font-weight:600; color:var(--text); cursor:pointer; box-shadow:var(--sh-1); }
+  .btn.primary { border-color:var(--ink); background:var(--ink); color:#fff; }
+
+  .bento { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); grid-auto-rows:minmax(104px,auto); gap:13px; }
+  .b { position:relative; overflow:hidden; padding:15px 16px; border:1px solid #e6ebe6; border-radius:15px; background:#fff; box-shadow:0 1px 2px rgba(20,28,24,.03), 0 10px 24px -22px rgba(20,28,24,.35); }
+  .b-label { display:flex; align-items:center; gap:6px; font-size:9.5px; font-weight:600; letter-spacing:.06em; color:var(--muted); }
+  .b-label .idx { margin-left:auto; font-family:var(--mono); font-size:8px; color:var(--faint); }
+
+  /* 主卡 */
+  .hero { grid-column:span 2; grid-row:span 2; display:flex; flex-direction:column; border:0; color:#fff; background:radial-gradient(120% 130% at 100% 0%, #e0335a 0%, #be123c 38%, #780a26 100%); }
+  .hero::after { content:""; position:absolute; right:-40px; bottom:-70px; width:260px; height:260px; border-radius:50%; background:rgba(255,255,255,.07); }
+  .hero .b-label { color:rgba(255,255,255,.72); }
+  .hero .b-label .idx { color:rgba(255,255,255,.45); }
+  .hero h2 { position:relative; z-index:1; margin:18px 0 0; font-size:24px; font-weight:600; line-height:1.36; letter-spacing:-.01em; }
+  .hero p { position:relative; z-index:1; margin:9px 0 0; max-width:40ch; font-size:11px; line-height:1.7; color:rgba(255,255,255,.74); }
+  .hero-foot { position:relative; z-index:1; display:flex; align-items:flex-end; justify-content:space-between; margin-top:auto; padding-top:20px; }
+  .hero-num b { font-size:38px; font-weight:700; line-height:1; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  .hero-num span { display:block; margin-top:5px; font-size:9.5px; color:rgba(255,255,255,.66); }
+  .hero-cta { height:29px; padding:0 14px; border:0; border-radius:8px; background:#fff; color:#8c0e2d; font-size:10.5px; font-weight:700; cursor:pointer; }
+
+  /* KPI */
+  .kpi b { display:block; margin-top:10px; font-size:26px; font-weight:700; line-height:1; letter-spacing:-.02em; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .kpi b small { font-size:12px; font-weight:500; color:var(--muted); }
+  .kpi .foot { display:flex; align-items:center; gap:6px; margin-top:9px; font-size:9.5px; color:var(--muted); }
+  .kpi .delta { padding:1px 5px; border-radius:4px; background:var(--brand-tint); color:var(--brand-deep); font-weight:600; font-size:9px; }
+  .kpi .delta.g { background:var(--green-tint); color:var(--green); }
+  .spark { margin-top:10px; height:22px; }
+
+  /* 环形 */
+  .ring { display:flex; flex-direction:column; }
+  .ring-body { display:flex; align-items:center; gap:12px; margin-top:10px; }
+  .donut { width:62px; height:62px; flex:none; border-radius:50%; background:conic-gradient(var(--brand) 0 69%, #eceee9 69% 100%); display:grid; place-items:center; }
+  .donut::before { content:""; width:46px; height:46px; border-radius:50%; background:#fff; }
+  .donut b { position:absolute; font-size:13px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .ring-txt { font-size:9.5px; line-height:1.7; color:var(--muted); }
+  .ring-txt b { display:block; font-size:11px; color:var(--ink); }
+
+  /* 折线卡 */
+  .chart { grid-column:span 2; display:flex; flex-direction:column; }
+  .chart-top { display:flex; align-items:baseline; justify-content:space-between; }
+  .chart-top b { font-size:19px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .chart-top span { font-size:9.5px; color:var(--muted); }
+  .chart svg { margin-top:auto; width:100%; height:74px; overflow:visible; }
+
+  /* 队列 */
+  .queue { grid-column:span 2; grid-row:span 2; display:flex; flex-direction:column; }
+  .qi { display:grid; grid-template-columns:26px minmax(0,1fr) auto; align-items:center; gap:10px; padding:9px 0; border-bottom:1px dashed #eef1ed; }
+  .qi:last-of-type { border-bottom:0; }
+  .qi .av { width:26px; height:26px; display:grid; place-items:center; border-radius:8px; background:#f2f4f1; font-size:10px; font-weight:700; color:#5b6962; }
+  .qi.hot .av { background:var(--brand-tint); color:var(--brand-deep); }
+  .qi b { display:block; font-size:11px; font-weight:600; color:var(--ink); line-height:1.35; }
+  .qi span { display:block; margin-top:1px; font-size:9.5px; color:var(--muted); }
+  .qi .amt { text-align:right; font-size:10.5px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .qi .due { display:block; font-size:8.5px; font-weight:500; color:var(--faint); }
+  .qi .due.late { color:var(--brand); }
+  .queue-foot { margin-top:auto; padding-top:10px; border-top:1px solid var(--line-soft); font-size:9.5px; color:var(--muted); display:flex; justify-content:space-between; }
+
+  /* 日程 */
+  .sched { grid-row:span 2; display:flex; flex-direction:column; gap:0; }
+  .ev { display:grid; grid-template-columns:34px minmax(0,1fr); gap:8px; padding:8px 0; }
+  .ev time { font-family:var(--mono); font-size:8.5px; color:var(--muted); padding-top:2px; }
+  .ev div { position:relative; padding-left:11px; border-left:2px solid #e7ebe6; }
+  .ev.now div { border-left-color:var(--brand); }
+  .ev b { display:block; font-size:10px; font-weight:600; color:var(--ink); line-height:1.4; }
+  .ev span { display:block; font-size:9px; color:var(--muted); }
+  .ev.now b { color:var(--brand-deep); }
+  .cal { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; margin-top:auto; padding-top:10px; border-top:1px solid var(--line-soft); }
+  .cal i { height:14px; border-radius:3px; background:#f3f5f1; }
+  .cal i.on { background:var(--brand-tint); }
+  .cal i.today { background:var(--brand); }
+
+  /* 汇率 */
+  .rates { display:flex; flex-direction:column; }
+  .rate-line { display:flex; align-items:baseline; justify-content:space-between; padding:5px 0; border-bottom:1px dashed #eff2ee; font-family:var(--mono); font-size:9px; color:var(--muted); }
+  .rate-line:last-of-type { border-bottom:0; }
+  .rate-line b { font-family:var(--font); font-size:11px; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .rate-line em { font-style:normal; font-size:8px; }
+
+  /* 团队 */
+  .team .row { display:grid; grid-template-columns:18px 40px 1fr; gap:7px; align-items:center; margin-top:7px; font-size:9.5px; color:var(--text); }
+  .team .row b { font-size:9.5px; font-weight:600; }
+  .team .row .bar { height:4px; border-radius:100px; background:#f0f2ee; overflow:hidden; }
+  .team .row .bar i { display:block; height:100%; background:var(--brand); border-radius:100px; opacity:.85; }
+  .team .row:nth-child(3) .bar i { opacity:.65; } .team .row:nth-child(4) .bar i { opacity:.5; } .team .row:nth-child(5) .bar i { opacity:.38; }
+
+  /* 提示卡 */
+  .tip { grid-column:span 2; display:flex; align-items:center; gap:12px; border:1px solid #eddfc9; background:linear-gradient(100deg,#fdf7ec,#faf3e4); }
+  .tip .ico { width:30px; height:30px; flex:none; display:grid; place-items:center; border-radius:9px; background:#fff; border:1px solid #eddfc9; font-size:13px; }
+  .tip b { display:block; font-size:10.5px; font-weight:600; color:#7a4d10; }
+  .tip span { display:block; font-size:9.5px; color:#95703c; line-height:1.55; }
+
+  /* 显式网格，避免自动排布留下空洞 */
+  .bento {
+    grid-template-areas:
+      "hero hero k1 k2"
+      "hero hero ring ring"
+      "chart chart queue queue"
+      "sched rates queue queue"
+      "team tip tip tip";
+  }
+  .bento > section:nth-of-type(1) { grid-area: hero; }
+  .bento > section:nth-of-type(2) { grid-area: k1; }
+  .bento > section:nth-of-type(3) { grid-area: k2; }
+  .bento > section:nth-of-type(4) { grid-area: ring; }
+  .bento > section:nth-of-type(5) { grid-area: chart; }
+  .bento > section:nth-of-type(6) { grid-area: queue; }
+  .bento > section:nth-of-type(7) { grid-area: sched; }
+  .bento > section:nth-of-type(8) { grid-area: rates; }
+  .bento > section:nth-of-type(9) { grid-area: team; }
+  .bento > section:nth-of-type(10) { grid-area: tip; }
+
+  @media (max-width:1180px) {
+    .bento { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-areas:"hero hero" "k1 k2" "ring chart" "queue queue" "sched rates" "team tip" "tip tip"; }
+    .hero, .queue, .chart { grid-row:auto; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" id="rail"></aside>
+  <main class="stage">
+    <div class="wrap bento-wrap">
+      <header class="head">
+        <div>
+          <h1>早上好，陈露 <span>·</span> 今天是 10 月 23 日，周五</h1>
+          <p>本月已完成 69% 目标，3 单高风险需要你在中午前处理。</p>
+        </div>
+        <div class="right">
+          <div class="avatar-stack"><i>陈</i><i>林</i><i>王</i><i>+3</i></div>
+          <button class="btn">晨会视图</button>
+          <button class="btn primary">＋ 新待办</button>
+        </div>
+      </header>
+
+      <div class="bento">
+        <section class="b hero">
+          <div class="b-label">今日判断 · PRIMARY SIGNAL<span class="idx">01</span></div>
+          <h2>先补 Nova Metrics 的 CE 文件，10:30 电话里锁死交期。</h2>
+          <p>沉默 9 天，但今天打开报价单 3 次 —— 客户在等一个确定答复。再发邮件没用，直接拨过去。</p>
+          <div class="hero-foot">
+            <div class="hero-num"><b>$454k</b><span>本周确认后 · 本月预计成交</span></div>
+            <button class="hero-cta">生成通话提纲 →</button>
+          </div>
+        </section>
+
+        <section class="b kpi">
+          <div class="b-label">今日待跟进<span class="idx">02</span></div>
+          <b>12<small> 条</small></b>
+          <div class="foot"><span class="delta">3 逾期</span><span>高优 5 条</span></div>
+          <div class="spark"><span style="height:40%"></span><span style="height:62%"></span><span style="height:48%"></span><span style="height:74%"></span><span style="height:58%"></span><span style="height:88%"></span><span class="hi" style="height:100%"></span></div>
+        </section>
+
+        <section class="b kpi">
+          <div class="b-label">高风险敞口<span class="idx">03</span></div>
+          <b>$86<small>k</small></b>
+          <div class="foot"><span class="delta">3 单</span><span>占管道 21%</span></div>
+          <div class="spark"><span style="height:88%"></span><span style="height:70%"></span><span style="height:52%"></span><span style="height:64%"></span><span style="height:44%"></span><span style="height:36%"></span><span class="hi" style="height:30%"></span></div>
+        </section>
+
+        <section class="b ring">
+          <div class="b-label">本月目标<span class="idx">04</span></div>
+          <div class="ring-body">
+            <div class="donut" style="position:relative"><b>69%</b></div>
+            <div class="ring-txt"><b>$412k / $600k</b>时间进度 74%<br>需再进 6 单</div>
+          </div>
+        </section>
+
+        <section class="b chart">
+          <div class="b-label">成交趋势 · 近 14 天<span class="idx">05</span></div>
+          <div class="chart-top"><b>$148k</b><span>环比 +12.4%</span></div>
+          <svg viewBox="0 0 320 74" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#be123c" stop-opacity=".18"/><stop offset="1" stop-color="#be123c" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M0,56 L24,48 L48,52 L72,38 L96,42 L120,30 L144,34 L168,22 L192,28 L216,18 L240,24 L264,12 L288,16 L312,6 L312,74 L0,74 Z" fill="url(#g1)"/>
+            <path d="M0,56 L24,48 L48,52 L72,38 L96,42 L120,30 L144,34 L168,22 L192,28 L216,18 L240,24 L264,12 L288,16 L312,6" fill="none" stroke="#be123c" stroke-width="1.6" stroke-linejoin="round"/>
+            <circle cx="312" cy="6" r="2.6" fill="#be123c"/>
+          </svg>
+        </section>
+
+        <section class="b queue">
+          <div class="b-label">跟进队列<span class="idx">06</span><span style="margin-left:auto;font-size:9px;color:var(--brand-deep);font-weight:600">全部 12 →</span></div>
+          <div class="qi hot">
+            <div class="av">N</div>
+            <div><b>Nova Metrics GmbH</b><span>确认 CE 认证文件 · 陈露</span></div>
+            <div><span class="amt">$42,000</span><span class="due late">10:30</span></div>
+          </div>
+          <div class="qi">
+            <div class="av">P</div>
+            <div><b>Pacific Weigh Pty</b><span>技术视频会议 · 林楠</span></div>
+            <div><span class="amt">$61,000</span><span class="due">明天 09:00</span></div>
+          </div>
+          <div class="qi">
+            <div class="av">A</div>
+            <div><b>Ali Trading LLC</b><span>FOB 报价修正 · 陈露</span></div>
+            <div><span class="amt">$28,000</span><span class="due">14:00</span></div>
+          </div>
+          <div class="qi hot">
+            <div class="av">S</div>
+            <div><b>Sakura Scale Co.</b><span>样品测试反馈 · 王磊</span></div>
+            <div><span class="amt">$16,500</span><span class="due late">逾期 2 天</span></div>
+          </div>
+          <div class="qi">
+            <div class="av">D</div>
+            <div><b>Delta Weighing B.V.</b><span>付款条款：对方要 60 天账期</span></div>
+            <div><span class="amt">$52,000</span><span class="due">10-27</span></div>
+          </div>
+          <div class="queue-foot"><span>5 条合计 $199.5k</span><span>预计耗时 3.6h</span></div>
+        </section>
+
+        <section class="b sched">
+          <div class="b-label">今日节奏<span class="idx">07</span></div>
+          <div class="ev now"><time>10:30</time><div><b>WhatsApp 通话</b><span>Nova Metrics · Hans Weber</span></div></div>
+          <div class="ev"><time>11:20</time><div><b>评审澳州 61k 报价</b><span>林楠 + 财务</span></div></div>
+          <div class="ev"><time>14:00</time><div><b>报价复核 · Ali</b><span>FOB 条款修正</span></div></div>
+          <div class="ev"><time>16:30</time><div><b>样品发运 · Sakura</b><span>顺丰 7734 2190</span></div></div>
+          <div class="cal">
+            <i></i><i></i><i></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="today"></i>
+            <i class="on"></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i></i>
+          </div>
+        </section>
+
+        <section class="b rates">
+          <div class="b-label">汇率<span class="idx">08</span></div>
+          <div class="rate-line"><span>USD/CNY</span><b>6.6743</b><em style="color:var(--green)">-0.18%</em></div>
+          <div class="rate-line"><span>EUR/CNY</span><b>7.8142</b><em style="color:var(--brand)">+0.06%</em></div>
+          <div class="rate-line"><span>GBP/CNY</span><b>8.9610</b><em style="color:var(--brand)">+0.11%</em></div>
+          <div class="rate-line"><span>JPY/CNY</span><b>0.0441</b><em style="color:var(--green)">-0.03%</em></div>
+          <div class="rate-line"><span>AUD/CNY</span><b>4.4318</b><em style="color:var(--brand)">+0.09%</em></div>
+          <div class="rate-line"><span>USD/EUR</span><b>0.8539</b><em style="color:var(--green)">-0.24%</em></div>
+        </section>
+
+        <section class="b team">
+          <div class="b-label">团队排行<span class="idx">09</span></div>
+          <div class="row"><span class="mono" style="font-size:8px;color:var(--faint)">01</span><b>陈露</b><div class="bar"><i style="width:100%"></i></div></div>
+          <div class="row"><span class="mono" style="font-size:8px;color:var(--faint)">02</span><b>林楠</b><div class="bar"><i style="width:75%"></i></div></div>
+          <div class="row"><span class="mono" style="font-size:8px;color:var(--faint)">03</span><b>王磊</b><div class="bar"><i style="width:58%"></i></div></div>
+          <div class="row"><span class="mono" style="font-size:8px;color:var(--faint)">04</span><b>周舟</b><div class="bar"><i style="width:30%"></i></div></div>
+        </section>
+
+        <section class="b tip">
+          <div class="ico">!</div>
+          <div><b>USD/CNY 跌破 6.68，未锁汇订单 $86k 毛利 -1.4pt</b><span>建议今天对 11 月前发货的两单做远期锁汇，或改报 EUR 价。今日 6 个月远期报价 6.7012。</span></div>
+          <button style="margin-left:auto;height:26px;padding:0 12px;border:1px solid #e4d3b4;border-radius:7px;background:#fff;font-size:10px;font-weight:600;color:#7a4d10;cursor:pointer;white-space:nowrap">算法对比</button>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="shell.js"></script>
+</body>
+</html>

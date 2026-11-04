@@ -1,0 +1,464 @@
+import assert from "node:assert/strict";
+import {
+  aiGenerateLeads,
+  callAiModel,
+  callAiModelWithWebSearch,
+  extractJsonObject,
+  readAiJson
+} from "./ai-model-runtime.js";
+import {
+  AI_SEARCH_ADAPTER_VERSION,
+  aiSearchTimeoutMs,
+  createAiSearchProvider
+} from "./ai-search-provider.js";
+import {
+  ProviderHttpStatusError,
+  providerErrorFromUnknown
+} from "./provider-contract.js";
+import { setProviderHttpTestTransport } from "./provider-http-client.js";
+import { executeProviderSearch } from "./provider-runtime.js";
+import { providerSnapshotVersionsMatch } from "./prospect-provider-dispatcher.js";
+import type { AiModelConfig, ProviderCatalogItem } from "./types.js";
+
+const originalAiSearchTimeout = process.env.AI_SEARCH_TIMEOUT_MS;
+delete process.env.AI_SEARCH_TIMEOUT_MS;
+assert.equal(aiSearchTimeoutMs(), 150_000);
+process.env.AI_SEARCH_TIMEOUT_MS = "5000";
+assert.equal(aiSearchTimeoutMs(), 20_000);
+process.env.AI_SEARCH_TIMEOUT_MS = "200000";
+assert.equal(aiSearchTimeoutMs(), 180_000);
+process.env.AI_SEARCH_TIMEOUT_MS = "invalid";
+assert.equal(aiSearchTimeoutMs(), 150_000);
+if (originalAiSearchTimeout === undefined) {
+  delete process.env.AI_SEARCH_TIMEOUT_MS;
+} else {
+  process.env.AI_SEARCH_TIMEOUT_MS = originalAiSearchTimeout;
+}
+
+assert.deepEqual(
+  extractJsonObject('{"done":true,"steps":[]}\n补充说明：任务规划完成。'),
+  { done: true, steps: [] }
+);
+assert.deepEqual(
+  extractJsonObject('计划如下：{"summary":"包含 { 花括号 } 的文本","steps":[]}。额外示例：{"ignored":true}'),
+  { summary: "包含 { 花括号 } 的文本", steps: [] }
+);
+assert.deepEqual(
+  extractJsonObject('```json\n{"done":false}\n```'),
+  { done: false }
+);
+// 模型手误容错（只在原样解析失败后启用修复）：全角标点 / 字符串里的裸换行 / 尾随逗号
+assert.deepEqual(
+  extractJsonObject('｛"done"：true，｝'),
+  { done: true }
+);
+assert.deepEqual(
+  extractJsonObject('{"note":"第一行\n第二行"}'),
+  { note: "第一行\n第二行" }
+);
+assert.deepEqual(
+  extractJsonObject('{"steps":[1,2,],}'),
+  { steps: [1, 2] }
+);
+// 修复层不能误伤正常内容：字符串内部的中文引号要原样保留
+assert.deepEqual(
+  extractJsonObject('{"summary":"客户说“下周回复”"}'),
+  { summary: "客户说“下周回复”" }
+);
+
+function config(overrides: Partial<AiModelConfig> = {}): AiModelConfig {
+  return {
+    id: "ai_runtime_test",
+    provider: "compatible",
+    protocol: "openai-compatible",
+    name: "Test model",
+    baseUrl: "https://model.example/v1/chat/completions",
+    model: "custom-chat-model",
+    apiKey: "test-only-key",
+    enabled: true,
+    temperature: 0.1,
+    useLeadFinder: true,
+    useWebsiteParse: true,
+    useScoring: true,
+    useEmailDraft: true,
+    useExam: false,
+    ownerId: "owner_test",
+    teamId: "team_test",
+    updatedAt: "2026-07-22T00:00:00.000Z",
+    ...overrides
+  };
+}
+
+const rejected = new Response(JSON.stringify({
+  error: {
+    code: "unsupported_parameter",
+    message: "Unsupported parameter temperature; token=sk-secretvalue123"
+  }
+}), {
+  status: 400,
+  headers: { "content-type": "application/json" }
+});
+let rejectedError: unknown;
+try {
+  await readAiJson(rejected);
+} catch (error) {
+  rejectedError = error;
+}
+assert.ok(rejectedError instanceof ProviderHttpStatusError);
+assert.equal(rejectedError.upstreamCode, "unsupported_parameter");
+assert.match(rejectedError.upstreamMessage, /temperature/u);
+assert.equal(rejectedError.upstreamMessage.includes("sk-secretvalue123"), false);
+const normalized = providerErrorFromUnknown(rejectedError, "search");
+assert.equal(normalized.code, "AI_MODEL_REQUEST_REJECTED");
+assert.equal(normalized.httpStatus, 400);
+assert.match(normalized.publicMessage, /unsupported_parameter.*temperature/u);
+
+const requestBodies: Array<Record<string, unknown>> = [];
+const requestUrls: string[] = [];
+const adaptiveContent = await callAiModel(
+  config(),
+  "return json",
+  4_000,
+  async (url, init) => {
+    requestUrls.push(url);
+    requestBodies.push(JSON.parse(String(init?.body || "{}")) as Record<string, unknown>);
+    if (requestBodies.length === 1) {
+      return new Response(JSON.stringify({
+        error: {
+          code: "unsupported_parameter",
+          message: "temperature is not supported by this model"
+        }
+      }), { status: 400, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({
+      choices: [{ message: { content: "{\"companies\":[]}" } }]
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  }
+);
+assert.equal(adaptiveContent, "{\"companies\":[]}");
+assert.equal(requestBodies.length, 2);
+assert.equal("temperature" in requestBodies[0]!, true);
+assert.equal("temperature" in requestBodies[1]!, false);
+assert.deepEqual(requestUrls, [
+  "https://model.example/v1/chat/completions",
+  "https://model.example/v1/chat/completions"
+]);
+
+let emptyContentCalls = 0;
+const recoveredEmptyContent = await callAiModel(
+  config(),
+  "return evaluation json",
+  4_000,
+  async () => {
+    emptyContentCalls += 1;
+    return new Response(JSON.stringify({
+      choices: [{
+        message: { content: emptyContentCalls === 1 ? "" : "{\"done\":true}" },
+        finish_reason: "stop"
+      }]
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  }
+);
+assert.equal(emptyContentCalls, 2);
+assert.equal(recoveredEmptyContent, "{\"done\":true}");
+
+let repairedEmptyContentCalls = 0;
+const repairedEmptyContent = await callAiModel(
+  config(),
+  "return evaluation json",
+  4_000,
+  async (_url, init) => {
+    repairedEmptyContentCalls += 1;
+    const body = JSON.parse(String(init?.body || "{}")) as { messages?: Array<{ content?: string }> };
+    const repairRequested = body.messages?.some((item) => String(item.content || "").includes("上一次响应以 finish_reason=stop 结束"));
+    return new Response(JSON.stringify({
+      choices: [{
+        message: { content: repairRequested ? "{\"done\":true}" : "" },
+        finish_reason: "stop"
+      }]
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  }
+);
+assert.equal(repairedEmptyContentCalls, 2);
+assert.equal(repairedEmptyContent, "{\"done\":true}");
+
+const toolArgumentsContent = await callAiModel(
+  config(),
+  "return evaluation json",
+  4_000,
+  async () => new Response(JSON.stringify({
+    choices: [{ message: { content: "", tool_calls: [{ function: { arguments: "{\"done\":true}" } }] }, finish_reason: "tool_calls" }]
+  }), { status: 200, headers: { "content-type": "application/json" } })
+);
+assert.equal(toolArgumentsContent, "{\"done\":true}");
+
+const reasoningJsonContent = await callAiModel(
+  config(),
+  "return evaluation json",
+  4_000,
+  async () => new Response(JSON.stringify({
+    choices: [{
+      message: { content: "", reasoning_content: "analysis\n{\"done\":true}" },
+      finish_reason: "stop"
+    }]
+  }), { status: 200, headers: { "content-type": "application/json" } })
+);
+assert.match(reasoningJsonContent, /\{"done":true\}/u);
+
+const reasoningBodies: Array<Record<string, unknown>> = [];
+await callAiModel(
+  config({
+    baseUrl: "https://model.example/v1",
+    model: "gpt-5-mini"
+  }),
+  "return json",
+  4_000,
+  async (url, init) => {
+    assert.equal(url, "https://model.example/v1/chat/completions");
+    reasoningBodies.push(JSON.parse(String(init?.body || "{}")) as Record<string, unknown>);
+    return new Response(JSON.stringify({
+      choices: [{ message: { content: [{ text: "{\"ok\":true}" }] } }]
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  }
+);
+assert.equal(reasoningBodies.length, 1);
+assert.equal("temperature" in reasoningBodies[0]!, false);
+
+let webSearchRequest: Record<string, unknown> = {};
+const webSearchResult = await callAiModelWithWebSearch(
+  config({ baseUrl: "https://model.example/v1" }),
+  "research Example Company",
+  4_000,
+  async (url, init) => {
+    assert.equal(url, "https://model.example/v1/responses");
+    webSearchRequest = JSON.parse(String(init?.body || "{}")) as Record<string, unknown>;
+    return new Response(JSON.stringify({
+      output: [
+        { type: "web_search_call", action: { query: "Example Company official profile" } },
+        {
+          type: "message",
+          content: [{
+            type: "output_text",
+            text: "{\"summary\":\"Verified company\"}",
+            annotations: [
+              { type: "url_citation", title: "Official profile", url: "https://example.com/company", start_index: 0, end_index: 20 },
+              { type: "url_citation", title: "Duplicate", url: "https://example.com/company", start_index: 0, end_index: 20 },
+              { type: "url_citation", title: "Unsafe", url: "http://unsafe.example/company", start_index: 0, end_index: 20 }
+            ]
+          }]
+        }
+      ]
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  }
+);
+assert.equal((webSearchRequest.tools as Array<{ type?: string }>)[0]?.type, "web_search");
+assert.equal(webSearchResult.usedSearch, true);
+assert.deepEqual(webSearchResult.queries, ["Example Company official profile"]);
+assert.deepEqual(webSearchResult.citations.map((item) => item.url), ["https://example.com/company"]);
+assert.match(webSearchResult.content, /Verified company/u);
+
+const runtimeProvider = createAiSearchProvider(config());
+assert.equal(runtimeProvider.adapterVersion, AI_SEARCH_ADAPTER_VERSION);
+assert.equal(runtimeProvider.contractVersion, "1.0");
+assert.equal(providerSnapshotVersionsMatch({
+  providerCode: "ai_search",
+  runtimeAdapterVersion: runtimeProvider.adapterVersion,
+  runtimeContractVersion: runtimeProvider.contractVersion,
+  snapshotAdapterVersion: AI_SEARCH_ADAPTER_VERSION,
+  snapshotContractVersion: "search_run_control_plane_v1"
+}), true);
+assert.equal(providerSnapshotVersionsMatch({
+  providerCode: "other_provider",
+  runtimeAdapterVersion: runtimeProvider.adapterVersion,
+  runtimeContractVersion: runtimeProvider.contractVersion,
+  snapshotAdapterVersion: AI_SEARCH_ADAPTER_VERSION,
+  snapshotContractVersion: "search_run_control_plane_v1"
+}), false);
+const runtimeCatalog: ProviderCatalogItem = {
+  id: "provider_ai_search_test",
+  code: "ai_search",
+  name: "AI 搜索",
+  category: "ai",
+  sourceLevel: "assisted",
+  accessMode: "api",
+  baseUrl: "https://model.example/v1/chat/completions",
+  officialDocsUrl: "",
+  capabilities: ["ai", "company"],
+  allowedFields: [
+    "company",
+    "officialWebsite",
+    "country",
+    "business",
+    "description"
+  ],
+  licensePolicy: { requiresKey: false },
+  defaultRatePolicy: {},
+  retentionPolicy: { mode: "none" },
+  status: "active",
+  version: "ai-runtime-test-v1",
+  reviewedAt: "2026-07-22T00:00:00.000Z",
+  createdAt: "2026-07-22T00:00:00.000Z",
+  updatedAt: "2026-07-22T00:00:00.000Z"
+};
+setProviderHttpTestTransport(async () => new Response(JSON.stringify({
+  error: {
+    code: "model_not_found",
+    message: "The configured model does not exist or is unavailable"
+  }
+}), { status: 400, headers: { "content-type": "application/json" } }));
+try {
+  await assert.rejects(
+    executeProviderSearch({
+      provider: runtimeProvider,
+      catalog: runtimeCatalog,
+      context: {
+        teamId: "team_test",
+        ownerId: "owner_test",
+        runId: "run_test",
+        runShardId: "shard_test",
+        requestId: "request_test",
+        purpose: "ai_runtime_failure_test",
+        operation: "search"
+      },
+      credential: {
+        apiKey: "test-only-key",
+        baseUrl: "https://model.example/v1/chat/completions"
+      },
+      query: {
+        goal: "find distributors",
+        productKeywords: "pump",
+        countries: "Germany",
+        industry: "water treatment",
+        customerType: "distributor",
+        excludeKeywords: "",
+        limit: 5
+      },
+      onLogs: () => undefined
+    }),
+    (error: unknown) => error instanceof Error
+      && "code" in error
+      && (error as { code?: unknown }).code === "AI_MODEL_REQUEST_REJECTED"
+      && error.message.includes("model_not_found")
+      && error.message.includes("configured model does not exist")
+  );
+} finally {
+  setProviderHttpTestTransport(null);
+}
+
+await assert.rejects(
+  aiGenerateLeads({
+    goal: "find distributors",
+    productKeywords: "pump",
+    countries: "Germany",
+    industry: "water treatment",
+    customerType: "distributor",
+    excludeKeywords: "",
+    limit: 5
+  }, config(), async () => new Response(JSON.stringify({
+    choices: [{ message: { content: "I cannot return JSON" } }]
+  }), { status: 200, headers: { "content-type": "application/json" } })),
+  (error: unknown) => error instanceof Error
+    && "code" in error
+    && (error as { code?: unknown }).code === "AI_MODEL_RESPONSE_INVALID"
+);
+
+const leadQuery = {
+  goal: "find distributors",
+  productKeywords: "industrial lighting",
+  countries: "United States",
+  industry: "lighting",
+  customerType: "distributor",
+  excludeKeywords: "",
+  limit: 2
+};
+await assert.rejects(
+  aiGenerateLeads(
+    leadQuery,
+    config({ provider: "openai", model: "gpt-5.5", webSearchStatus: "untested" }),
+    async () => new Response(JSON.stringify({ choices: [{ message: { content: "unused" } }] }), { status: 200 })
+  ),
+  (error: unknown) => error instanceof Error
+    && "code" in error
+    && (error as { code?: unknown }).code === "AI_WEB_SEARCH_NOT_TESTED"
+);
+
+const verifiedLeads = await aiGenerateLeads(
+  leadQuery,
+  config({ provider: "openai", model: "gpt-5.5", baseUrl: "https://model.example/v1", webSearchStatus: "passed" }),
+  async (url) => {
+    assert.equal(url, "https://model.example/v1/responses");
+    return new Response(JSON.stringify({
+      output: [
+        { type: "web_search_call", action: { query: "industrial lighting distributors United States" } },
+        {
+          type: "message",
+          content: [{
+            type: "output_text",
+            text: JSON.stringify({ companies: [
+              { company: "Example Lighting", website: "https://example.com/company", country: "United States", business: "Distributor" },
+              { company: "Uncited Lighting", website: "https://uncited.example", country: "United States", business: "Distributor" }
+            ] }),
+            annotations: [{ type: "url_citation", title: "Example official", url: "https://example.com/company" }]
+          }]
+        }
+      ]
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  }
+);
+assert.equal(verifiedLeads.length, 2);
+assert.equal(verifiedLeads[0]?.officialWebsite, "https://example.com/company");
+assert.equal(verifiedLeads[1]?.officialWebsite, "");
+assert.match(verifiedLeads[1]?.description || "", /未被 Web Search 引用确认/u);
+
+const ordinaryModelLeads = await aiGenerateLeads(
+  leadQuery,
+  config({ provider: "deepseek", model: "deepseek-chat", lastTestStatus: "passed", webSearchStatus: "unsupported" }),
+  async () => new Response(JSON.stringify({
+    choices: [{ message: { content: JSON.stringify({ companies: [{
+      company: "Ordinary Model Candidate",
+      website: "https://model-guessed.example",
+      country: "United States",
+      business: "Distributor"
+    }] }) } }]
+  }), { status: 200, headers: { "content-type": "application/json" } })
+);
+assert.equal(ordinaryModelLeads[0]?.officialWebsite, "");
+assert.match(ordinaryModelLeads[0]?.description || "", /未被 Web Search 引用确认/u);
+
+await assert.rejects(
+  readAiJson(new Response("<html>Bad gateway</html>", {
+    status: 400,
+    headers: { "content-type": "text/html" }
+  })),
+  (error: unknown) => {
+    const mapped = providerErrorFromUnknown(error, "search");
+    return mapped.code === "AI_MODEL_REQUEST_REJECTED"
+      && mapped.httpStatus === 400
+      && mapped.publicMessage.includes("HTML")
+      && mapped.publicMessage.includes("Base URL");
+  }
+);
+
+await assert.rejects(
+  readAiJson(new Response("<html>Sign in</html>", {
+    status: 200,
+    headers: { "content-type": "text/html" }
+  })),
+  (error: unknown) => error instanceof Error
+    && "code" in error
+    && (error as { code?: unknown }).code === "AI_MODEL_RESPONSE_INVALID"
+    && error.message.includes("HTML")
+);
+
+console.log(JSON.stringify({
+  ok: true,
+  actualReasonPreserved: true,
+  sensitiveDetailRedacted: true,
+  compatibilityRetry: true,
+  nativeWebSearchParsed: true,
+  reasoningModelCompatibility: true,
+  fullEndpointCompatibility: true,
+  providerRuntimeReasonPreserved: true,
+  invalidModelResponseClassified: true,
+  htmlProxyResponseClassified: true
+}, null, 2));

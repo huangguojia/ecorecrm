@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>页面右上文字 · 体检评分与精致化报告</title>
+<style>
+  :root{
+    --ink:#131c2e; --text:#37425a; --muted:#6b7d94; --note:#94a3b6;
+    --line:#e7ecf4; --line-soft:#f0f4fa; --surface:#fff; --bg:#f4f7fb;
+    --brand:#6366f1; --brand-strong:#4f46e5; --brand-tint:#eef0ff;
+    --red:#c0392b; --amber:#b45309; --green:#1a8f5a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:44px 28px 70px}
+  header.top{margin-bottom:34px}
+  .eyebrow{margin:0 0 8px;color:var(--brand);font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
+  h1{margin:0;font-size:31px;line-height:1.2;color:var(--ink);letter-spacing:-.02em;font-weight:700}
+  .lead{margin:10px 0 0;color:var(--muted);font-size:14px;max-width:76ch}
+  h2{margin:44px 0 14px;font-size:19px;color:var(--ink);letter-spacing:-.01em;display:flex;align-items:baseline;gap:10px}
+  h2 .n{font-size:12px;font-weight:600;color:var(--brand);background:var(--brand-tint);border-radius:999px;padding:2px 9px}
+  h2 + .h2sub{margin:-8px 0 16px;color:var(--muted);font-size:13px}
+  .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 8px}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px 17px}
+  .kpi span{display:block;color:var(--muted);font-size:11px;font-weight:500;letter-spacing:.02em}
+  .kpi b{display:block;margin-top:4px;color:var(--ink);font-size:24px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.15}
+  .kpi small{display:block;margin-top:3px;color:var(--note);font-size:11px}
+  table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+  th{background:#f8fafd;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.04em;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:10px 12px;border-bottom:1px solid var(--line-soft);color:var(--text);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.k{color:var(--ink);font-weight:600;white-space:nowrap}
+  code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--brand-strong);background:var(--brand-tint);border-radius:5px;padding:1px 5px}
+  .score{display:inline-block;min-width:44px;text-align:center;border-radius:7px;padding:2px 7px;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+  .s-bad{color:#9a2f22;background:#fdeceb}
+  .s-mid{color:#8a5a08;background:#fdf3e2}
+  .s-ok{color:#166b45;background:#e8f6ee}
+  .s-good{color:#0f5c3a;background:#dff4e9}
+  .chip{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:600;background:#f2f5fa;color:var(--muted);margin:1px 3px 1px 0}
+  .chip.red{background:#fdeceb;color:#9a2f22}
+  .chip.amber{background:#fdf3e2;color:#8a5a08}
+  .chip.brand{background:var(--brand-tint);color:var(--brand-strong)}
+  .spec{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;margin-top:6px}
+  .spec section{padding:18px 20px;border-right:1px solid var(--line-soft)}
+  .spec section:last-child{border-right:0}
+  .spec .demo{margin:12px 0 0}
+  .spec .demo span{display:block;color:var(--muted);font-size:11px;font-weight:500;letter-spacing:.02em}
+  .spec .demo b{display:block;margin-top:3px;color:var(--ink);font-size:20px;font-weight:700;letter-spacing:-.015em;font-variant-numeric:tabular-nums;line-height:1.15}
+  .spec .demo small{display:block;margin-top:3px;color:var(--note);font-size:11px}
+  .spec h3{margin:0;font-size:13px;color:var(--ink)}
+  .spec p{margin:8px 0 0;color:var(--muted);font-size:12px;line-height:1.6}
+  .pair{margin:0 0 20px;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .pair header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line-soft);background:#fbfcfe}
+  .pair header b{color:var(--ink);font-size:14px}
+  .pair header em{font-style:normal;color:var(--note);font-size:12px;font-family:ui-monospace,Menlo,monospace}
+  .pair .imgs{display:grid;grid-template-columns:1fr 1fr}
+  .pair figure{margin:0;border-right:1px solid var(--line-soft)}
+  .pair figure:last-child{border-right:0}
+  .pair figcaption{padding:5px 14px;font-size:11px;color:var(--note);letter-spacing:.06em;background:#fcfdff}
+  .pair img{display:block;width:100%}
+  ul.tight{margin:8px 0 0;padding-left:20px;color:var(--muted)}
+  ul.tight li{margin:5px 0}
+  ul.tight b{color:var(--ink)}
+  .diff{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 22px}
+  .diff h3{margin:0 0 6px;font-size:14px;color:var(--ink)}
+  .diff p{margin:6px 0;color:var(--muted);font-size:13px}
+  .note{margin-top:12px;border-left:3px solid var(--brand);background:var(--brand-tint);border-radius:0 10px 10px 0;padding:12px 16px;color:var(--text);font-size:13px}
+  footer{margin-top:46px;color:var(--note);font-size:12px;border-top:1px solid var(--line);padding-top:16px}
+  @media (max-width:900px){
+    .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .spec{grid-template-columns:1fr}
+    .spec section{border-right:0;border-bottom:1px solid var(--line-soft)}
+    .pair .imgs{grid-template-columns:1fr}
+    .pair figure{border-right:0;border-bottom:1px solid var(--line-soft)}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">GoodJob CRM · 界面巡检</p>
+    <h1>页面「右上方文字」体检评分与精致化</h1>
+    <p class="lead">对象＝每个界面右上角的那组文字：页面标题行右侧的统计块（标签＋数字＋小字）、状态说明、以及全局顶栏右侧的账号信息。
+      共巡检 52 个界面，逐项量了「计算字号 / 字重 / 颜色 / 字距」，给出评分并统一改版。</p>
+  </header>
+
+  <h2><span class="n">结论</span>一句话体检结果</h2>
+  <div class="cards">
+    <div class="kpi"><span>字号档位（改前）</span><b>14 档</b><small>9 / 10 / 10.5 / 11 / 11.5 / 12 / 16 / 17 / 18 / 19 / 20 / 22 / 23 / 24px</small></div>
+    <div class="kpi"><span>字重档位（改前）</span><b>6 档</b><small>400 / 500 / 600 / 700 / 800 / 900</small></div>
+    <div class="kpi"><span>灰色套数（改前）</span><b>5 套</b><small>绿灰 / 蓝灰 / 暖棕 / 纯黑 / 主题灰</small></div>
+    <div class="kpi"><span>改后</span><b>3 档</b><small>11px 标签 · 20px 数值 · 11px 说明</small></div>
+  </div>
+  <p class="lead" style="margin-top:16px">
+    「土」的根因有三个：<b>①数字大小各写各的</b>（同一个「统计数字」角色在 14 个界面里有 9 种字号）；
+    <b>②颜色不跟主题</b>——晨白主题是冷调靛蓝，但右上文字大量用绿灰 <code>#6a7975</code>、暖棕 <code>#9b937f</code>，
+    甚至 <code>rgba(0,0,0,.6)</code> 纯黑；<b>③两处整块跑偏</b>——产品维护／发货跟踪压着暖米黄径向底＋琥珀色数字，
+    开发信回流页用荧光黄 <code>#c8f23c</code>。三者叠一起就是「土」。
+  </p>
+
+  <h2><span class="n">评分</span>逐界面评分表（改前）</h2>
+  <p class="h2sub">颜值分以「与晨白主题的协调度 + 层级是否可读 + 排版细节」三项计，10 分制；字号分以「同角色字号是否统一、是否过小过大」计。</p>
+  <table>
+    <thead><tr>
+      <th>界面</th><th>右上文字（改前实测）</th><th>字号分</th><th>颜值分</th><th>问题定级</th><th>改后</th>
+    </tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <h2><span class="n">规范</span>统一后的三档字级</h2>
+  <p class="h2sub">所有界面共用同一套「右上文字」规范，颜色走冷调板岩色阶，数字统一等宽（tabular-nums）对齐。</p>
+  <div class="spec">
+    <section>
+      <h3>标签 label</h3>
+      <p>11px / 500 / <code>#6b7d94</code> / 字距 .02em</p>
+      <div class="demo"><span>累计访问</span><b>2</b><small>公池历史成交</small></div>
+    </section>
+    <section>
+      <h3>数值 value</h3>
+      <p>20px / 700 / <code>#131c2e</code> / 字距 −.015em / 等宽数字</p>
+      <div class="demo"><span>在手金额</span><b>2 种币种</b><small>日期完整</small></div>
+    </section>
+    <section>
+      <h3>说明 note</h3>
+      <p>11px / 400 / <code>#94a3b6</code></p>
+      <div class="demo"><span>已驳回</span><b>0</b><small>当前可见范围</small></div>
+    </section>
+  </div>
+  <div class="note">
+    状态色只用于「有意义的差异」：异常 / 风险 / 待处理才上色，<b>0 值一律不着色</b>；
+    同一界面内不允许出现纯黑或脱离主题的灰。
+  </div>
+
+  <h2><span class="n">对照</span>关键界面 · 改前 / 改后</h2>
+  <p class="h2sub">同机位同视口（1680×1200，裁右上 1060×205）在同一份代码上截取，左＝改前，右＝改后。</p>
+  <div id="pairs"></div>
+
+  <h2><span class="n">改动</span>落点与回滚</h2>
+  <div class="diff">
+    <h3>代码落点</h3>
+    <p>① <code>frontend/index.html</code> 新增一个 <code>&lt;style id="head-text-refine"&gt;</code>（放在 <code>&lt;/body&gt;</code> 前，晚于所有视图形内样式块，按顺序覆盖 20+ 处零散定义）。共 11 组规则：标签 / 数值 / 说明 / 容器内边距 / 产品·发货配色 / 报表脚注 / 回流页 / 线索分段控件 / 零散小字 / 顶栏账号 / 其余收口。</p>
+    <p>② <code>frontend/src/prototype-api.ts</code> 回流页右上状态文案去重：原来渲染成「● 收信监听 <b>收信监听未开启</b>」，现改为「● 收信监听 <b>未开启</b>」（已同步 / 异常 / 待首次同步 / 未开启 四态）。</p>
+    <h3 style="margin-top:14px">受影响界面</h3>
+    <p><span class="chip brand">产品维护</span><span class="chip brand">发货跟踪</span><span class="chip brand">客户公池</span><span class="chip brand">商机</span><span class="chip brand">发信明细</span><span class="chip brand">增长计划</span><span class="chip brand">审批中心</span><span class="chip brand">维护中心</span><span class="chip brand">资料库</span><span class="chip brand">考试</span><span class="chip brand">技能库</span><span class="chip brand">提成对账</span><span class="chip brand">日报</span><span class="chip brand">报表</span><span class="chip brand">搜客清单</span><span class="chip brand">线索</span><span class="chip brand">待办中心</span><span class="chip brand">对接中心</span><span class="chip brand">技能中心</span><span class="chip brand">销售蒸馏</span><span class="chip brand">竞品</span><span class="chip brand">案例</span><span class="chip brand">回流</span><span class="chip brand">工具箱</span><span class="chip brand">全部界面顶栏</span></p>
+    <h3 style="margin-top:14px">回滚</h3>
+    <p>删掉 <code>index.html</code> 里的 <code>&lt;style id="head-text-refine"&gt;…&lt;/style&gt;</code> 整块即完全还原，无其它副作用；原型侧只需还原 <code>prototype-api.ts</code> 那一行三元表达式。重建：<code>npm run build --workspace frontend</code>。</p>
+  </div>
+
+  <footer>
+    校验：<code>tsc --noEmit</code> 通过 · <code>npm test</code>（self-test 174 + integration 9）通过 · 20 个界面改前/改后同机位截图（<code>frontend/design-preview/shots-cmp/</code>）。
+    未纳入本次：工作台 Kinetic 深色块（等待重设计方案选定）、全局中性色阶（青灰绿 → 冷板岩）属更大范围改造，如需一并处理请告知。
+  </footer>
+</div>
+
+<script>
+const rows = [
+  ["产品维护 #products","标签 11px/400 暖棕 #9b937f 字距 .44px；数字 22px/600 IBM Plex Mono；页头暖米黄径向底 + 琥珀卡","4","3","严重","标签 11px/500 冷灰；数字 20px/700 无衬线等宽；页头改冷白径向底，琥珀卡改品牌靛蓝浅底"],
+  ["发货跟踪 #shipments","同上；数字另用蓝/绿/红三色，全部压在暖米色卡上","4","3","严重","与产品维护同规范；数字改冷板岩，状态数字保留语义色但降噪"],
+  ["开发信回流 #email-return-flow","11px 荧光黄绿 #c8f23c 压在近黑底上，且文案重复：『收信监听 收信监听未开启』","7","2","严重","改冷灰白 #d3dbe8；文案去重为『收信监听 未开启』"],
+  ["搜客清单 #prospect-list","标签 12px/400 rgba(0,0,0,.6)；数字 20px/600 rgba(0,0,0,.9) —— 完全脱离主题","3","3","严重","标签 11px/500 #6b7d94；数字 20px/700 #131c2e 等宽"],
+  ["线索 #leads","顶部『处理中 15 / 垃圾箱 8』16px/900，无边框无层级，像裸露文本","2","3","严重","改为分段控件：12px/500，选中白底品牌字 + 计数徽标"],
+  ["报表 #reports","右下角脚注 12px/800 浅蓝 #aebbe0 全大写，像水印压在深底上","5","4","较重","11px/500 rgba(226,233,245,.62)，取消大写、加字距"],
+  ["提成对账 #commission","标签 10px/900 字距 .2px（10px 用 900 字重）；数字 17px/700","4","5","较重","标签 11px/500；数字 20px/700"],
+  ["考试 #exam","标签 11px/400；数字 24px/700（全站最大，与其它界面不成比例）","6","5","较重","数字 20px/700，与全站统一"],
+  ["资料库 #knowledge","标签 10px/400；数字 23px/700","5","5","较重","标签 11px/500；数字 20px/700"],
+  ["审批中心 #approval-center","标签 10px/400、说明 9px/400（低于可读下限）；数字 20px/700","4","5","较重","标签 11px/500；说明 11px/400"],
+  ["维护中心 #maintenance-center","标签 10px/400；数字 17px/700","6","5","较重","标签 11px/500；数字 20px/700"],
+  ["客户公池 #customer-pool","标签 10px/400；数字 20px/700；说明 10px/400 #778397","5","5","较重","标签 11px/500；说明 11px/400 #94a3b6"],
+  ["发信明细 #outreach-journey","标签 10px/400；数字 19px/700","6","5","较重","标签 11px/500；数字 20px/700"],
+  ["技能库 #agent-skills","标签 10px/400；数字 16px/700（偏小，被标签压住层级）","5","5","较重","标签 11px/500；数字 20px/700"],
+  ["日报 #daily-reports","数字 22px/700 衬线体 Fraunces；标签 11.5px；且容器变量缺失导致描边/颜色继承父级（潜在旧 bug）","5","5","较重","数字 20px/700 无衬线等宽；标签 11px；补齐描边与颜色"],
+  ["商机 #pipeline","标签 11px/400；数字 18px/700","7","6","一般","标签 11px/500；数字 20px/700"],
+  ["增长计划 #plan-growth","标签 11px/400；数字 18px/700","7","6","一般","同商机，统一 20px"],
+  ["竞品 #competitors","标签 11px/400；数字 17px/700；状态词 11px/400 绿","7","6","一般","标签 11px/500；数字 20px/700；状态词 11px/600 保留语义色"],
+  ["成功案例 #cases","同竞品，另有琥珀色『待完善』","7","6","一般","同竞品"],
+  ["待办中心 #todo","『实时同步』10px/800 绿色胶囊","5","6","一般","11px/600 冷底 + 语义绿点"],
+  ["对接中心 #integration-center","页头说明 10px/400 #84918d（绿灰）","6","6","一般","11px 冷灰；副标 #94a3b6"],
+  ["技能中心 #sales-skill-center","卡片副标 10px/400 #98a2b3","7","6","一般","11px #94a3b6"],
+  ["销售蒸馏 #sales-distillation","空态 9px/400（过小）","4","6","一般","11px #94a3b6"],
+  ["工具箱 #tools","徽章 10.5px/700 琥珀","6","7","一般","11px/600，保留各工具语义色"],
+  ["问题 #problems","右上计数『3 / 3 条』12px/400 绿灰","7","7","一般","11px/500 冷灰"],
+  ["全局顶栏（所有界面）","账号 12px/700 绿黑 #10211f；角色 11px/400 绿灰 #6a7975","6","6","一般","账号 13px/600 #131c2e；角色 11px #94a3b6"]
+];
+document.getElementById("rows").innerHTML = rows.map(r => {
+  const bad = r[4]==="严重" ? "s-bad" : r[4]==="较重" ? "s-mid" : "s-ok";
+  const cl  = r[4]==="严重" ? "red" : r[4]==="较重" ? "amber" : "";
+  return `<tr>
+    <td class="k">${r[0]}</td>
+    <td>${r[1]}</td>
+    <td><span class="score ${bad}">${r[2]}</span></td>
+    <td><span class="score ${bad}">${r[3]}</span></td>
+    <td><span class="chip ${cl}">${r[4]}</span></td>
+    <td>${r[5]}</td>
+  </tr>`;
+}).join("");
+
+const pairs = [
+  ["products","产品维护","暖米黄页头 + 琥珀数字 → 冷白页头 + 品牌靛蓝"],
+  ["shipments","发货跟踪","四张暖米色统计卡 → 白卡 + 冷灰标签"],
+  ["leads","线索","16px/900 裸文本分页 → 12px 分段控件"],
+  ["reports","报表","浅蓝 800 字重大写水印 → 11px 轻量脚注"],
+  ["email-return-flow","开发信回流","荧光黄 + 重复文案 → 冷灰 + 去重"],
+  ["customer-pool","客户公池","10px 标签 → 11px；说明换冷灰"],
+  ["knowledge","资料库","23px 数字 → 20px；标签 11px"],
+  ["approval-center","审批中心","9px 说明 → 11px；标签 11px"],
+  ["commission","提成对账","10px/900 标签 → 11px/500；数字 20px"],
+  ["outreach-journey","发信明细","10/19px → 11/20px"],
+  ["exam","考试","24px 数字 → 20px"],
+  ["maintenance-center","维护中心","10/17px → 11/20px"],
+  ["plan-growth","增长计划","11/18px → 11/20px"],
+  ["pipeline","商机","11/18px → 11/20px"],
+  ["daily-reports","日报","衬线 22px → 无衬线 20px 等宽"],
+  ["agent-skills","技能库","10/16px → 11/20px"],
+  ["integration-center","对接中心","10px 说明 → 11px 冷灰"],
+  ["sales-skill-center","技能中心","10px 副标 → 11px"],
+  ["todo","待办中心","10px/800 胶囊 → 11px/600"],
+  ["prospect-list","搜客清单","纯黑 → 主题冷灰"]
+];
+document.getElementById("pairs").innerHTML = pairs.map(([v,l,d]) => `
+  <div class="pair">
+    <header><b>${l}</b><em>${d}</em></header>
+    <div class="imgs">
+      <figure><figcaption>改前</figcaption><img src="./shots-cmp/${v}-before.png" alt=""></figure>
+      <figure><figcaption>改后</figcaption><img src="./shots-cmp/${v}-after.png" alt=""></figure>
+    </div>
+  </div>`).join("");
+</script>
+</body>
+</html>
