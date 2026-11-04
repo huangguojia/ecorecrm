@@ -11446,6 +11446,156 @@ function renderDashboard(summary: DashboardSummary, todos: Todo[], customers: Cu
   renderDashboardControls();
   renderMorningPanel(summary);
   ensureTenderDaily();
+  void renderEcoreDashboard();
+}
+
+/* =========================================================
+   ECORE 仪表盘：指标卡 / 最近单据 / 销售排行
+   数据全部来自现有接口，不做假数据。
+   ========================================================= */
+const ECORE_DOC_TYPE_LABEL: Record<string, string> = {
+  PI: "PI", PO: "PO", CI: "CI", PL: "PL", CUSTOMS: "报关", CONTRACT: "合同"
+};
+const ECORE_DOC_STATUS_LABEL: Record<string, { text: string; cls: string }> = {
+  draft: { text: "草稿", cls: "is-draft" },
+  pending: { text: "待审批", cls: "is-wait" },
+  ready: { text: "待发送", cls: "is-wait" },
+  sent: { text: "已发送", cls: "" },
+  approved: { text: "已通过", cls: "is-done" },
+  accepted: { text: "已接受", cls: "is-done" },
+  rejected: { text: "已驳回", cls: "is-wait" },
+  cancelled: { text: "已取消", cls: "" }
+};
+const ECORE_WON_STAGES = ["已成交", "成交", "won", "closed_won"];
+
+function ecoreMoney(currency: string, amount: number): string {
+  const symbol = currency === "USD" ? "$" : currency === "EUR" ? "€" : currency === "CNY" ? "¥" : "";
+  const value = Math.abs(amount) >= 1000
+    ? Math.round(amount).toLocaleString("en-US")
+    : String(Math.round(amount * 100) / 100);
+  return `${symbol}${value}`;
+}
+
+function ecoreDocTotal(doc: Record<string, unknown>): number {
+  const items = Array.isArray(doc.items) ? (doc.items as Array<Record<string, unknown>>) : [];
+  return items.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.unitPrice || 0), 0);
+}
+
+let ecoreDashboardRenderedAt = 0;
+
+async function renderEcoreDashboard(force = false): Promise<void> {
+  const rows = qs<HTMLElement>("#ecOrderRows");
+  if (!rows) return;
+  if (!force && Date.now() - ecoreDashboardRenderedAt < 15000) return;
+  ecoreDashboardRenderedAt = Date.now();
+
+  const emptyDeals: { deals: Array<Record<string, unknown>> } = { deals: [] };
+  const emptyDocs: { documents: Array<Record<string, unknown>> } = { documents: [] };
+  const emptyRank: { entries: Array<Record<string, unknown>> } = { entries: [] };
+
+  const [dealsRes, docsRes, rankRes] = await Promise.all([
+    api<{ deals: Array<Record<string, unknown>> }>("/api/deals").catch(() => emptyDeals),
+    api<{ documents: Array<Record<string, unknown>> }>("/api/trade-documents").catch(() => emptyDocs),
+    api<{ entries: Array<Record<string, unknown>> }>("/api/dashboard/leaderboard?period=month").catch(() => emptyRank)
+  ]);
+
+  const deals = Array.isArray(dealsRes.deals) ? dealsRes.deals : [];
+  const documents = Array.isArray(docsRes.documents) ? docsRes.documents : [];
+  const entries = Array.isArray(rankRes.entries) ? rankRes.entries : [];
+
+  // ---- 指标卡 ----
+  const wonDeals = deals.filter((deal) => ECORE_WON_STAGES.includes(String(deal.stage || "").toLowerCase()) || ECORE_WON_STAGES.includes(String(deal.stage || "")));
+  const openDeals = deals.filter((deal) => {
+    const stage = String(deal.stage || "");
+    return !ECORE_WON_STAGES.includes(stage.toLowerCase()) && !stage.includes("丢单") && !stage.includes("失效");
+  });
+  const salesTotal = wonDeals.reduce((sum, deal) => sum + Number(deal.amount || 0), 0);
+  const pipelineTotal = openDeals.reduce((sum, deal) => sum + Number(deal.amount || 0), 0);
+  const pendingDocs = documents.filter((doc) => ["draft", "pending", "ready"].includes(String(doc.status || "")));
+
+  const salesEl = qs<HTMLElement>("#ecKpiSales");
+  const salesNote = qs<HTMLElement>("#ecKpiSalesNote");
+  if (salesEl) salesEl.textContent = ecoreMoney("USD", salesTotal);
+  if (salesNote) salesNote.textContent = wonDeals.length ? `${wonDeals.length} 个已成交商机` : "暂无成交商机";
+
+  const pipelineEl = qs<HTMLElement>("#ecKpiPipeline");
+  const pipelineNote = qs<HTMLElement>("#ecKpiPipelineNote");
+  if (pipelineEl) pipelineEl.textContent = ecoreMoney("USD", pipelineTotal);
+  if (pipelineNote) pipelineNote.textContent = openDeals.length ? `${openDeals.length} 个在谈商机` : "暂无在谈商机";
+
+  const docsEl = qs<HTMLElement>("#ecKpiDocs");
+  const docsNote = qs<HTMLElement>("#ecKpiDocsNote");
+  if (docsEl) docsEl.textContent = `${pendingDocs.length} / ${documents.length}`;
+  if (docsNote) docsNote.textContent = pendingDocs.length ? `${pendingDocs.length} 份待处理` : "全部已发送";
+
+  // ---- 最近单据 ----
+  const sortedDocs = [...documents].sort((a, b) =>
+    String(b.issueDate || "").localeCompare(String(a.issueDate || ""))
+  ).slice(0, 8);
+
+  rows.innerHTML = sortedDocs.length
+    ? sortedDocs.map((doc) => {
+      const type = String(doc.type || "").toUpperCase();
+      const statusMeta = ECORE_DOC_STATUS_LABEL[String(doc.status || "")] || { text: String(doc.status || "—"), cls: "" };
+      const total = ecoreDocTotal(doc);
+      const currency = String(doc.currency || "USD");
+      const buyer = String(doc.buyer || "");
+      const country = String(doc.buyerAddress || "")
+        .split(/[,，]/).map((part) => part.trim()).filter(Boolean).pop() || "";
+      return `<tr>
+        <td><span class="ec-doc-no">${escapeHtml(String(doc.number || doc.id || ""))}</span></td>
+        <td>${escapeHtml(String(doc.issueDate || ""))}</td>
+        <td><span class="ec-type-pill">${escapeHtml(ECORE_DOC_TYPE_LABEL[type] || type || "—")}</span></td>
+        <td><span class="ec-doc-buyer">${escapeHtml(buyer || "—")}</span><span>${escapeHtml(country)}</span></td>
+        <td class="ec-num">${escapeHtml(ecoreMoney(currency, total))}</td>
+        <td><span class="ec-status ${statusMeta.cls}">${escapeHtml(statusMeta.text)}</span></td>
+      </tr>`;
+    }).join("")
+    : `<tr><td colspan="6" class="ec-empty">还没有单据，去「单据平台」新建第一份 PI。</td></tr>`;
+
+  // ---- 销售排行 ----
+  const rankRows = qs<HTMLElement>("#ecRankRows");
+  if (rankRows) {
+    const sorted = [...entries]
+      .sort((a, b) => Number(b.wonAmount || 0) - Number(a.wonAmount || 0))
+      .slice(0, 8);
+    const maxValue = Math.max(1, ...sorted.map((entry) => Number(entry.wonAmount || 0)));
+    rankRows.innerHTML = sorted.length
+      ? sorted.map((entry, index) => {
+        const name = String(entry.userName || "—");
+        const amount = Number(entry.wonAmount || 0);
+        const pct = Math.max(4, Math.round((amount / maxValue) * 100));
+        const isMe = String(entry.userId || "") === String(state.user?.id || "");
+        return `<div class="ec-rank-row">
+          <span class="ec-rank-no">${index + 1}</span>
+          <span class="ec-rank-avatar">${escapeHtml([...name].slice(0, 2).join(""))}</span>
+          <div class="ec-rank-main">
+            <span class="ec-rank-name">${escapeHtml(name)}${isMe ? " (我)" : ""}</span>
+            <div class="ec-rank-bar"><i style="width:${pct}%"></i></div>
+          </div>
+          <span class="ec-rank-value">${escapeHtml(ecoreMoney("USD", amount))}<span>${pct}%</span></span>
+        </div>`;
+      }).join("")
+      : `<div class="ec-empty">本月还没有成交记录</div>`;
+  }
+
+  // ---- 页头日期 ----
+  const dateChip = qs<HTMLElement>("#ecHeadDate");
+  if (dateChip) {
+    const now = new Date();
+    const weekday = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][now.getDay()];
+    dateChip.textContent = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 · ${weekday}`;
+  }
+
+  // ---- 快捷跳转 ----
+  qsa<HTMLButtonElement>("[data-ec-goto]").forEach((button) => {
+    if (button.dataset.ecBound === "1") return;
+    button.dataset.ecBound = "1";
+    button.addEventListener("click", () => {
+      const view = button.dataset.ecGoto || "";
+      if (view) activateNavView(view);
+    });
+  });
 }
 
 async function loadBadges(containerId = "leaderboardBadges", tagId?: string) {
@@ -47500,31 +47650,25 @@ function rememberedWorkspaceView(user = state.user) {
 type ThemeColors = { brand: string; brandStrong: string; brand2: string; brandTint: string; nav: string; ring: string };
 
 const THEME_PRESETS: { id: string; name: string; desc: string; colors: string[] }[] = [
-  { id: "ocean",   name: "青绿 Ocean",   desc: "海洋 · 外贸本色", colors: ["#0f766e", "#0b5d57", "#e7f6f3", "#0c2b27"] },
-  { id: "indigo",  name: "靛蓝 Indigo",  desc: "理性 · 商务沉稳", colors: ["#4f46e5", "#3730a3", "#eef0ff", "#151a35"] },
-  { id: "amber",   name: "琥珀 Amber",   desc: "暖金 · 高级质感", colors: ["#b45309", "#8a3e0b", "#fbf1dd", "#271708"] },
-  { id: "rose",    name: "玫红 Rose",    desc: "活力 · 现代醒目", colors: ["#be123c", "#9f1239", "#fdecee", "#2b0e17"] },
-  { id: "paper",   name: "晨白 Paper",   desc: "浅色侧栏 · 轻盈留白", colors: ["#6366f1", "#a5b4fc", "#eef0ff", "#fbfcfd"] },
-  { id: "slate",   name: "石墨 Slate",   desc: "中性 · 极简专业", colors: ["#334155", "#1e293b", "#eef2f6", "#0f172a"] },
-  { id: "emerald", name: "翠绿 Emerald", desc: "自然 · 生机清新", colors: ["#047857", "#065f46", "#e7f8f1", "#072a20"] },
-  { id: "violet",  name: "紫罗兰 Violet", desc: "优雅 · 神秘高贵", colors: ["#7c3aed", "#6d28d9", "#f3eefe", "#1b1233"] },
-  { id: "azure",   name: "天青 Azure",   desc: "清爽 · 科技蓝调", colors: ["#1d6fb8", "#15578f", "#e8f3fb", "#0b1f33"] },
-  { id: "coral",   name: "珊瑚 Coral",   desc: "热情 · 珊瑚暖调", colors: ["#e11d48", "#be123c", "#fdeaee", "#2a0a16"] },
-  { id: "midnight",name: "午夜 Midnight",desc: "深邃 · 夜空静谧", colors: ["#1e3a8a", "#172554", "#e8edfb", "#0b1430"] },
-  { id: "forest",  name: "森绿 Forest",  desc: "沉稳 · 森林绿意", colors: ["#166534", "#14532d", "#e7f6ec", "#072a18"] },
-  { id: "magenta", name: "品红 Magenta", desc: "魅惑 · 潮流粉紫", colors: ["#c026d3", "#86198f", "#f9eafc", "#2a0b2e"] },
-  { id: "sky",     name: "晴空 Sky",     desc: "明朗 · 天际蔚蓝", colors: ["#0369a1", "#075985", "#e6f3fa", "#07273a"] },
+  { id: "ecore",    name: "ECORE 极夜",     desc: "纯黑 · 单色精密", colors: ["#ffffff", "#e5e5e5", "#1c1c1c", "#000000"] },
+  { id: "graphite", name: "石墨 Graphite",  desc: "灰阶 · 冷静理性", colors: ["#d4d4d8", "#a1a1aa", "#1f1f22", "#0b0b0d"] },
+  { id: "sand",     name: "暖砂 Sand",      desc: "暖白 · 克制质感", colors: ["#e8e2d6", "#c7bda8", "#26221d", "#0a0908"] },
 ];
 const THEME_STORAGE_KEY = "gj-theme";
-// 系统默认主题：晨白 Paper（与 index.html 的 <html data-theme="paper"> 保持一致，
+// 系统默认主题：ECORE 极夜（与 index.html 的 <html data-theme="ecore"> 保持一致，
 // 两处需同步修改）。登录页在 boot 阶段即套用该默认值。
-const THEME_DEFAULT = "paper";
+const THEME_DEFAULT = "ecore";
+const THEME_ALLOWED = new Set(THEME_PRESETS.map((preset) => preset.id));
 
+function isThemeSupported(theme: string): boolean {
+  return THEME_ALLOWED.has(theme) || theme.startsWith("custom:");
+}
 function getStoredTheme(): string {
   try { return localStorage.getItem(THEME_STORAGE_KEY) || ""; } catch { return ""; }
 }
 function getInitialTheme(): string {
-  return state.user?.theme || getStoredTheme() || THEME_DEFAULT;
+  const raw = state.user?.theme || getStoredTheme() || THEME_DEFAULT;
+  return isThemeSupported(raw) ? raw : THEME_DEFAULT;
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
@@ -47587,10 +47731,12 @@ function deriveThemeColors(hexInput: string): ThemeColors {
 }
 
 function applyTheme(theme: string): void {
+  // 旧版本存过 paper / ocean 等浅色主题的账号，统一回落到当前默认主题。
+  const nextTheme = isThemeSupported(theme) ? theme : THEME_DEFAULT;
   const root = document.documentElement;
   ["--brand", "--brand-strong", "--brand-2", "--brand-tint", "--nav", "--brand-ring"].forEach((v) => root.style.removeProperty(v));
-  if (theme.startsWith("custom:")) {
-    const hex = theme.slice(7);
+  if (nextTheme.startsWith("custom:")) {
+    const hex = nextTheme.slice(7);
     const c = deriveThemeColors(hex);
     root.dataset.theme = "custom";
     root.style.setProperty("--brand", c.brand);
@@ -47600,7 +47746,7 @@ function applyTheme(theme: string): void {
     root.style.setProperty("--nav", c.nav);
     root.style.setProperty("--brand-ring", c.ring);
   } else {
-    root.dataset.theme = theme || THEME_DEFAULT;
+    root.dataset.theme = nextTheme;
   }
   // 换肤后同步已挂载的即刻沟通 iframe（未挂载时是空操作）。
   syncWhatsAppFrameTheme();
