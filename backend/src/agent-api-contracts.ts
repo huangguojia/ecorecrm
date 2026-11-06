@@ -683,6 +683,7 @@ define("POST /api/document-assets/upload", objectSchema(["image", "mime", "kind"
 }), "上传用户明确选择的 PNG/JPEG 单据素材，不得生成或替换用户未确认的图片。");
 define("POST /api/trade-documents", objectSchema(["title", "number", "issueDate", "seller", "items"], documentFields), "创建 PI/CI 单据；客户、商机、商品和贸易条款必须来自真实业务数据。");
 define("POST /api/trade-documents/{id}/convert", objectSchema(["targetType"], { targetType: oneOf("PI", "CI", "PO", "CUSTOMS", "PL", "CONTRACT", "QUOTATION", "COO", "SHIPPING") }), "从当前可见单据生成其它类型的独立草稿；源单据不会被覆盖，响应 document.id 是完成证据。");
+define("DELETE /api/trade-documents/{id}", emptySchema, "永久删除一份 PI / PO 单据（ECORECRM 只允许删这两类），需要明确确认；响应 id / number 是完成证据。");
 define("PATCH /api/trade-documents/{id}", objectSchema(["title", "number", "issueDate", "seller", "items"], documentFields), "完整更新未审批单据；已审批或导出单据必须创建新版本。");
 define("PATCH /api/trade-documents/{id}/excel-options", objectSchema([], { letterheadId: string({ maxLength: 64 }), stampId: string({ maxLength: 64 }), signatureId: string({ maxLength: 64 }), includeProductImages: boolean() }), "修改未审批单据的 Excel 抬头、印章、签名和商品图片选项。");
 defineMany(["POST /api/trade-documents/{id}/export-xlsx", "POST /api/trade-documents/{id}/preview-xlsx"], objectSchema(["templateId"], { templateId: string({ minLength: 1, maxLength: 120 }) }), "使用用户选定的有效模板预览或导出高级 Excel；服务端复核单据归属、模板类型和审批设置。");

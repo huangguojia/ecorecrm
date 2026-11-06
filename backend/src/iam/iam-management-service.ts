@@ -9,6 +9,7 @@ import {
   type IamScopeMode
 } from "./iam-foundation.js";
 import { loadIamCapabilitySnapshot, type IamCapabilitySnapshot } from "./iam-capabilities.js";
+import { ensureDefaultMemberships } from "../default-memberships.js";
 
 type Queryable = mysql.Pool | mysql.PoolConnection;
 type AuditContext = { requestId?: string; ip?: string; reason?: string; ticketNo?: string };
@@ -22,6 +23,12 @@ export interface IamManagementService {
   listAudit(actor: SessionUser, query: { limit?: number; tenantId?: string; targetType?: string }): Promise<Record<string, unknown>>;
   mutate(actor: SessionUser, operation: Mutation, payload: Record<string, unknown>, context?: AuditContext): Promise<Record<string, unknown>>;
   evaluatePreview(actor: SessionUser, input: { permissionCode: string; objectTenantId?: string; ownerId?: string; scopeMode?: IamScopeMode }): Promise<Record<string, unknown>>;
+  /**
+   * 为「已存在但还没有 IAM 成员身份」的账号补 identity（tenant_memberships + 角色绑定）。
+   * 批量生成临时账号这类**绕过 IAM 服务直接写 users** 的路径必须调用它，
+   * 否则账号能登录、但每个接口都 403「公司已暂停或成员身份已失效」。
+   */
+  syncDefaultMemberships(actor: SessionUser, requestedTenantId?: string): Promise<{ createdMemberships: number; createdAssignments: number }>;
 }
 
 function mysqlDate(value: string) {
@@ -289,9 +296,6 @@ export function createIamManagementService(pool: mysql.Pool): IamManagementServi
       return { tenants: rows<any>(tenantRows).map((row) => ({ id: row.id, code: row.code, name: row.name, status: row.status, planCode: row.plan_code, seatLimit: Number(row.seat_limit), authorizationRevision: Number(row.authz_revision), memberCount: Number(row.member_count) })) };
     },
     async getOverview(actor, requestedTenantId) {
-      if (actor.role !== "admin" && actor.role !== "super_admin") {
-        throw Object.assign(new Error("权限管理仅管理员和超级管理员可访问"), { status: 403 });
-      }
       if (isPlatformIdentity(actor) && !requestedTenantId) {
         await assertTenantOperator(pool, actor, "", "platform.tenant.metadata.read");
         const [tenantRows] = await pool.query(`SELECT t.id, t.name, COUNT(tm.id) AS member_count FROM tenants t LEFT JOIN tenant_memberships tm ON tm.tenant_id = t.id GROUP BY t.id, t.name ORDER BY t.name`);
@@ -302,14 +306,18 @@ export function createIamManagementService(pool: mysql.Pool): IamManagementServi
       return queryOverview(pool, tenantId);
     },
     async listAudit(actor, query) {
-      if (actor.role !== "admin" && actor.role !== "super_admin") {
-        throw Object.assign(new Error("权限审计仅管理员和超级管理员可访问"), { status: 403 });
-      }
+      // 审计页只看 audit.read：管理员默认持有，但被授予该能力的角色也可以查看留痕
       const tenantId = selectedTenant(actor, query.tenantId);
       await assertTenantOperator(pool, actor, tenantId, isPlatformIdentity(actor) ? "platform.audit.read" : "audit.read");
       const limit = Math.max(1, Math.min(200, Number(query.limit || 50)));
       const [auditRows] = await pool.query(`SELECT id, actor_identity_id, target_type, target_id, action_code, impact_summary, reason, ticket_no, result_status, created_at FROM authorization_audit_events WHERE tenant_id = ? ORDER BY created_at DESC, id DESC LIMIT ${limit}`, [tenantId]);
       return { tenantId, events: rows<any>(auditRows).map((row) => ({ id: row.id, actorIdentityId: row.actor_identity_id, targetType: row.target_type, targetId: row.target_id, actionCode: row.action_code, impactSummary: row.impact_summary, reason: row.reason, ticketNo: row.ticket_no, resultStatus: row.result_status, createdAt: new Date(row.created_at).toISOString() })) };
+    },
+    async syncDefaultMemberships(actor, requestedTenantId) {
+      const tenantId = selectedTenant(actor, requestedTenantId);
+      await assertTenantOperator(pool, actor, tenantId, "member.manage");
+      const result = await ensureDefaultMemberships(pool);
+      return { createdMemberships: result.createdMemberships, createdAssignments: result.createdAssignments };
     },
     async evaluatePreview(actor, input) {
       const tenantId = selectedTenant(actor, input.objectTenantId || actor.teamId);

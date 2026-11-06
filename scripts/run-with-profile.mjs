@@ -8,13 +8,14 @@ const command = process.argv.slice(3);
 const profileFiles = {
   personal: ".env.personal.local",
   development: ".env.development.local",
-  test: ".env.test.local"
+  test: ".env.test.local",
+  production: ".env.production.local"
 };
 
 if (!(profile in profileFiles) || !command.length) {
   console.error(
     "用法：node scripts/run-with-profile.mjs "
-    + "<personal|development|test> <command...>"
+    + "<personal|development|test|production> <command...>"
   );
   process.exit(2);
 }

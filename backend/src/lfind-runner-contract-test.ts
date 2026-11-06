@@ -1,7 +1,9 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { strict as assert } from "node:assert";
 
-const server = readFileSync(new URL("./server.ts", import.meta.url), "utf8");
+// server.ts 已拆分为入口 + server-core.ts + routes/*.ts：合并读取全部 HTTP 源码
+const server = ["server.ts", "server-core.ts", ...readdirSync(new URL("./routes/", import.meta.url)).filter((f) => f.endsWith(".ts")).sort().map((f) => `routes/${f}`)]
+  .map((file) => readFileSync(new URL(`./${file}`, import.meta.url), "utf8")).join("\n");
 
 assert.match(server, /const lfindResultSchema = z\.object/, "Lfind result schema must be validated before sync");
 assert.match(server, /Use \$lfind\./, "Runner prompt must explicitly invoke the Lfind skill");

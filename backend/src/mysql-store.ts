@@ -14,6 +14,7 @@ import {
 import { hashPassword } from "./auth.js";
 import { canonicalJsonStringify } from "./canonical-json.js";
 import { assertDatabaseProfile } from "./database-profile.js";
+import { ensureDefaultMemberships } from "./default-memberships.js";
 import {
   normalizeProspectCampaignSnapshot,
   prospectCampaignSnapshotHash
@@ -139,6 +140,7 @@ import type { CompanyProfile, DocumentAssetPlacement, DocumentDefaultProfile, Do
 import type { AgentMemoryRecord, AgentMissionCheckpointRecord, AgentRunEventRecord, AgentRunRecord, AgentRunStepRecord, CustomerMaintenanceWatch, OutreachSequence, ProspectOutreachBatch, ProspectOutreachPlan } from "./types.js";
 import type { AgentTriggerEventRecord, AgentTriggerRuleRecord } from "./types.js";
 import type { AgentEvaluationRunRecord, AgentModelCallRecord } from "./types.js";
+import { assertBinlogDisabled } from "./mysql-binlog-guard.js";
 import type { AgentKnowledgeDocument } from "./types.js";
 import type { TradeDocumentRecognitionTemplate } from "./types.js";
 import type { SalesDistillation, SalesPlaybookActivation, SalesTrainingRun } from "./types.js";
@@ -584,6 +586,13 @@ export async function createMysqlStore(
   const processRole = options.processRole || "api";
   const pool = mysql.createPool({ uri: databaseUrl, connectionLimit: 4, namedPlaceholders: true });
   console.log(`GoodJob CRM database profile: ${profile.profile} (${profile.database})`);
+  // 本项目要求 MySQL 关闭 binlog：生产环境发现开启直接拒绝启动，其他环境只警告
+  try {
+    await assertBinlogDisabled(pool);
+  } catch (error) {
+    await pool.end().catch(() => undefined);
+    throw error;
+  }
   const prospectExecutionLockName = `goodjob_prospect_exec_${createHash(
     "sha256"
   ).update(databaseUrl).digest("hex").slice(0, 24)}`;
@@ -641,6 +650,7 @@ export async function createMysqlStore(
   await ensureAppSettingsSchema(pool);
   await ensureAiEngineSchema(pool);
   await ensureBuiltInSuperAdmin(pool);
+  await warnIfIamBaselineMissing(pool);
   setAppSettingsPool(pool);
   setAiEngineJobRepository(new MysqlAiEngineJobRepository(pool));
   setIntegrationRepository(new MysqlIntegrationControlRepository(pool));
@@ -2020,7 +2030,7 @@ export async function createMysqlStore(
       store.examAssignments.push(...examAssignments);
       store.examSnapshots.push(...examSnapshots);
       store.importExportJobs.push(...importExportJobs);
-      store.tradeDocuments.push(...tradeDocuments);
+      store.tradeDocuments.push(...ecoreSeedTradeDocuments());
       store.wecomMessages.push(...wecomMessages);
       store.ocrJobs.push(...ocrJobs);
       store.websiteOpportunities.push(...websiteOpportunities);
@@ -2074,7 +2084,7 @@ export async function createMysqlStore(
     await store.persist();
   }
   if (seedDevelopmentData && !store.tradeDocuments.length) {
-    store.tradeDocuments.push(...tradeDocuments);
+    store.tradeDocuments.push(...ecoreSeedTradeDocuments());
     await store.persist();
   }
   if (seedDevelopmentData && !store.examQuestions.length) {
@@ -2103,6 +2113,14 @@ export async function createMysqlStore(
   if (missingSeedUsers.length) {
     store.users.push(...missingSeedUsers);
     await store.persist();
+  }
+  // 种子账号写入 users 后立即补齐 IAM 成员身份：否则 admin / mia 等账号登录后所有接口 403
+  // 「公司已暂停或成员身份已失效」（补身份脚本在 README 顺序里早于首次启动，扫不到它们）。
+  if (seedDevelopmentData) {
+    const memberships = await ensureDefaultMemberships(pool);
+    if (memberships.createdMemberships || memberships.createdAssignments) {
+      console.log(`ECORECRM 开发种子账号已补齐成员身份：新增 ${memberships.createdMemberships} 个成员、${memberships.createdAssignments} 个角色绑定`);
+    }
   }
   // ECORECRM：库已存在但业务数据为空时（例如迁移先写入了内置超管，
   // 使 `!store.users.length` 分支失效），开发档位下仍补一份种子业务数据，
@@ -2163,6 +2181,11 @@ export async function createMysqlStore(
   return store;
 }
 
+/** ECORECRM 单据平台只保留 PI / PO：开发种子数据也只写入这两类单据 */
+function ecoreSeedTradeDocuments() {
+  return tradeDocuments.filter((document) => document.type === "PI" || document.type === "PO");
+}
+
 export const GOODJOB_MYSQL_SCHEMA_VERSION = "1.4.30-letterhead-logo-placements";
 
 /** 内置超级管理员（公司最高权限账号）：可登录、管理账号、一键批量生成带有效期的体验账号 */
@@ -2178,41 +2201,97 @@ const BUILT_IN_SUPERADMIN = {
 } as const;
 
 /**
+ * 解析内置管理员配置。
+ *
+ * 优先使用部署环境注入的凭据，未注入时才回落到仓库内置值：
+ * - `BUILT_IN_SUPERADMIN_EMAIL` / `_PASSWORD` / `_NAME`
+ * - 兼容既有的 `INITIAL_ADMIN_EMAIL` / `_PASSWORD` / `_NAME`（部署文档一直这么写）
+ *
+ * 这样公开仓库里的默认密码不会变成发布环境的固定后门。
+ * 账号 id 固定为 `u_superadmin`：IAM 成员身份按 user_id 关联，换 id 会让已有部署多出一个成员。
+ */
+function resolveBuiltInSuperAdmin(env: NodeJS.ProcessEnv = process.env) {
+  const envEmail = (env.BUILT_IN_SUPERADMIN_EMAIL || env.INITIAL_ADMIN_EMAIL || "").trim().toLowerCase();
+  const envPassword = env.BUILT_IN_SUPERADMIN_PASSWORD || env.INITIAL_ADMIN_PASSWORD || "";
+  const envName = (env.BUILT_IN_SUPERADMIN_NAME || env.INITIAL_ADMIN_NAME || "").trim();
+  const passwordOverridden = envPassword.length >= 8;
+  return {
+    ...BUILT_IN_SUPERADMIN,
+    email: envEmail || BUILT_IN_SUPERADMIN.email,
+    password: passwordOverridden ? envPassword : BUILT_IN_SUPERADMIN.password,
+    name: envName || BUILT_IN_SUPERADMIN.name,
+    emailOverridden: Boolean(envEmail),
+    usingDefaultPassword: !passwordOverridden
+  };
+}
+
+/**
+ * 全新库只跑服务、不跑迁移时，users 会被内置管理员填充，但租户/成员身份/角色仍为空，
+ * 表现为「能登录，但所有业务接口一律 403：公司已暂停或成员身份已失效」。
+ * 这里显式告警，避免把「没跑迁移」误判成权限故障。
+ */
+async function warnIfIamBaselineMissing(pool: mysql.Pool) {
+  try {
+    const [rows] = await pool.query<mysql.RowDataPacket[]>("SELECT COUNT(*) AS count FROM tenants");
+    const tenantCount = Number((rows as Array<{ count: number }>)[0]?.count || 0);
+    if (tenantCount > 0) return;
+    console.warn(
+      "[iam] 租户基线为空：请先执行 `npm run db:migrate:prod`（开发库用 db:migrate:dev），"
+      + "否则登录后所有业务接口都会返回 403。"
+    );
+  } catch {
+    // tenants 表尚不存在，同样说明还没迁移。
+    console.warn("[iam] 未找到 tenants 表：请先执行数据库迁移，否则登录后所有业务接口都会返回 403。");
+  }
+}
+
+/**
  * 幂等播种内置超级管理员：
  * - 邮箱不存在 → 插入；
  * - 已存在但角色/团队不是预期值 → 修正（仅纠这三列，不动密码与其他资料，用户改过的密码仍生效）。
  */
 export async function ensureBuiltInSuperAdmin(pool: mysql.Pool) {
+  const config = resolveBuiltInSuperAdmin();
   const [rows] = await pool.query<mysql.RowDataPacket[]>(
-    "SELECT id, role, team_id FROM users WHERE email = ? LIMIT 1",
-    [BUILT_IN_SUPERADMIN.email]
+    "SELECT id, email, role, team_id FROM users WHERE id = ? OR email = ? LIMIT 1",
+    [config.id, config.email]
   );
-  const existing = (rows as Array<{ id: string; role: string; team_id: string }>)[0];
+  const existing = (rows as Array<{ id: string; email: string; role: string; team_id: string }>)[0];
   if (!existing) {
     await pool.query(
       `INSERT INTO users (id, name, email, password_hash, role, team_id, avatar, status, auth_version)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'active', 1)`,
       [
-        BUILT_IN_SUPERADMIN.id,
-        BUILT_IN_SUPERADMIN.name,
-        BUILT_IN_SUPERADMIN.email,
-        await hashPassword(BUILT_IN_SUPERADMIN.password),
-        BUILT_IN_SUPERADMIN.role,
-        BUILT_IN_SUPERADMIN.teamId,
-        BUILT_IN_SUPERADMIN.avatar
+        config.id,
+        config.name,
+        config.email,
+        await hashPassword(config.password),
+        config.role,
+        config.teamId,
+        config.avatar
       ]
     );
+    if (config.usingDefaultPassword) {
+      console.warn(
+        "[security] 内置管理员使用了仓库默认密码。请在部署环境设置 BUILT_IN_SUPERADMIN_PASSWORD，"
+        + "或首次登录后立即在「个人资料 → 修改登录密码」改掉。"
+      );
+    }
     return true;
   }
-  if (existing.role !== BUILT_IN_SUPERADMIN.role || existing.team_id !== BUILT_IN_SUPERADMIN.teamId) {
-    await pool.query("UPDATE users SET role = ?, team_id = ? WHERE email = ?", [
-      BUILT_IN_SUPERADMIN.role,
-      BUILT_IN_SUPERADMIN.teamId,
-      BUILT_IN_SUPERADMIN.email
-    ]);
-    return true;
+  const patches: string[] = [];
+  const values: unknown[] = [];
+  if (existing.role !== config.role) { patches.push("role = ?"); values.push(config.role); }
+  if (existing.team_id !== config.teamId) { patches.push("team_id = ?"); values.push(config.teamId); }
+  // 只有显式注入邮箱时才改邮箱，避免默认值把别人自定义的账号邮箱改回去。
+  if (config.emailOverridden && existing.email !== config.email) {
+    patches.push("email = ?");
+    values.push(config.email);
   }
-  return false;
+  if (!patches.length) return false;
+  values.push(existing.id);
+  await pool.query(`UPDATE users SET ${patches.join(", ")} WHERE id = ?`, values);
+  return true;
 }
 
 const MIGRATION_PROTECTED_TABLES = ["users", "customers", "leads", "deals"] as const;
@@ -2253,6 +2332,13 @@ export async function migrateMysqlSchema(input: {
   assertDatabaseProfile(process.env, databaseUrl);
   const releaseId = String(input.releaseId || process.env.GOODJOB_RELEASE_ID || "manual").slice(0, 100);
   const pool = mysql.createPool({ uri: databaseUrl, connectionLimit: 4, namedPlaceholders: true });
+  // 安装/升级时最先运行的是迁移：binlog 未关闭时在这里就停下，避免后端随后起不来
+  try {
+    await assertBinlogDisabled(pool);
+  } catch (error) {
+    await pool.end().catch(() => undefined);
+    throw error;
+  }
   const lockConnection = await pool.getConnection();
   let lockAcquired = false;
   try {

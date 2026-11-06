@@ -2859,9 +2859,9 @@ try {
     method: "POST",
     headers: { authorization: `Bearer ${salesToken}` },
     body: JSON.stringify({
-      type: "CI",
-      title: "自动化商业发票",
-      number: `CI-${Date.now()}`,
+      type: "PI",
+      title: "自动化形式发票",
+      number: `PI-${Date.now()}`,
       issueDate: "2026-07-06",
       buyer: "Automation Buyer Ltd.",
       buyerAddress: "Berlin, Germany",
@@ -2884,20 +2884,23 @@ try {
       ]
     })
   });
-  if (!tradeDocument.response.ok || tradeDocument.json.document.type !== "CI") throw new Error("trade document create failed");
+  if (!tradeDocument.response.ok || tradeDocument.json.document.type !== "PI") throw new Error("trade document create failed");
 
   const tradeDocuments = await request("/api/trade-documents", {
     headers: { authorization: `Bearer ${salesToken}` }
   });
-  if (!tradeDocuments.response.ok || !tradeDocuments.json.documents.some((item: { id: string }) => item.id === tradeDocument.json.document.id)) throw new Error("trade document list failed");
+  // ECORECRM 单据平台只保留 PI / PO：列表只含这两类
+  if (!tradeDocuments.response.ok
+    || !tradeDocuments.json.documents.some((item: { id: string }) => item.id === tradeDocument.json.document.id)
+    || !tradeDocuments.json.documents.every((item: { type: string }) => item.type === "PI" || item.type === "PO")) throw new Error("trade document list failed");
   if (tradeDocuments.json.documents.length > 9) throw new Error("trade document workspace must show at most 9 documents");
 
   const convertedTradeDocument = await request(`/api/trade-documents/${tradeDocument.json.document.id}/convert`, {
     method: "POST",
     headers: { authorization: `Bearer ${salesToken}` },
-    body: JSON.stringify({ targetType: "PL" })
+    body: JSON.stringify({ targetType: "PO" })
   });
-  if (!convertedTradeDocument.response.ok || convertedTradeDocument.json.document?.type !== "PL" || convertedTradeDocument.json.document?.status !== "draft" || convertedTradeDocument.json.document?.derivedFromDocumentId !== tradeDocument.json.document.id) {
+  if (!convertedTradeDocument.response.ok || convertedTradeDocument.json.document?.type !== "PO" || convertedTradeDocument.json.document?.status !== "draft" || convertedTradeDocument.json.document?.derivedFromDocumentId !== tradeDocument.json.document.id) {
     throw new Error("trade document conversion failed");
   }
   const tradeDocumentHistory = await request(`/api/trade-documents/history?q=${encodeURIComponent(tradeDocument.json.document.number)}&pageSize=10`, {

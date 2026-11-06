@@ -41,3 +41,8 @@ coverage/
 database-backups/
 uploads/
 backend/uploads/
+
+# 手工改大文件前的临时备份（index.html.bak-before-*），别进仓库
+*.bak
+*.bak-*
+*.orig

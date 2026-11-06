@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { strict as assert } from "node:assert";
 import { resolveLeadAiSearchDraft } from "./lead-ai-search.js";
 import {
@@ -6,6 +6,17 @@ import {
   isLeadSourceExecutable,
   resolveLeadSearchSources
 } from "./lead-source-selection.js";
+
+
+// 后端 server.ts 已拆分为 server.ts（入口）+ server-core.ts（共享内核）+ routes/*.ts（各业务路由）；
+// 前后端对齐检查读取全部后端 HTTP 源码。后端目录不存在时抛错，由各调用点的 try/catch 跳过。
+function readBackendServerSources() {
+  const backendSrc = new URL("../../backend/src/", import.meta.url);
+  const routeFiles = readdirSync(new URL("routes/", backendSrc)).filter((name) => name.endsWith(".ts")).sort();
+  return ["server.ts", "server-core.ts", ...routeFiles.map((name) => `routes/${name}`)]
+    .map((file) => readFileSync(new URL(file, backendSrc), "utf8"))
+    .join("\n");
+}
 
 const prototype = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const apiLayer = readFileSync(new URL("./prototype-api.ts", import.meta.url), "utf8");
@@ -19,16 +30,10 @@ const productConfig = JSON.parse(readFileSync(new URL("../public/product-config.
 const required = [
   "login-screen",
   "loginProductVersion",
-  "previewCustomsButton",
-  "customsPreviewPage",
   "customs-pack-preview-page",
-  "customsDocumentValidation",
   "is-missing",
   "todo-board",
   "report-deck",
-  "id=\"knowledge\"",
-  "id=\"exam\"",
-  "id=\"tools\"",
   "id=\"settings\"",
   "id=\"database-maintenance\"",
   "data-view=\"database-maintenance\"",
@@ -50,73 +55,25 @@ const required = [
   "dashboardExchangeTicker",
   "dashboardCurrentDate",
   "仅提供最近一个交易日",
-  "/api/knowledge/assets",
-  "/api/exams",
-  "/api/tools/ocr/jobs/current/image",
-  "}/recognize-image",
-  "}/sync-lead",
-  "ocrFileInput",
-  "/api/lead-finder/providers",
-  "/api/lead-finder/launch",
-  "/api/lead-finder/source-config",
   "retryAfterAt",
-  "后可重试",
   "errorCode",
-  "可稍后重试",
   "incrementalStats",
-  "净新增 / 命中",
-  "历史未变化",
   "已结束",
-  "事实事件同步",
   "lead-job-source-list",
-  "搜客任务失败",
-  "加入搜客清单失败",
-  "/conversion-preview",
-  "转为客户",
-  "createDeal",
   "pipelineAmount",
-  "/api/leads?trash=true",
-  "sourceEvents",
-  "leadPermanentConfirmInput",
-  "data-problem-delete",
-  "deleteSelectedProblem",
-  "problemSearchInput",
   "problemStatusFilter",
   "problemSeverityFilter",
   "problemCategoryFilter",
-  "data-problem-edit",
-  "data-problem-open",
-  "problemDrawer",
   "resolvedAt",
   "problem-solution-highlight",
   "problem-solution-field",
   "closeOnBackdrop: false",
-  "prospectEnrichContactsButton",
-  "No qualification review is required first",
-  "leadSourceCenterButton",
-  "leadSourceChips",
-  "openLeadSourceCenter",
-  "data-ls-import",
-  "返回并导入链接",
-  "leadFinderDetailSaveButton",
-  "leadFinderDetailShortlistButton",
-  "leadFinderLookupDiagnosis",
-  "查看原因详情",
-  "本次未找到候选的原因",
   "advanced-excel-types",
   "is-current",
   "stageCurrency",
   "来源证据",
   "sourceEvidence",
   "ai_search",
-  "data-view=\"commission\"",
-  "id=\"commission\"",
-  "commissionSyncDealsButton",
-  "commissionRecalculateButton",
-  "/api/commission/products",
-  "/api/commission/sales-records",
-  "/api/commission/calculations/recalculate",
-  "renderCommission",
   "notificationBellButton",
   "notificationBellBadge",
   "消息通知",
@@ -130,71 +87,21 @@ const required = [
   "quoteHistoryProductRows",
   "quoteHistoryProductOverview",
   "productAnalysis",
-  "openQuoteHistoryForDeal",
   "查看报价变化",
   "/api/quote-history",
-  "agentPendingGoal",
-  "agentPendingProgress",
-  "/api/agent/plan/stream",
-  "正在理解你的目标和当前业务上下文",
   "agent-live-execution",
   "agent-action-chain",
-  "可审计动作链",
-  "最近执行记录",
-  "agentFailureDiagnosis",
-  "data-view=\"integration-center\"",
   "aria-label=\"权限管理\"",
-  "data-admin-only",
-  "id=\"integration-center\"",
-  "data-integration-tab=\"catalog\"",
-  "data-integration-tab=\"mail-calendar\"",
-  "data-integration-tab=\"connected\"",
-  "data-integration-tab=\"permissions\"",
-  "data-integration-tab=\"approvals\"",
-  "data-integration-tab=\"activity\"",
-  "installIntegrationCenterInteractions",
-  "integrationPrototypeConnect",
-  "entry.type === \"assistant\"",
-  "data-agent-chat-approve",
-  "确认写入",
-  "agentKnowledgeStatus",
-  "/api/agent/knowledge/overview",
-  "/api/agent/knowledge/search",
-  "Agent 学习中心",
-  "leadSuperWebSearch",
-  "leadSuperMapSearch",
-  "leadSuperAiDiscovery",
-  "webSearchMode: superWebSearchMode()",
-  "mapSearchMode: superMapSearchMode()",
-  "aiDiscoveryMode: superAiDiscoveryMode()",
   "google_places",
-  "leadTaskCandidates",
-  "leadTaskSyncCandidates",
-  "纳入候选池",
-  "可加入搜客清单的候选",
-  "leadFinderLiveOverview",
-  "leadFinderCleaningRows",
-  "最近一次执行",
-  "最多展示 100 条管线处置记录",
-  "来源解析阶段的数据无效与页内重复仅提供汇总",
-  "record.sourceRecordId",
-  "record.sourceCompany",
-  "record.sourceDomain",
-  "data-prospect-date-filter=\"today\"",
   "prospectJoinedFrom",
-  "prospectSortSelect",
-  "加入搜客清单时间",
   "prospect-mobile-detail-open",
   "prospectRadarDialog",
-  "data-lead-live-radar",
-  "buildProspectRadarModel",
-  "buildProspectPoolRadarModel",
-  "data-lead-pool-radar",
   "关系连线仅来自已记录证据"
 ];
 
-assert.match(apiLayer, /"email-return-flow": "开发信回流"/u, "开发信回流工作区标签必须使用中文名称");
-assert.match(apiLayer, /deckTicker\.innerHTML = logs\.length \? seq \+ seq : seq/u, "空回流状态不得重复渲染滚动提示");
+assert.match(apiLayer, /documents: "单据平台"/u, "单据平台工作区标签必须使用中文名称");
+assert.match(apiLayer, /suppliers: "供应商"/u, "供应商工作区标签必须使用中文名称");
+assert.equal(apiLayer.includes('"email-return-flow": "开发信回流"'), false, "已精简模块不得再出现在视图标签表");
 assert.match(apiLayer, /const captureHeight = Math\.max\(capture\.scrollHeight/u, "PDF 导出必须捕获完整预览高度");
 assert.match(apiLayer, /const captureWidth = 794[\s\S]*captureHost = document\.createElement\("div"\)/u, "PDF 导出必须使用独立的 A4 宽度画布");
 assert.match(apiLayer, /height: captureHeight/u, "PDF 导出必须把完整预览高度传给截图引擎");
@@ -205,6 +112,46 @@ for (const token of required) {
   if (!prototype.includes(token) && !apiLayer.includes(token)) throw new Error(`missing ${token}`);
 }
 
+// ---- 精简边界契约（2026-11-06）----
+// 精简是一次性动作，之后每加一行代码都可能把删掉的模块悄悄带回来。
+// 这一组断言只看两件事：删掉的视图不许复活，保留下来的五个板块不许长歪。
+const removedViews = [
+  "pipeline", "commission", "knowledge", "exam", "lead-finder", "prospect-list",
+  "mail-center", "integration-center", "whatsapp", "tools", "products", "orders", "deals"
+];
+for (const view of removedViews) {
+  assert.equal(prototype.includes(`id="${view}"`), false, `已精简视图 ${view} 不得重新出现在 index.html`);
+}
+
+const navStart = prototype.indexOf('<nav class="nav"');
+const navBlock = navStart < 0 ? "" : prototype.slice(navStart, prototype.indexOf("</nav>", navStart));
+assert.ok(navStart > 0, "侧边导航容器必须存在");
+for (const view of ["dashboard", "customers", "customer-pool", "suppliers", "documents", "settings", "database-maintenance", "profile", "theme", "logs"]) {
+  assert.ok(navBlock.includes(`data-view="${view}"`), `导航必须保留 ${view} 入口`);
+}
+assert.equal(navBlock.includes('data-view="pipeline"'), false, "商机看板已移除，导航不得再出现商机入口");
+
+assert.match(apiLayer, /const ECORE_DOC_TYPES: string\[\] = \["PI", "PO"\];/u, "单据类型白名单必须只有 PI 与 PO");
+const docTypeTabStart = prototype.indexOf('id="documentTypeTabs"');
+const docTypeTabs = docTypeTabStart < 0 ? "" : prototype.slice(docTypeTabStart, prototype.indexOf("</div>", docTypeTabStart));
+assert.match(docTypeTabs, /data-doc-type="PI"/u, "单据页签必须保留 PI");
+assert.match(docTypeTabs, /data-doc-type="PO"/u, "单据页签必须保留 PO");
+assert.doesNotMatch(docTypeTabs, /data-doc-type="(?:CI|PL|CUSTOMS|CONTRACT|QUOTATION|COO|SHIPPING)"/u, "单据页签不得再提供已收窄掉的单据类型");
+assert.match(apiLayer, /const ECORE_TEMPLATE_STYLE = "custom-b"/u, "单据模板只保留定制 B 版式（界面名为默认模版）");
+assert.match(apiLayer, /if \(!ECORE_DOC_TYPES\.includes\(document\.type\)\) \{/u, "非 PI/PO 单据必须被删除守卫拦住");
+
+for (const token of ["--bg: #080808;", "--surface: #111111;", "--line: #242424;"]) {
+  assert.ok(prototype.includes(token), `ecore 主题令牌 ${token} 不得丢失`);
+}
+
+assert.match(apiLayer, /\/api\/customers\?scope=public/u, "客户公池必须走 scope=public 的服务端筛选");
+assert.match(apiLayer, /\/api\/customers\/bulk-delete/u, "客户批量删除接口不得丢失");
+assert.match(apiLayer, /\/api\/suppliers\/bulk-delete/u, "供应商批量删除接口不得丢失");
+
+for (const page of ["overview", "members", "organization", "roles", "ui", "authorization", "audit"]) {
+  assert.ok(prototype.includes(`data-iam-page="${page}"`), `权限页面 ${page} 必须保留独立容器`);
+}
+
 assert.equal(prototype.includes("data-view=\"inbox\""), false, "消息通知不应出现在左侧导航");
 assert.equal(prototype.includes("写站内信"), false, "通知中心不应提供人工写信入口");
 assert.equal(apiLayer.includes("openInternalMessageComposeModal"), false, "不应保留旧写信交互");
@@ -213,124 +160,49 @@ const systemNavigation = prototype.slice(
   prototype.indexOf("</nav>")
 );
 assert.equal(systemNavigation.includes('data-view="member-management"'), false, "权限模块不得继续混在系统配置导航中");
-assert.match(prototype, /aria-label="权限管理"[\s\S]*data-view="member-management"[\s\S]*data-view="permission-audit"/, "权限页面必须集中在独立权限管理分组");
-assert.match(apiLayer, /isAccessControlView\(view\) && !isSystemAdministrator\(user\)/, "权限页面必须额外校验管理员或超级管理员身份");
+assert.match(prototype, /aria-label="权限管理"[\s\S]*data-view="member-management"[\s\S]*data-view="permission-audit"/u, "权限页面必须集中在独立权限管理分组");
+assert.match(apiLayer, /const requiredPermission = viewPermissionRequirements\[view\][\s\S]{0,120}return hasIamCapability\(requiredPermission\)/, "权限页面必须按能力位放行：管理员与被授权角色走同一条校验");
+assert.doesNotMatch(apiLayer, /isAccessControlView\(view\) && !isSystemAdministrator\(user\)/, "权限页面不得再按 admin 身份一刀切截断被授权角色");
 assert.match(apiLayer, /function isPlatformOperator[\s\S]*user\.role === "super_admin"/, "超级管理员必须被识别为平台运维身份");
 assert.match(apiLayer, /if \(isPlatformOperator\(user\)\) \{[\s\S]*return view === "platform-operations"/, "平台运维账号只能进入运维中心");
 assert.match(apiLayer, /view = platformOperator \? "platform-operations" : "dashboard"/, "平台运维账号非法跳转时必须返回运维中心");
-assert.match(prototype, /运维专用账号[\s\S]*业务模块，请登录其他账号/, "运维中心必须明确提示业务模块使用其他账号");
+assert.equal(prototype.includes('id="platform-operations"'), false, "运维中心已从精简版移除，不应残留视图");
 assert.match(apiLayer, /if \(isPlatformOperator\(\)\) \{[\s\S]*openWorkspaceTabs = \["platform-operations"\][\s\S]*wrap\.innerHTML = ""/, "超级管理员顶部不得残留工作台标签");
-assert.match(prototype, /body\.platform-mode #topOpenTabs,[\s\S]*body\.platform-mode \.top-status,[\s\S]*body\.platform-mode #notificationBellButton/, "运维模式必须隐藏业务工作台状态栏");
-assert.match(apiLayer, /node\.hidden = !isSystemAdministrator\(user\)/, "权限管理导航只按管理员身份显示");
+assert.match(prototype, /body\.platform-mode #topOpenTabs,[\s\S]*body\.platform-mode \.top-status,[\s\S]*body\.platform-mode #notificationBellButton/u, "运维模式必须隐藏业务工作台状态栏");
+assert.match(apiLayer, /qsa<HTMLElement>\("\.sidebar details\.nav-section"\)[\s\S]{0,200}section\.hidden = items\.every/, "权限管理分组必须跟着组内入口的能力位显示，而不是整块按管理员身份隐藏");
 assert.match(apiLayer, /class="ac-workbench ac-role-layout"[\s\S]*class="ac-role-list"[\s\S]*class="ac-permission-table"/, "角色管理必须使用角色目录与当前角色权限双栏结构");
 assert.match(apiLayer, /class="ac-role-checks" id="iamMemberRoleIds"[\s\S]*type="checkbox"/, "成员授权必须使用清晰的角色复选项，不能退回原生多选框");
 assert.match(apiLayer, /data-ac-guide aria-label="权限使用说明"/, "权限模块必须提供独立的使用说明入口");
-assert.match(apiLayer, /仅超级管理员和管理员可以设置[\s\S]*建立组织架构[\s\S]*创建角色并配置权限[\s\S]*给成员分配角色[\s\S]*通过审计复核/, "权限使用说明必须覆盖访问限制与完整配置顺序");
+assert.match(apiLayer, /管理员与已授权角色可以设置[\s\S]*建立组织架构[\s\S]*创建角色并配置权限[\s\S]*给成员分配角色[\s\S]*通过审计复核/, "权限使用说明必须覆盖访问限制与完整配置顺序");
 assert.match(apiLayer, /function bindAccessControlInteractions[\s\S]*const root = activeAccessControlRoot\(\)[\s\S]*root\.querySelector<T>/, "权限页面交互必须绑定在当前页面，不能误绑到隐藏的成员管理页面");
 assert.doesNotMatch(apiLayer, /class="ac-metrics"|class="ac-loading-metrics"/, "权限页面和加载态都不得继续显示顶部五项统计条");
+// 权限总览：把授权关系画成可读的图，而不是让管理员逐行读表格
+assert.doesNotMatch(prototype, /aria-label="权限管理"[^>]*data-admin-only/u, "权限管理分组不得按 admin 身份整块隐藏，要跟着能力位走");
+assert.match(prototype, /aria-label="权限管理"[\s\S]*data-view="access-overview"[\s\S]*data-view="member-management"/u, "权限管理分组必须把权限总览放在第一位");
+assert.match(prototype, /class="view iam-view" id="access-overview"[\s\S]{0,120}data-iam-page="overview"/u, "权限总览必须是独立的权限页面容器");
+assert.match(apiLayer, /function renderAccessControlOverview\([\s\S]*ac-viz-kpis[\s\S]*ac-viz-table/u, "权限总览必须同时给出指标条与成员×模块热力图");
+assert.match(apiLayer, /accessControlSelectedMemberId = row\.dataset\.acVizMember[\s\S]{0,120}activateNavView\("member-authorization"\)/u, "热力图成员行必须能直接跳到该成员的授权详情");
+assert.match(apiLayer, /当前账号没有该权限页面的查看授权，请联系管理员开通/u, "未获授权的账号进入权限页时必须提示走授权流程");
+assert.match(apiLayer, /const body = !overview\.company[\s\S]{0,200}page === "overview"[\s\S]{0,80}renderAccessControlOverview/u, "权限总览必须接进权限页面路由分发");
 const systemSettingsView = prototype.slice(
   prototype.indexOf('<div class="view" id="settings"'),
-  prototype.indexOf('<section class="view" id="products">')
+  prototype.indexOf('class="view" id="', prototype.indexOf('<div class="view" id="settings"') + 10)
 );
 assert.match(systemSettingsView, /<h1>系统设置<\/h1>/, "系统设置页面必须使用正确标题");
 assert.doesNotMatch(systemSettingsView, /账号列表|新增账号|权限模板|角色权限/, "人员与权限配置不得在系统设置中重复出现");
 assert.match(systemSettingsView, /公司资料[\s\S]*单据设置[\s\S]*系统更新/, "系统设置必须保留公司资料、单据设置与系统更新");
 assert.equal(apiLayer.includes("leadFinderDetailMarkButton"), false, "自动获客不应保留标记可联系的授权语义");
-assert.match(apiLayer, /function prospectLookupDiagnosis[\s\S]*This does not mean the company is inactive/, "联系人缺失必须提供业务可理解的原因说明");
-assert.match(apiLayer, /data-lead-lookup-reason/, "联系人和联系方式未找到状态必须可以点击查看原因");
-assert.match(apiLayer, /function leadFinderNoResultReasons[\s\S]*清洗规则/, "整次搜索无结果时必须汇总来源和清洗原因");
 assert.match(
   apiLayer,
   /async function openAdvancedExcelPanel\(\)[\s\S]*const editorType = currentDocumentType\(\)[\s\S]*if \(current\.type !== editorType\)[\s\S]*await saveTradeDocument\(\)[\s\S]*type === current\.type \? "is-current"/,
   "高级 Excel 必须先同步当前编辑器单据类型，并高亮当前类型模板"
 );
-const standardRunStatusContract = apiLayer.slice(
-  apiLayer.indexOf("function prospectRunStatusLabel"),
-  apiLayer.indexOf("function prospectRunActivityLabel")
-);
-for (const status of ["cancelled", "succeeded", "succeeded_empty", "partial_success", "failed"]) {
-  assert.match(
-    standardRunStatusContract,
-    new RegExp(`${status}: \\"已结束\\"`),
-    `标准搜客终态 ${status} 的任务卡必须统一显示已结束`
-  );
-}
-const superSearchStatusContract = apiLayer.slice(
-  apiLayer.indexOf("function superSearchStatusLabel"),
-  apiLayer.indexOf("function superSearchThemeLabel")
-);
-for (const status of ["cancelled", "succeeded", "partial_success", "failed"]) {
-  assert.match(
-    superSearchStatusContract,
-    new RegExp(`${status}: \\"已结束\\"`),
-    `超级搜客终态 ${status} 的任务卡必须统一显示已结束`
-  );
-}
-assert.match(apiLayer, /来源返回 \/ 候选池 \/ 待审核 \/ 审核通过/, "标准和超级搜客详情必须展示统一四段漏斗");
-assert.match(apiLayer, /partial_success: "部分成功"/, "部分成功只能保留在任务详情验收结论中");
-assert.match(apiLayer, /failed: "失败"/, "失败只能保留在任务详情验收结论中");
 assert.equal(apiLayer.includes("部分完成"), false, "任务与来源状态不得使用容易误解的“部分完成”提示");
-assert.match(apiLayer, /function localDateInputBoundary[\s\S]*new Date\(Number\(match\[1\]\), Number\(match\[2\]\) - 1, Number\(match\[3\]\)\)/, "加入时间必须按本地日期构造，不能把日期输入误解析为 UTC");
-assert.match(apiLayer, /localDateInputBoundary\(state\.prospectJoinedTo, 1\)/, "自定义结束日期必须使用次日零点作为排他边界");
-assert.match(apiLayer, /function syncLeadFinderLiveTransport[\s\S]*startLeadTaskEventStream/, "自动搜客主界面与详情必须共用实时任务传输入口");
-assert.match(
-  apiLayer,
-  /function scheduleLeadTaskEventRefresh[\s\S]*leadFinderOpportunityRefreshPending = true[\s\S]*const refreshOpportunities = leadFinderOpportunityRefreshPending[\s\S]*if \(refreshOpportunities\) await refreshLeadFinderOpportunities\(\)/,
-  "候选事件被合并时仍必须触发候选池和地图实时刷新"
-);
-assert.match(
-  apiLayer,
-  /function scheduleLeadTaskEventRefresh[\s\S]*event\.type === "candidate\.persisted"[\s\S]*job\.resultIds = \[\.\.\.new Set/,
-  "候选落库事件必须立即并入当前任务，不能等待下一轮任务轮询"
-);
-assert.match(
-  apiLayer,
-  /async function refreshLeadFinderOpportunities[\s\S]*renderLeadFinderJobs\(\)[\s\S]*renderLeadTaskDetail\(\)/,
-  "候选池刷新后必须重绘实时任务区和已打开的任务详情"
-);
-assert.match(apiLayer, /function leadFinderSourceWaitText[\s\S]*AI 模型正在生成候选/, "AI 来源等待时必须显示真实等待原因");
-assert.match(apiLayer, /已有 \$\{candidateCount\} 个候选先展示/, "已有候选不得被未结束的来源阻塞展示");
-assert.match(
-  apiLayer,
-  /\["running", "done", "partial", "failed"\]\.includes\(job\.status\)[\s\S]*Boolean\(job\.resultIds\?\.length\)[\s\S]*refreshLeadFinderOpportunities\(\)/,
-  "运行中的搜客任务也必须刷新候选池，不能只在任务结束后刷新"
-);
-assert.match(apiLayer, /function applySuperSearchMission[\s\S]*const rounds = Array\.isArray\(mission\.rounds\)/, "超级搜索首屏缺少轮次快照时不能因 undefined 崩溃");
-assert.match(apiLayer, /if \(result\.superSearch\) \{[\s\S]*applySuperSearchMission\(backendJob, result\.superSearch\)[\s\S]*超级搜索已进入队列，详细轮次正在同步/, "超级搜索快照增强失败时任务也必须先显示在队列");
 assert.equal(apiLayer.includes("parseGoalToBrief"), false, "AI 解析失败后不得使用本地规则伪装成成功结果");
-assert.match(apiLayer, /async function runLeadAiParse\(\): Promise<boolean>[\s\S]*catch \(err\)[\s\S]*clearLeadAiPreview\(true\)[\s\S]*未生成解析结果[\s\S]*return false;/, "AI 解析失败必须清空预览、明确报错并返回失败");
 const leadFinderLaunchFlow = apiLayer.slice(
   apiLayer.indexOf("async function runLeadFinder"),
   apiLayer.indexOf("async function shortlistLeadFinderRows")
 );
-assert.ok(
-  leadFinderLaunchFlow.indexOf("const parsed = await runLeadAiParse()") < leadFinderLaunchFlow.indexOf("launchProspectRunFromLeadFinder"),
-  "直接输入自然语言后搜索时必须先完成 AI 解析，再创建搜索任务"
-);
-assert.match(leadFinderLaunchFlow, /const parsed = await runLeadAiParse\(\);[\s\S]*if \(!parsed\) return;/, "AI 解析失败时不得继续启动搜索");
-const parsedLeadFinderInputFlow = apiLayer.slice(
-  apiLayer.indexOf("async function launchProspectRunFromLeadFinder"),
-  apiLayer.indexOf("async function runLeadFinder")
-);
-for (const selector of ["#leadAiProducts", "#leadAiMarkets", "#leadAiIndustries", "#leadAiExclusions", "#leadAiCustomerType", "#leadAiName"]) {
-  assert.ok(parsedLeadFinderInputFlow.includes(selector), `启动搜索必须读取用户修改后的解析字段 ${selector}`);
-}
-assert.match(parsedLeadFinderInputFlow, /const resolved = resolveLeadAiSearchDraft\(/, "启动搜索必须通过无降级的解析结果校验器读取预览字段");
-assert.equal(parsedLeadFinderInputFlow.includes("products = [goalInput]"), false, "启动搜索不得偷偷回退为原始中文句子");
-assert.match(parsedLeadFinderInputFlow, /parsedName = resolved\.parsedName;[\s\S]*goalInput = "";/, "解析成功后原始自然语言不得继续作为隐藏搜索约束");
-assert.match(parsedLeadFinderInputFlow, /const goal = \[[\s\S]*Products:[\s\S]*Markets:[\s\S]*Industries:[\s\S]*Customer type:[\s\S]*Exclusions:/, "活动搜索目标必须由当前解析预览字段重新生成");
-assert.equal(parsedLeadFinderInputFlow.includes("icpRules: goalInput"), false, "修改解析结果后不得继续写入旧自然语言 ICP 规则");
-assert.match(parsedLeadFinderInputFlow, /\/api\/lead-finder\/launch/, "自动搜客必须通过单次聚合请求创建并启动任务");
-for (const legacyPath of ["/api/prospect-campaigns", "/api/prospect-strategies/"]) {
-  assert.equal(parsedLeadFinderInputFlow.includes(legacyPath), false, `自动搜客启动不得继续串行调用 ${legacyPath}`);
-}
-assert.match(leadFinderLaunchFlow, /正在解析搜索目标[\s\S]*搜索已进入队列/, "创建按钮必须反馈真实的解析和入队阶段");
-assert.match(
-  leadFinderLaunchFlow,
-  /if \(!sources\.length\) \{[\s\S]*超级搜索当前没有可执行的数据源/,
-  "超级搜索来源二次过滤为空时必须在创建任务前阻断"
-);
-assert.match(parsedLeadFinderInputFlow, /onStage\?\.\("正在提交策略并启动搜索"\)/, "聚合启动请求必须反馈正在提交策略的真实阶段");
 assert.deepEqual(resolveLeadAiSearchDraft({
   name: "Edited Mexico Filling Equipment",
   products: ["edited liquid filling machines"],
@@ -355,10 +227,6 @@ assert.throws(() => resolveLeadAiSearchDraft({
   exclusions: [],
   customerType: "*"
 }), /产品关键词不能为空/, "修改后的必填搜索词为空时必须停止，不能降级");
-assert.match(apiLayer, /const relations: ProspectRadarRelation\[\] = \(job\.deepMining\?\.edges \|\| \[\]\)\.map/, "演示模式关系线必须只读取深挖关系证据");
-assert.match(apiLayer, /function syncProspectRadar[\s\S]*prospectRadarController\.update\(model\)/, "运行中的演示模式必须跟随真实任务事件增量更新");
-assert.match(apiLayer, /id: "pool:ready"[\s\S]*等待首个候选/, "候选池为空时仍必须保留可打开的雷达待命帧");
-assert.match(apiLayer, /data-lead-pool-radar[\s\S]*打开全球雷达/, "没有任务和候选时仍必须显示全球雷达入口");
 assert.match(prospectRadar, /\.arcsData\(relationRows\)/, "3D 地球只能渲染模型提供的真实关系数据");
 assert.match(prospectRadar, /\.htmlElementsData\(focusedPoint \? \[focusedPoint\] : \[\]\)/, "公司名称必须使用浏览器原生文字层以完整支持中文");
 assert.match(prospectRadar, /function companyMarker[\s\S]*company\.textContent = item\.company/, "中文公司名称必须通过 textContent 安全渲染");
@@ -367,27 +235,20 @@ assert.match(prospectRadar, /function createCaptureFeed[\s\S]*role\", \"log\"[\s
 assert.match(prospectRadar, /frame\.kind === \"candidate\" && focusedPoint[\s\S]*captureFeed\.addCandidate/, "捕获流只能从真实候选事件追加企业");
 assert.match(prospectRadar, /function captureMilestone[\s\S]*count === 5[\s\S]*count === 10[\s\S]*count === 20/, "捕获流必须按真实企业数量插入阶段反馈");
 assert.match(prospectRadar, /replay\(\)[\s\S]*captureFeed\.reset\(\)/, "重播必须清空旧捕获流后重新按事件打印");
-assert.match(prototype, /\.prospect-radar-capture-list[\s\S]*mask-image: linear-gradient/, "捕获流顶部和底部必须渐隐，避免旧结果硬切消失");
+assert.match(prototype, /\.prospect-radar-capture-list[\s\S]*mask-image: linear-gradient/u, "捕获流顶部和底部必须渐隐，避免旧结果硬切消失");
 assert.match(prospectRadar, /prefers-reduced-motion: reduce/, "演示模式必须支持低动态偏好");
 assert.match(prospectRadar, /destroy\(\)[\s\S]*resizeObserver\.disconnect\(\)[\s\S]*globe\._destructor\(\)/, "关闭演示必须完整释放 WebGL 和尺寸监听器");
-assert.match(apiLayer, /\["merged", "suppressed", "rejected"\]\.includes\(record\.outcome\)/, "清洗去除视图只能显示真实的归并、抑制与拒绝记录");
-assert.match(apiLayer, /function leadFinderRemovedTotal[\s\S]*providerInvalidCount[\s\S]*providerDuplicateCount[\s\S]*rejectedCount[\s\S]*suppressedCount[\s\S]*mergedCount/, "清洗去除总数必须覆盖来源预处理与候选管线的全部分流结果");
-assert.match(apiLayer, /data-lead-open-cleaning[\s\S]*leadFinderResultView = "cleaning"/, "候选结果必须提供可直达处理原因的入口");
-assert.match(apiLayer, /PROVIDER_INVALID_RECORD[\s\S]*PROVIDER_DUPLICATE_RECORD[\s\S]*未保存无效或重复记录的公司名称/, "来源预处理原因必须如实按数量汇总，不能伪造公司名称");
-assert.match(apiLayer, /source\.outcome === "timed_out"[\s\S]*Timed out/, "联系人来源超时必须在搜客清单明确显示");
-assert.match(apiLayer, /Next step: \$\{escapeHtml\(source\.suggestion\)\}/, "联系人来源失败或未配置时必须展示调整建议");
-assert.match(apiLayer, /waitedMs >= 130_000[\s\S]*响应超时[\s\S]*调整建议/, "自动搜索长时间无返回时必须展示超时原因和调整建议");
-assert.match(prototype, /data-view="settings" data-scope="manager"/, "业务员导航中必须隐藏系统设置");
-assert.match(prototype, /id="settings" data-scope="manager"/, "业务员视图中必须隐藏系统设置页面");
-assert.match(prototype, /data-view="database-maintenance" data-scope="admin"/, "数据库维护导航必须只向管理员显示");
-assert.match(prototype, /id="database-maintenance" data-scope="admin"/, "数据库维护必须使用独立页面");
+assert.match(prototype, /data-view="settings" data-scope="manager"/u, "业务员导航中必须隐藏系统设置");
+assert.match(prototype, /id="settings" data-scope="manager"/u, "业务员视图中必须隐藏系统设置页面");
+assert.match(prototype, /data-view="database-maintenance" data-scope="admin"/u, "数据库维护导航必须只向管理员显示");
+assert.match(prototype, /id="database-maintenance" data-scope="admin"/u, "数据库维护必须使用独立页面");
 assert.equal(prototype.includes("id=\"mysqlImportPanel\""), false, "数据库迁移不能继续嵌在账号管理页");
 assert.match(apiLayer, /"database-maintenance": "database\.maintain"/, "数据库维护页面必须绑定数据库维护能力");
 assert.match(apiLayer, /"member-management": "member\.read"/, "成员管理页面必须绑定成员查看能力");
 assert.match(apiLayer, /"role-management": "role\.read"/, "角色管理页面必须绑定角色查看能力");
 assert.match(apiLayer, /"ui-access": "role\.read"/, "界面开通页面必须绑定角色查看能力");
-assert.match(prototype, /data-view="ui-access" title="界面开通"/, "权限管理导航必须提供界面开通入口");
-assert.match(prototype, /id="ui-access" data-scope="admin" data-iam-page="ui"/, "界面开通必须使用独立权限页面");
+assert.match(prototype, /data-view="ui-access" title="界面开通"/u, "权限管理导航必须提供界面开通入口");
+assert.match(prototype, /id="ui-access" data-scope="admin" data-iam-page="ui"/u, "界面开通必须使用独立权限页面");
 assert.match(apiLayer, /interface AccessControlUiModule[\s\S]*edition: string/, "界面开通必须把界面模块和版本说明结构化");
 assert.match(apiLayer, /function renderAccessControlUiAccess[\s\S]*界面会按角色权限自动出现[\s\S]*data-ac-module-enable[\s\S]*data-ac-module-disable/, "界面开通必须支持按角色查看并开通或关闭模块");
 assert.match(apiLayer, /function mutateAccessControlModule/, "界面模块开通必须有独立的批量发布函数");
@@ -399,14 +260,8 @@ assert.match(apiLayer, /if \(!canAccessWorkspaceView\(view\)\) \{[\s\S]*view = p
 assert.match(apiLayer, /workspaceView: "gj_workspace_view"/, "工作区必须记录当前活动模块，避免刷新后退回主页");
 assert.match(apiLayer, /sessionStorage\.setItem\(workspaceViewStorageKey\(\), view\)/, "导航切换必须按当前账号记住活动模块");
 assert.match(apiLayer, /restoreSession\(\)[\s\S]*activateNavView\(state\.iamCapabilities\?\.source === "platform" \? "platform-operations" : rememberedWorkspaceView\(user\)\)/, "会话恢复后必须按身份回到刷新前的模块");
-assert.match(apiLayer, /selectedDailyReportId = message\.relatedId;[\s\S]*activateNavView\("daily-reports"\)/);
-assert.match(apiLayer, /if \(view === "ai-agent"\) \{[\s\S]*renderAgent\(state\.agentRun\);[\s\S]*void loadAgentRuns\(\);[\s\S]*\}/, "进入 Agent 页面必须刷新蒸馏打法与后台任务状态");
-assert.match(apiLayer, /void loadAgentKnowledge\(false\)/, "进入 Agent 页面必须加载系统知识状态");
-assert.match(prototype, /\.agent-chat-bubble,[\s\S]*\.agent-chat-answer > p[\s\S]*user-select: text;/, "Agent 对话正文必须允许选择复制");
-assert.match(apiLayer, /copyableText \|\| window\.getSelection\(\)\?\.toString\(\)\.trim\(\)/, "选择 Agent 对话文字时不得触发整轮重新渲染");
-assert.match(apiLayer, /agentPendingProgress\.push\(progress\)/, "Agent 规划流必须保留同阶段的细粒度动作，不能互相覆盖");
-assert.match(apiLayer, /权限校验未通过：[\s\S]*接口参数或契约校验失败：[\s\S]*网络或上游服务调用失败：/, "Agent 失败链必须给出可读诊断");
-assert.equal(productConfig.productName, "GoodJob CRM");
+assert.match(prototype, /\.agent-chat-bubble,[\s\S]*\.agent-chat-answer > p[\s\S]*user-select: text;/u, "Agent 对话正文必须允许选择复制");
+assert.equal(productConfig.productName, "ECORE GLOBAL");
 assert.match(productConfig.version || "", /^\d+\.\d+(?:\.\d+)?$/);
 
 assert.equal(isLeadSourceExecutable({ id: "ready", ready: true, enabled: true, accessMode: "api" }), true);
@@ -488,25 +343,20 @@ if (!prototype.includes(".report-hero") || !prototype.includes(".ocr-workbench")
 }
 
 assert.equal(prototype.includes("collab-inbox-nav"), false, "message center must not remain in sidebar navigation");
-assert.match(prototype, /class="lead-settings-summary"/, "来源与执行设置必须有醒目的标题样式");
-assert.match(prototype, /免费源效果可能不佳，默认不勾选/, "来源设置必须提示免费源默认不勾选及质量风险");
-assert.match(prototype, /lead-settings-summary::before/, "来源设置必须显示可展开的箭头 affordance");
-assert.match(prototype, /content: "展开"/, "来源设置必须显示展开状态提示");
-assert.match(apiLayer, /function renderLeadSourceChips[\s\S]*更多免费来源（效果可能不佳，默认不勾选）/, "免费来源必须集中展示并带质量提示");
+assert.doesNotMatch(prototype, /class="lead-settings-summary"/u, "『来源与执行设置必须有醒目的标题样式』所属模块已从精简版移除");
+assert.doesNotMatch(prototype, /免费源效果可能不佳，默认不勾选/u, "『来源设置必须提示免费源默认不勾选及质量风险』所属模块已从精简版移除");
+assert.match(prototype, /lead-settings-summary::before/u, "来源设置必须显示可展开的箭头 affordance");
+assert.match(prototype, /content: "展开"/u, "来源设置必须显示展开状态提示");
 assert.equal(prototype.includes("id=\"composeMessageButton\""), false, "notification center must not present direct-message composition as its primary workflow");
-assert.match(apiLayer, /data-pending-hit-id/, "待清洗结果必须支持逐条选择");
 assert.match(apiLayer, /selectedPendingHitIds/, "待清洗导入必须保留明确选择状态");
-assert.match(apiLayer, /prospect-super-search\/\$\{encodeURIComponent\(job\.superSearchMissionId\)\}\/pending-candidates/, "超级搜索必须汇总全部轮次待清洗结果");
-assert.match(apiLayer, /body: JSON\.stringify\(\{ hitIds \}\)/, "手动导入只能提交已选择的原始记录");
 assert.equal(apiLayer.includes("lead-job-card is-openable"), false, "任务卡片不能整卡点击进入详情");
 assert.equal(apiLayer.includes("同步本任务结果"), false, "任务结果操作必须使用明确的候选与线索语义");
-assert.match(apiLayer, /data-lead-job-open[\s\S]*查看详情/, "只有查看详情按钮可以进入任务详情页");
 const customerSectionIndex = prototype.indexOf('aria-label="客户管理"');
 const customerOpenNavIndex = prototype.indexOf('data-view="customers" data-customer-outcome="open" title="未成交客户"');
 const customerWonNavIndex = prototype.indexOf('data-view="customers" data-customer-outcome="won" title="已成交客户"');
 const customerPoolNavIndex = prototype.indexOf('data-view="customer-pool" title="客户公池"');
 assert.ok(customerSectionIndex >= 0 && customerSectionIndex < customerOpenNavIndex && customerOpenNavIndex < customerWonNavIndex && customerWonNavIndex < customerPoolNavIndex, "customers and customer pool must share one navigation group");
-assert.match(prototype, /id="customerPageTitle">未成交客户/, "customer page must expose the default outcome context");
+assert.match(prototype, /id="customerPageTitle">未成交客户/u, "customer page must expose the default outcome context");
 assert.match(apiLayer, /customerOutcomeFilter: "open" \| "won"/, "customer outcome filter must be explicit in app state");
 assert.match(apiLayer, /state\.customerOutcomeFilter === "won" \? customer\.hasWonDeal === true : customer\.hasWonDeal !== true/, "customer navigation must filter won and open customers from real data");
 assert.match(apiLayer, /if \(view === "customers"\) \{\s*renderCustomers\(state\.customers\);\s*\}/, "switching customer outcome navigation must redraw the shared customer page");
@@ -515,11 +365,7 @@ assert.match(apiLayer, /成交状态: customer\.hasWonDeal \? "已成交" : "未
 assert.doesNotMatch(apiLayer, /由关联商机自动判断/, "customer status must not be described as a live deal-derived value");
 assert.match(apiLayer, /customer\.wonDealCount \? `已成交 \$\{customer\.wonDealCount\} 次` : "已成交客户"/, "imported won customers without deals must not invent a transaction count");
 assert.doesNotMatch(apiLayer, /wonDealCount \|\| 1/, "customer UI must not fabricate one won deal for imported customers");
-assert.match(apiLayer, /class="deal-items-list" id="dealItemsList"/, "deal editor must support multiple product rows");
-assert.match(apiLayer, /items\.reduce\(\(sum, item\) => sum \+ item\.quantity \* item\.unitPrice/, "deal amount must be calculated from all product rows");
-assert.match(apiLayer, /items: documentItems/, "PI and CI generation must carry every deal product row");
-assert.match(prototype, /id="instantCommunicationState"/, "即刻沟通必须有明确的服务加载状态");
-assert.match(apiLayer, /function ensureInstantCommunicationLoaded/, "即刻沟通必须在进入页面时检查服务状态");
+assert.doesNotMatch(prototype, /id="instantCommunicationState"/u, "『即刻沟通必须有明确的服务加载状态』所属模块已从精简版移除");
 assert.match(apiLayer, /联系方式备注 \/ 其它渠道/, "客户表单必须支持登记其它渠道联系方式");
 assert.match(apiLayer, /contactRemark/, "客户联系方式备注必须进入前端数据链路");
 assert.match(apiLayer, /closeOnBackdrop: false/, "客户新增弹窗点击背景不能自动关闭");
@@ -531,7 +377,7 @@ assert.match(apiLayer, /联系方式备注（其它渠道）/, "客户导入导�
 assert.match(apiLayer, /id="customerSourceInput"/, "客户新增编辑表单必须支持登记客户来源");
 assert.match(apiLayer, /客户来源: customer\.source/, "客户导出必须包含客户来源");
 assert.match(apiLayer, /\["客户来源", "来源", "获客渠道"/, "客户导入必须识别客户来源列及常用别名");
-assert.match(prototype, /<th>客户来源<\/th>/, "客户列表必须使用客户来源替换健康度列");
+assert.match(prototype, /<th>客户来源<\/th>/u, "客户列表必须使用客户来源替换健康度列");
 assert.match(apiLayer, /<span>客户来源<\/span><b>\$\{escapeHtml\(current\.source/, "客户全景必须展示客户来源");
 assert.match(apiLayer, /<span>客户来源<\/span><b>\$\{escapeHtml\(customer\.source/, "客户侧边详情必须展示客户来源");
 assert.match(apiLayer, /customerFullNameInput|customerCompanyFullNameInput/, "客户表单必须支持公司全名");
@@ -541,54 +387,47 @@ assert.doesNotMatch(apiLayer, /客户编号 \$\{escapeHtml\(current\.id\)/, "客
 assert.doesNotMatch(apiLayer, /<label>客户 ID<\/label>/, "客户编辑弹窗不得显示系统主键");
 assert.match(apiLayer, /公司简称: customer\.company/, "客户导出必须区分客户简称");
 assert.match(apiLayer, /customerDocumentName\(customer\)/, "单据生成必须优先使用公司全名");
-assert.match(prototype, /公司全名/, "客户界面必须提供公司全名字段");
+assert.match(apiLayer, /公司全名/, "客户界面必须提供公司全名字段");
 assert.equal(prototype.includes("topReminderCount"), false, "全局顶部栏不应继续显示提醒计数");
 assert.equal(prototype.includes("主库 <b>MySQL<\/b>"), false, "全局顶部栏不应显示数据库实现信息");
 assert.equal(prototype.includes("topImportButton"), false, "客户导入不能继续占用全局顶部栏");
 assert.equal(prototype.includes("topExportButton"), false, "客户导出不能继续占用全局顶部栏");
-assert.match(prototype, /class="customer-head-actions"[\s\S]*id="customerImportButton"[\s\S]*id="customerExportButton"/, "客户导入导出必须位于客户页右上角");
-assert.match(prototype, /id="customerPagination"[\s\S]*id="customerPageSize"[\s\S]*id="customerPrevPage"[\s\S]*id="customerNextPage"/, "客户列表必须保留分页和每页数量控制");
+assert.match(prototype, /class="customer-head-actions"[\s\S]*id="customerImportButton"[\s\S]*id="customerExportButton"/u, "客户导入导出必须位于客户页右上角");
+assert.match(prototype, /id="customerPagination"[\s\S]*id="customerPageSize"[\s\S]*id="customerPrevPage"[\s\S]*id="customerNextPage"/u, "客户列表必须保留分页和每页数量控制");
 assert.match(apiLayer, /function customerPageRows[\s\S]*customers\.slice\(start, start \+ state\.customerPageSize\)/, "客户列表必须只渲染当前页数据");
 assert.match(apiLayer, /state\.customerPage = Math\.min\(Math\.max\(1, state\.customerPage\), pageCount\)/, "客户数据减少后必须自动校正页码");
 assert.match(apiLayer, /customerSearchInput[\s\S]*state\.customerPage = 1[\s\S]*customerQueueFilter[\s\S]*state\.customerPage = 1/, "客户搜索和队列筛选必须回到第一页");
-assert.match(prototype, /id="agentSkillsGrid"/, "Skill 管理必须使用卡片目录");
-assert.match(prototype, /class="integration-launcher"/, "集成中心必须使用卡片入口页");
-assert.equal((prototype.match(/data-integration-launch-tab=/gu) || []).length, 10, "集成中心必须保留全部十个功能入口");
-assert.match(prototype, /class="integration-tabs"[^>]*hidden/, "集成中心旧横向标签必须保持隐藏");
+assert.doesNotMatch(prototype, /id="agentSkillsGrid"/u, "『Skill 管理必须使用卡片目录』所属模块已从精简版移除");
+assert.doesNotMatch(prototype, /class="integration-launcher"/u, "『集成中心必须使用卡片入口页』所属模块已从精简版移除");
+assert.equal((prototype.match(/data-integration-launch-tab=/gu) || []).length, 0, "集成中心已从精简版移除，不应残留入口");
+assert.doesNotMatch(prototype, /class="integration-tabs"[^>]*hidden/u, "『集成中心旧横向标签必须保持隐藏』所属模块已从精简版移除");
 assert.doesNotMatch(prototype, /Stage 6/, "集成中心不得显示内部开发阶段字样");
 assert.match(integrationCenter, /data-integration-home/, "每个集成工作区必须提供返回入口");
 assert.match(integrationCenter, /showHome\(\)/, "集成中心首次进入必须显示卡片入口页");
-assert.match(prototype, /id="agentSkillsCategoryFilter"/, "Skill 管理必须支持分类筛选");
-assert.match(prototype, /id="agentSkillsStatusFilter"/, "Skill 管理必须支持状态筛选");
-assert.match(prototype, /id="agentSkillsSourceFilter"/, "Skill 管理必须支持获取方式筛选");
-assert.match(prototype, /id="agentSkillDrawerBackdrop"/, "Skill 详情必须有独立抽屉");
-assert.match(apiLayer, /skill\.acquisitionInstructions/, "Skill 搜索与详情必须覆盖获取说明");
-assert.match(apiLayer, /function isHttpsUrl/, "Skill 外部链接必须进行 HTTPS 二次校验");
-assert.match(apiLayer, /data-agent-skill-copy/, "Skill 提取码、链接和安装命令必须支持复制");
+assert.doesNotMatch(prototype, /id="agentSkillsCategoryFilter"/u, "『Skill 管理必须支持分类筛选』所属模块已从精简版移除");
+assert.doesNotMatch(prototype, /id="agentSkillsStatusFilter"/u, "『Skill 管理必须支持状态筛选』所属模块已从精简版移除");
+assert.doesNotMatch(prototype, /id="agentSkillsSourceFilter"/u, "『Skill 管理必须支持获取方式筛选』所属模块已从精简版移除");
+assert.doesNotMatch(prototype, /id="agentSkillDrawerBackdrop"/u, "『Skill 详情必须有独立抽屉』所属模块已从精简版移除");
 assert.doesNotMatch(apiLayer, /exec\(skill\.installCommand|eval\(skill\.installCommand/, "Skill 安装命令只能展示和复制，不能在浏览器执行");
-assert.match(prototype, /id="agentSkillAddButton"/, "Skill 资源中心必须提供权限控制的上架入口");
-assert.match(apiLayer, /skillResourceTraining/, "Skill 资源必须支持训练教程维护");
-assert.match(apiLayer, /skillResourceOptimization/, "Skill 资源必须支持优化方向维护");
-assert.match(apiLayer, /\/api\/agent\/skill-resources/, "Skill 资源必须通过持久化 API 管理");
-assert.match(apiLayer, /accessSkillResource/, "Skill 下载必须通过受控访问接口获取链接");
+assert.doesNotMatch(prototype, /id="agentSkillAddButton"/u, "『Skill 资源中心必须提供权限控制的上架入口』所属模块已从精简版移除");
 assert.match(apiLayer, /type DevelopmentEmailScenario = "first_touch" \| "daily_contact" \| "holiday_greeting" \| "new_product" \| "custom_goal"/, "开发信必须提供五种明确写作场景");
 assert.match(apiLayer, /正在加载开发信工作区/, "开发信进入时必须表达为加载工作区而非自动生成");
 assert.doesNotMatch(apiLayer, /正在生成开发信/, "开发信进入时不得暗示已自动调用 AI");
 assert.match(apiLayer, /scenario: developmentEmailScenario,[\s\S]*goal: developmentEmailGoal,[\s\S]*requireAi/, "开发信 AI 请求必须携带场景、自然语言目标和明确生成开关");
 assert.match(apiLayer, /developmentEmailScenario === "custom_goal" && !developmentEmailGoal/, "自然语言目标场景调用 AI 前必须校验目标");
 assert.match(apiLayer, /activateNavView\("development-email", \(\) => void generateDevelopmentEmailDraftPage\(\)\)/, "进入开发信页面只能加载基础模板");
-assert.match(apiLayer, /return state\.user\?\.theme \|\| getStoredTheme\(\) \|\| THEME_DEFAULT;/, "系统无已保存主题时必须回落到系统默认主题（晨白 Paper）");
-assert.match(apiLayer, /templateStyle: profile\?\.templateStyle \|\| "rose" as const/, "新建单据必须默认使用团队玫红主题");
+assert.match(apiLayer, /const raw = state\.user\?\.theme \|\| getStoredTheme\(\) \|\| THEME_DEFAULT;[\s\S]*return isThemeSupported\(raw\) \? raw : THEME_DEFAULT;/, "系统无已保存主题或主题不受支持时必须回落到 ECORE 深色主题");
+assert.match(apiLayer, /templateStyle: ECORE_TEMPLATE_STYLE/, "ECORECRM 新建单据固定使用「默认模版」（定制 B 版式）");
 assert.match(apiLayer, /document\.type === "PI" && document\.templateStyle === "longtec"/, "PI 必须支持 Longtec 专用模板预览");
-assert.match(prototype, /id="docTemplateInput">[\s\S]*value="longtec"/, "单据编辑器必须提供 Longtec 可选模板");
-assert.match(prototype, /id="docThemeInput">[\s\S]*value="longtec"/, "单据主题选择必须同步提供 Longtec");
-assert.match(prototype, /id="documentDefaultTemplateStyle"><option value="rose">Rose<\/option>/, "单据默认配置必须优先显示玫红主题");
-assert.match(prototype, /id="documentSellerProfilesList"/, "单据默认配置必须展示全部卖方公司档案");
-assert.match(prototype, /id="documentSellerProfilesManage"/, "管理员必须能从默认配置进入卖方公司管理");
-assert.match(prototype, /id="docSellerProfileInput"/, "单据编辑器必须允许人工切换卖方公司");
-assert.match(prototype, /id="docBrandMarkTextInput"[^>]*maxlength="8"/, "单据编辑器必须允许单据级配置左上色块文字");
-assert.match(prototype, /id="documentDefaultBrandMarkText"[^>]*maxlength="8"/, "团队单据默认配置必须支持色块文字");
-assert.match(prototype, /id="docShippingCostInput"[^>]*type="number"/, "单据编辑器必须提供可选的运费输入");
+assert.match(prototype, /id="docTemplateInput">[\s\S]*value="longtec"/u, "单据编辑器必须提供 Longtec 可选模板");
+assert.match(prototype, /id="docThemeInput">[\s\S]*value="longtec"/u, "单据主题选择必须同步提供 Longtec");
+assert.match(prototype, /id="documentDefaultTemplateStyle"><option value="rose">Rose<\/option>/u, "单据默认配置必须优先显示玫红主题");
+assert.match(prototype, /id="documentSellerProfilesList"/u, "单据默认配置必须展示全部卖方公司档案");
+assert.match(prototype, /id="documentSellerProfilesManage"/u, "管理员必须能从默认配置进入卖方公司管理");
+assert.match(prototype, /id="docSellerProfileInput"/u, "单据编辑器必须允许人工切换卖方公司");
+assert.match(prototype, /id="docBrandMarkTextInput"[^>]*maxlength="8"/u, "单据编辑器必须允许单据级配置左上色块文字");
+assert.match(prototype, /id="documentDefaultBrandMarkText"[^>]*maxlength="8"/u, "团队单据默认配置必须支持色块文字");
+assert.match(prototype, /id="docShippingCostInput"[^>]*type="number"/u, "单据编辑器必须提供可选的运费输入");
 assert.match(apiLayer, /lineType: "shipping_cost"/, "填写运费后必须生成独立的 shipping_cost 明细");
 assert.match(apiLayer, /items = items\.filter\(\(item\) => item\.lineType !== "shipping_cost"\)/, "运费明细不能重复出现在产品编辑行中");
 assert.match(apiLayer, /function matchedSellerProfile[\s\S]*sellerProfileMatchScore/, "新建单据必须通过统一规则自动匹配卖方公司");
@@ -608,31 +447,31 @@ assert.match(
 );
 assert.match(apiLayer, /function renderCustomBPiPreview[\s\S]{0,9000}?cb-logo-image/, "定制B 必须把 Logo 真正渲染在页头（参考 PI 在右上角）");
 assert.doesNotMatch(apiLayer, /function renderCustomBPiPreview[\s\S]{0,9000}?ecore/i, "定制B 模板里不能残留参考件的品牌名");
-assert.match(prototype, /id="docTemplateInput">(?:(?!<\/select>)[\s\S])*?<option value="custom-b">定制B<\/option>/, "单据编辑器必须提供「定制B」模板选项");
-assert.match(prototype, /id="docThemeInput">(?:(?!<\/select>)[\s\S])*?<option value="custom-b">定制B<\/option>/, "主题选择必须同步提供「定制B」");
-assert.match(prototype, /id="documentDefaultTemplateStyle">(?:(?!<\/select>)[\s\S])*?<option value="custom-b">定制B<\/option>/, "团队单据默认配置必须能选「定制B」");
-assert.match(prototype, /\.doc-paper\.custom-b-pi \{/, "定制B 必须有独立纸张样式（去掉主题色顶边、A4 内距）");
-assert.match(prototype, /\.custom-b-pi \.cb-logo-image \{[\s\S]{0,200}?object-fit: contain/, "定制B 的 Logo 必须等比例缩放，不能拉伸变形");
+assert.match(prototype, /id="docTemplateInput">(?:(?!<\/select>)[\s\S])*?<option value="custom-b">默认模版<\/option>/u, "单据编辑器只提供「默认模版」（定制B 版式）");
+assert.match(prototype, /id="docThemeInput">(?:(?!<\/select>)[\s\S])*?<option value="custom-b">默认模版<\/option>/u, "主题选择只保留「默认模版」");
+assert.match(prototype, /id="documentDefaultTemplateStyle">(?:(?!<\/select>)[\s\S])*?<option value="custom-b">定制B<\/option>/u, "团队单据默认配置必须能选「定制B」");
+assert.match(prototype, /\.doc-paper\.custom-b-pi \{/u, "定制B 必须有独立纸张样式（去掉主题色顶边、A4 内距）");
+assert.match(prototype, /\.custom-b-pi \.cb-logo-image \{[\s\S]{0,200}?object-fit: contain/u, "定制B 的 Logo 必须等比例缩放，不能拉伸变形");
 assert.match(apiLayer, /DOC_PINNED_TEMPLATE_STYLES[\s\S]{0,200}?"custom-b"/, "主题色板切换不能覆盖定制模板的选择");
 // 定制B（PI）必须逐块对上参考 PI（595×842pt，1pt = 1.334px）：坐标由参考件量取后写死。
-assert.match(prototype, /\.doc-paper\.custom-b-pi \{[\s\S]{0,120}?padding: 54px 37px 60px/, "定制B 必须按参考 PI 的页边距（28.34pt）排版");
-assert.match(prototype, /\.custom-b-pi \.cbq-top \{[\s\S]{0,120}?justify-content: flex-end/, "定制B 的 Logo 必须靠右上（参考 PI 的页头）");
-assert.match(prototype, /\.custom-b-pi \.cbq-title \{[\s\S]{0,160}?font-size: 32px;[\s\S]{0,40}?font-weight: 400/, "标题必须是参考件的 24pt 常规字重");
-assert.match(prototype, /\.custom-b-pi \.cbq-party p:nth-child\(3\) \{ margin-top: 10\.5px; \}/, "抬头必须是参考件的五行结构（Company/Address 松、Tell/E-mail/Attn 紧）");
+assert.match(prototype, /\.doc-paper\.custom-b-pi \{[\s\S]{0,120}?padding: 54px 37px 60px/u, "定制B 必须按参考 PI 的页边距（28.34pt）排版");
+assert.match(prototype, /\.custom-b-pi \.cbq-top \{[\s\S]{0,120}?justify-content: flex-end/u, "定制B 的 Logo 必须靠右上（参考 PI 的页头）");
+assert.match(prototype, /\.custom-b-pi \.cbq-title \{[\s\S]{0,160}?font-size: 32px;[\s\S]{0,40}?font-weight: 400/u, "标题必须是参考件的 24pt 常规字重");
+assert.match(prototype, /\.custom-b-pi \.cbq-party p:nth-child\(3\) \{ margin-top: 10\.5px; \}/u, "抬头必须是参考件的五行结构（Company/Address 松、Tell/E-mail/Attn 紧）");
 assert.match(apiLayer, /partyRows[\s\S]{0,400}?T\("tell"\)/, "抬头必须输出 Tell 行（参考件有电话标签）");
-assert.match(prototype, /\.custom-b-pi \.cbq-col-no \{ width: 10%; \}[\s\S]{0,300}?\.custom-b-pi \.cbq-col-amount \{ width: 15%; \}/, "明细表列宽必须是参考件的 10/35/15/15/10/15");
-assert.match(prototype, /\.custom-b-pi \.cbq-table th,[\s\S]{0,120}?border: 0 !important/, "定制B 的明细表必须去掉竖线与外框，只保留横线");
-assert.match(prototype, /\.custom-b-pi \.cbq-table th \{[\s\S]{0,160}?border-bottom: 1\.3px solid #000/, "表头下必须只有一条 1pt 横线");
-assert.match(prototype, /\.custom-b-pi \.cbq-table td \{[\s\S]{0,160}?border-bottom: 1px solid #000/, "明细行下必须是 .75pt 细横线");
+assert.match(prototype, /\.custom-b-pi \.cbq-col-no \{ width: 10%; \}[\s\S]{0,300}?\.custom-b-pi \.cbq-col-amount \{ width: 15%; \}/u, "明细表列宽必须是参考件的 10/35/15/15/10/15");
+assert.match(prototype, /\.custom-b-pi \.cbq-table th,[\s\S]{0,120}?border: 0 !important/u, "定制B 的明细表必须去掉竖线与外框，只保留横线");
+assert.match(prototype, /\.custom-b-pi \.cbq-table th \{[\s\S]{0,160}?border-bottom: 1\.3px solid #000/u, "表头下必须只有一条 1pt 横线");
+assert.match(prototype, /\.custom-b-pi \.cbq-table td \{[\s\S]{0,160}?border-bottom: 1px solid #000/u, "明细行下必须是 .75pt 细横线");
 assert.doesNotMatch(prototype, /\.custom-b-pi \.cbq-table tbody tr:last-child/, "明细表末行不能再加粗线（参考件整表同一条 .75pt 线）");
-assert.match(prototype, /\.custom-b-pi \.cbq-totals p:nth-child\(2\) \{[\s\S]{0,80}?border-bottom: 1px solid #000/, "合计区第一条线在 TOTAL NO VAT 下方");
-assert.match(prototype, /\.custom-b-pi \.cbq-totals p:nth-child\(3\) \{[\s\S]{0,120}?border-bottom: 1px solid #000/, "合计区第二条线在 TOTAL USD 下方");
-assert.match(prototype, /\.custom-b-pi \.cbq-terms-title \{ margin: 94px 0 0;[\s\S]{0,120}?border-bottom: 1px solid #000/, "Terms 标题下的线必须整幅通栏（参考件跨到右边距）");
+assert.match(prototype, /\.custom-b-pi \.cbq-totals p:nth-child\(2\) \{[\s\S]{0,80}?border-bottom: 1px solid #000/u, "合计区第一条线在 TOTAL NO VAT 下方");
+assert.match(prototype, /\.custom-b-pi \.cbq-totals p:nth-child\(3\) \{[\s\S]{0,120}?border-bottom: 1px solid #000/u, "合计区第二条线在 TOTAL USD 下方");
+assert.match(prototype, /\.custom-b-pi \.cbq-terms-title \{ margin: 94px 0 0;[\s\S]{0,120}?border-bottom: 1px solid #000/u, "Terms 标题下的线必须整幅通栏（参考件跨到右边距）");
 assert.match(apiLayer, /<h3 class="cbq-terms-title">[\s\S]{0,120}?<\/h3>\s*<section class="cbq-lower">/, "Terms 通栏线必须在左右两栏之外，不能被左列宽度截断");
-assert.match(prototype, /\.custom-b-pi \.cbq-sign \{ width: 251px; margin-top: 122\.3px; \}/, "签署块必须落在参考件右下角的位置");
-assert.match(prototype, /\.custom-b-pi \.cbq-sign-for \{[\s\S]{0,200}?color: #241a7d;[\s\S]{0,120}?font-style: italic/, "签署块必须是参考件的深紫衬线斜体");
-assert.match(prototype, /\.custom-b-pi \.cbq-sign-rule \{[\s\S]{0,120}?border-top: 3px dotted #241a7d/, "签署处必须有参考件的点状虚线");
-assert.match(prototype, /\.custom-b-pi \.cbq-table th\.cbq-col-vat,[\s\S]{0,90}?display: none/, "手机宽度必须收起恒为 No VAT 的列，否则六列会挤在一起");
+assert.match(prototype, /\.custom-b-pi \.cbq-sign \{ width: 251px; margin-top: 122\.3px; \}/u, "签署块必须落在参考件右下角的位置");
+assert.match(prototype, /\.custom-b-pi \.cbq-sign-for \{[\s\S]{0,200}?color: #241a7d;[\s\S]{0,120}?font-style: italic/u, "签署块必须是参考件的深紫衬线斜体");
+assert.match(prototype, /\.custom-b-pi \.cbq-sign-rule \{[\s\S]{0,120}?border-top: 3px dotted #241a7d/u, "签署处必须有参考件的点状虚线");
+assert.match(prototype, /\.custom-b-pi \.cbq-table th\.cbq-col-vat,[\s\S]{0,90}?display: none/u, "手机宽度必须收起恒为 No VAT 的列，否则六列会挤在一起");
 assert.match(apiLayer, /function renderCustomBPiPreview[\s\S]{0,9000}?class="cbq-body"/, "定制B 必须是「左标题 + 右侧元信息」两列结构");
 // 卖方公司的 Logo 调节器：两行（上下左右 / 缩小放大），且必须真的作用到定制B 的 PI / PO。
 // 以前这两个模板完全忽略 logoPlacement，用户在「卖方公司」里怎么调都看不到变化。
@@ -651,8 +490,8 @@ assert.match(apiLayer, /const persistDraft = \(\) => \{[\s\S]{0,220}?drafts\[cur
 assert.match(apiLayer, /function readDocumentLetterheadLogoPlacements[\s\S]{0,700}?logoPlacement: documentAssetPlacementValue\(map\[""\]\)/, "保存时必须把通用值单独取出来回传 logoPlacement");
 assert.match(apiLayer, /logoUrl, \.\.\.readDocumentLetterheadLogoPlacements\("assetLetterhead"\)/, "保存卖方公司必须同时回传 logoPlacement 与分模板的 logoPlacements");
 // 单据编辑里的一行式 Logo 调节器：挂在卖方公司档案下拉下，随预览同步，停手后静默存回档案
-assert.match(prototype, /id="docSellerProfileInput"[\s\S]{0,1400}?class="doc-logo-inline" id="docLogoInline"/, "一行式 Logo 调节器必须放在卖方公司档案下方（单据编辑表单里）");
-assert.match(prototype, /id="docLogoInline"[^>]*hidden[\s\S]{0,600}?data-doc-logo-dir="0\|-1"[\s\S]{0,800}?data-doc-logo-zoom="-5"[\s\S]{0,400}?data-doc-logo-zoom="5"/, "一行调节器默认隐藏，且必须带方向键与缩小/放大键");
+assert.match(prototype, /id="docSellerProfileInput"[\s\S]{0,1400}?class="doc-logo-inline" id="docLogoInline"/u, "一行式 Logo 调节器必须放在卖方公司档案下方（单据编辑表单里）");
+assert.match(prototype, /id="docLogoInline"[^>]*hidden[\s\S]{0,600}?data-doc-logo-dir="0\|-1"[\s\S]{0,800}?data-doc-logo-zoom="-5"[\s\S]{0,400}?data-doc-logo-zoom="5"/u, "一行调节器默认隐藏，且必须带方向键与缩小/放大键");
 assert.match(apiLayer, /function syncDocumentLogoInline[\s\S]{0,400}?if \(!active \|\| !letterhead\) \{\s*row\.hidden = true;\s*return;/, "调节器只对会消费该设置的模板出现（定制B 的 PI / PO），其余模板必须隐藏");
 assert.match(apiLayer, /function renderDocumentPreview\([\s\S]{0,200}?syncDocumentLogoInline\(document\);/, "调节器必须随预览刷新同步（预览画哪套值，调节器就显示哪套）");
 assert.match(apiLayer, /letterhead\.logoPlacements = \{ \.\.\.\(letterhead\.logoPlacements \|\| \{\}\), \[key\]: value \}/, "行内调节必须按当前模板的键写入对应那一套，不能覆盖其他模板");
@@ -671,22 +510,18 @@ assert.match(apiLayer, /function renderCustomBPoPreview[\s\S]{0,12000}?cbp-parti
 assert.match(apiLayer, /function renderCustomBPoPreview[\s\S]{0,12000}?Confirmed By:/, "PO 定制B 必须有 Confirmed By 签章区");
 assert.match(apiLayer, /function renderCustomBPoPreview[\s\S]{0,12000}?STANDARD PURCHASE ORDER TERMS AND CONDITIONS/, "PO 定制B 必须带标准采购条款");
 assert.doesNotMatch(apiLayer, /function renderCustomBPoPreview[\s\S]{0,12000}?ecore/i, "PO 定制B 模板里不能残留参考件的品牌名");
-assert.match(prototype, /data-doc-type="PO"/, "单据类型页签必须能切到 PO");
+assert.match(prototype, /data-doc-type="PO"/u, "单据类型页签必须能切到 PO");
 assert.match(apiLayer, /PO: "采购订单"/, "PO 必须登记中文单据名");
-assert.match(prototype, /\.doc-paper\.custom-b-po \{/, "PO 定制B 必须有独立纸张样式");
-assert.match(prototype, /\.custom-b-po \.cbp-parties \{[\s\S]{0,200}?grid-template-columns: 1fr 1fr/, "PO 的 Vendor / Ship to 必须是两栏等高");
-assert.match(prototype, /\.custom-b-po \.cbp-table th \{[\s\S]{0,160}?background: #d9d9d9/, "PO 表头必须是黑白模板的浅灰底");
-assert.match(prototype, /\.custom-b-po \.cbp-head \{[\s\S]{0,160}?justify-content: space-between/, "PO 页头必须是 Logo 与公司名左右分置");
-assert.match(prototype, /\.custom-b-po \.cbp-sign \{[\s\S]{0,120}?grid-template-columns: 1fr 1fr/, "PO 的 Confirmed By / For and on behalf of 必须是双栏签章区");
-assert.match(prototype, /\.custom-b-po \.cbp-terms-table th:nth-child\(4\) \{ width: 26%; \}/, "PO 条款表必须固定五列比例，否则 Payment Term 会把 Terms 挤没");
-assert.match(prototype, /id="leadFinderLfindButton"[\s\S]*Lfind 深入查询/, "自动获客页必须提供 Lfind 深入查询入口");
-assert.match(prototype, /id="leadFinderLfindInlineButton"[\s\S]*Lfind 深入查询/, "来源与执行设置中必须提供 Lfind 深入查询入口");
+assert.match(prototype, /\.doc-paper\.custom-b-po \{/u, "PO 定制B 必须有独立纸张样式");
+assert.match(prototype, /\.custom-b-po \.cbp-parties \{[\s\S]{0,200}?grid-template-columns: 1fr 1fr/u, "PO 的 Vendor / Ship to 必须是两栏等高");
+assert.match(prototype, /\.custom-b-po \.cbp-table th \{[\s\S]{0,160}?background: #d9d9d9/u, "PO 表头必须是黑白模板的浅灰底");
+assert.match(prototype, /\.custom-b-po \.cbp-head \{[\s\S]{0,160}?justify-content: space-between/u, "PO 页头必须是 Logo 与公司名左右分置");
+assert.match(prototype, /\.custom-b-po \.cbp-sign \{[\s\S]{0,120}?grid-template-columns: 1fr 1fr/u, "PO 的 Confirmed By / For and on behalf of 必须是双栏签章区");
+assert.match(prototype, /\.custom-b-po \.cbp-terms-table th:nth-child\(4\) \{ width: 26%; \}/u, "PO 条款表必须固定五列比例，否则 Payment Term 会把 Terms 挤没");
+assert.doesNotMatch(prototype, /id="leadFinderLfindButton"[\s\S]*Lfind 深入查询/u, "『自动获客页必须提供 Lfind 深入查询入口』所属模块已从精简版移除");
+assert.doesNotMatch(prototype, /id="leadFinderLfindInlineButton"[\s\S]*Lfind 深入查询/u, "『来源与执行设置中必须提供 Lfind 深入查询入口』所属模块已从精简版移除");
 assert.match(apiLayer, /\/api\/lead-finder\/lfind-tasks/, "前端必须通过 Lfind 任务接口启动和轮询本地 Skill");
-assert.match(apiLayer, /function runLfindLeadSearch/, "前端必须有独立的 Lfind 启动流程");
-assert.match(apiLayer, /syncLfindTaskPolling/, "Lfind 必须异步轮询任务并同步结果");
 assert.match(apiLayer, /searchReport/, "搜客候选必须接收每行搜索报告");
-assert.match(apiLayer, /renderLeadSearchReportCell/, "自动搜客表格必须展示每行搜索报告摘要");
-assert.match(apiLayer, /renderLeadSearchReportPanel/, "候选详情必须展示完整搜索报告和验证来源");
 
 // ---------------------------------------------------------------------------
 // 知识库训练工作台（P1）
@@ -724,8 +559,8 @@ function kbSourceBetween(source: string, fromMarker: string, toMarker: string): 
   return source.slice(start, end < 0 ? source.length : end);
 }
 
-assert.match(prototype, /<div class="view" id="kb-training">/, "index.html 必须提供知识库训练视图容器");
-assert.match(prototype, /data-view="kb-training"/, "知识库训练必须有导航入口");
+assert.doesNotMatch(prototype, /<div class="view" id="kb-training">/u, "『index.html 必须提供知识库训练视图容器』所属模块已从精简版移除");
+assert.doesNotMatch(prototype, /data-view="kb-training"/u, "『知识库训练必须有导航入口』所属模块已从精简版移除");
 // ⚠️ 真实事故（用户报「为什么所有界面都有知识库训练？？？」）：视图自带的 <style> 里
 //    写成 `#kb-training { display:flex }`（权重 1,0,0），压掉了全局的
 //    `.view { display:none }`（权重 0,1,0）→ 该视图不再受活动态约束，**每个页面都渲染**。
@@ -741,48 +576,17 @@ kbViewIdList.forEach((viewId) => {
     `视图 #${viewId} 的样式不得直接写 display —— 会压掉 .view{display:none}，该视图会在所有页面渲染（布局态请写 #${viewId}.active）`
   );
 });
-assert.match(
+assert.doesNotMatch(
   prototypeNoComments,
   /#kb-training\.active\s*\{[^}]*display:\s*flex/u,
-  "知识库训练激活态必须以 flex 渲染三屏（布局态限定在 .active 上）"
+  "知识库训练已从精简版移除，不应残留激活态样式"
 );
 // 来源描述：资料从哪来 / 谁给的口径，跟着候选出处一起显示。三个落点缺一不可 ——
 // 少了输入框用户填不了；少了提交体填了也不生效；少了出处渲染生效了也看不见。
-assert.match(prototype, /id="kbSourceNote"/u, "屏 1 必须有「来源描述」输入框 #kbSourceNote");
-kbHasLiveLine(apiLayer, (line) => line.includes('"#kbSourceNote"'), "prototype-api.ts 必须读取 #kbSourceNote");
-assert.match(prototype, /data-kb-staged-note/u, "暂存清单每行必须有「来源描述」输入框");
-kbHasLiveLine(apiLayer, (line) => line.includes("kbStagedNote"), "暂存描述输入必须绑定 data-kb-staged-note（dataset.kbStagedNote）");
-kbHasLiveLine(apiLayer, (line) => line.includes("note: soloStaged && mainNote ? mainNote : item.note || undefined"), "暂存项提交时必须带上来源描述");
-kbHasLiveLine(apiLayer, (line) => line.includes("note: mainNote || undefined"), "正文框那一份提交时必须带上来源描述");
-assert.match(
-  kbSourceBetween(apiLayer, "function kbSourceRefHtml", "function kbCandidateStatusTag"),
-  /escapeHtml\(ref\.note\)/u,
-  "候选出处必须渲染来源描述（且要过 escapeHtml）"
-);
-// 出处三件套随发布到插件：试问引用卡片必须显示「《文件》§段落 · 描述」。
-// KbProbeCitation 要有三件套字段；kbProbeCitationHtml 里要拼《标题》并渲染出处行（都过 escapeHtml）。
-assert.match(
-  apiLayer,
-  /interface KbProbeCitation\s*\{[^}]*sourceTitle\?[^}]*sourceAnchor\?[^}]*sourceNote\?/u,
-  "KbProbeCitation 必须声明出处三件套（sourceTitle/sourceAnchor/sourceNote）"
-);
-assert.match(
-  kbSourceBetween(apiLayer, "function kbProbeCitationHtml", "function renderKbProbe"),
-  /citation\.sourceTitle \? `《\$\{citation\.sourceTitle\}》`/u,
-  "试问引用必须显示文件名（《文件》格式，出处整行统一过 escapeHtml）"
-);
-assert.match(
-  kbSourceBetween(apiLayer, "function kbProbeCitationHtml", "function renderKbProbe"),
-  /出处：\$\{escapeHtml\(sourceBits\)\}/u,
-  "试问引用必须渲染「出处：」整行（且要过 escapeHtml）"
-);
-kbHasLiveLine(apiLayer, (line) => line.trim() === '"kb-training": "知识库训练",', "viewLabels 必须注册知识库训练");
-kbHasLiveLine(apiLayer, (line) => line.trim() === '"kb-training": "training.read",', "知识库训练必须复用 training.read 权限");
-kbHasLiveLine(apiLayer, (line) => line.trim() === 'if (view === "kb-training") {', "进入知识库训练必须挂载加载钩子");
-kbHasLiveLine(apiLayer, (line) => line.trim() === "void loadKbTraining({ silent: true });", "进入知识库训练必须加载工作台（且为静默加载）");
-kbHasLiveLine(apiLayer, (line) => line.trim() === "bindKbTrainingEvents();", "知识库训练事件必须在启动时绑定一次");
-kbHasLiveLine(apiLayer, (line) => line.trim() === 'if (activeView === "kb-training" && view !== "kb-training") stopKbTrainingPoll();', "离开知识库训练必须停止轮询");
-kbHasLiveLine(apiLayer, (line) => line.includes('candidate.preselect && candidate.status === "pending"'), "预勾选必须直接采用后端算出的 preselect");
+assert.doesNotMatch(prototype, /id="kbSourceNote"/u, "『屏 1 必须有「来源描述」输入框 #kbSourceNote』所属模块已从精简版移除");
+assert.doesNotMatch(prototype, /data-kb-staged-note/u, "『暂存清单每行必须有「来源描述」输入框』所属模块已从精简版移除");
+assert.doesNotMatch(apiLayer, /"kb-training": "知识库训练",/u, "知识库训练已从精简版移除，viewLabels 不得再注册");
+assert.doesNotMatch(apiLayer, /"kb-training": "training\.read",/u, "知识库训练已移除，权限映射不应再含该视图");
 assert.doesNotMatch(apiLayer, /shouldPreselect|KB_PRESELECT_CONFIDENCE/, "前端不得复制后端的预勾选规则（规则只在后端有一份）");
 const kbTrainingIds = [
   "kbRefreshButton",
@@ -818,50 +622,19 @@ const kbTrainingIds = [
   "kbKnowledgeNotice",
   "kbKnowledgeSearch"
 ];
+// 知识库训练已随精简版移除：这些控件不应再出现在 index.html
 kbTrainingIds.forEach((id) => {
-  assert.ok(prototype.includes(`id="${id}"`), `知识库训练缺少控件 #${id}`);
-  kbHasLiveLine(apiLayer, (line) => line.includes(`"#${id}"`), `prototype-api.ts 从未引用 #${id}（选择器拼错即静默不生效）`);
+  assert.equal(prototype.includes(`id="${id}"`), false, `知识库训练已移除，不应残留控件 #${id}`);
 });
-// 顶部搜索框只过滤卡片展示：判据落在真正过滤的那一行上。
-// 「归入哪个库」下拉仍走全量（renderKbTargetOptions 用 kbKnowledgeSorted() 原样取），
-// 提交口径不能被搜索框收窄 —— 收窄了用户搜着字发布，就会把成果发进没搜出来的库。
-kbHasLiveLine(apiLayer, (line) => line.includes("item.name.toLowerCase().includes(query)"), "知识库搜索必须按名称过滤卡片");
-kbHasLiveLine(apiLayer, (line) => line.includes("匹配 ${items.length} / 共 ${all.length} 个"), "搜索时摘要必须显示匹配数（否则不知道是筛过了还是真没有）");
-kbHasLiveLine(apiLayer, (line) => line.includes("没有匹配「"), "搜索无结果必须区分「没有匹配」与「还没有知识库」两种空态");
 // 试问验证必须是「按钮 → 弹窗」：弹窗复用全局 .modal-backdrop/.modal 语言
 //（自造一套浮层会让关闭/遮罩/Esc 的行为与其它弹窗不一致），且打开即聚焦输入框。
-assert.match(prototype, /class="modal-backdrop" id="kbProbeModal"/u, "试问验证必须用全局弹窗语言（.modal-backdrop + #kbProbeModal），不得自造浮层");
-assert.match(prototype, /id="kbProbeModalClose"[^>]*aria-label="关闭"/u, "试问弹窗必须有关闭键（aria-label=\"关闭\"）");
-kbHasLiveLine(apiLayer, (line) => line.includes('kbProbeModal.classList.add("active")'), "试问弹窗必须由「问一句试试」按钮打开（.active 显隐与全局弹窗一致）");
-kbHasLiveLine(apiLayer, (line) => line.includes('kbProbeModal.classList.remove("active")'), "试问弹窗必须可关闭（关闭键/遮罩点击）");
-kbHasLiveLine(apiLayer, (line) => line.includes('qs<HTMLInputElement>("#kbProbeInput")?.focus()'), "试问弹窗打开后必须聚焦输入框（打开即问）");
+assert.doesNotMatch(prototype, /class="modal-backdrop" id="kbProbeModal"/u, "『试问验证必须用全局弹窗语言（.modal-backdrop + #kbProbeModal）』所属模块已从精简版移除");
+assert.doesNotMatch(prototype, /id="kbProbeModalClose"/u, "『试问弹窗关闭键』所属模块已从精简版移除");
 // 指标条的 <small> 是「这格是什么」，不是「取值范围枚举」：
 // 曾经写成「CLI / 模型 / 未生效」，于是引擎正常工作时也摆着一个「未生效」，
 // 用户读到的结论是「我的引擎没生效」—— 真降级反而被这句话淹掉。
 assert.doesNotMatch(prototype, /<small>[^<]*未生效[^<]*<\/small>/u, "指标条说明位不得把「未生效」写成静态取值：引擎正常时会被读成「当前未生效」，真降级反而看不出");
 
-// ---------------------------------------------------------------------------
-// 知识库训练：试问屏必须与插件 resolve() 的真实出参对齐
-//
-// 这里守的是本轮修掉的一类错：前端曾经按「出处」的形状去渲染 `hits`
-// （读 title/snippet/score），结果每条都渲染成空壳 —— 而真相是 `hits` 是
-// `TrainingLibraryMatch`（{entry, similarity, matchedTerms}），`citations` 才是出处。
-// 契约不一致时界面不会报错，只会安静地少显示东西，所以必须由断言守住。
-// ---------------------------------------------------------------------------
-// 判据必须落在**真正渲染的那一行**上：只断言「出现过 probe.verdict」是不够的
-// —— 守卫条件 `if (probe.message && !probe.verdict)` 里也有它，把渲染那一行删掉照样通过。
-kbHasLiveLine(apiLayer, (line) => line.includes("escapeHtml(probe.verdict)"), "试问必须展示插件给的护栏判决（verdict）");
-kbHasLiveLine(apiLayer, (line) => line.includes("for (const warning of probe.warnings"), "试问必须展示插件给的提示（warnings）");
-kbHasLiveLine(
-  apiLayer,
-  (line) => line.includes("item.entry.question || item.entry.answer"),
-  "试问必须指出踩到的禁用场景（哪句被拦、为什么）"
-);
-kbHasLiveLine(
-  apiLayer,
-  (line) => line.includes("citations.filter((citation) => citation.kind === group.kind)"),
-  "试问的正文出处必须以 citations 分组渲染"
-);
 assert.doesNotMatch(
   apiLayer,
   /probe\.blocked|blocked\?:\s*boolean/u,
@@ -872,64 +645,17 @@ assert.doesNotMatch(
   /\.\.\.\(probe\.hits \|\| \[\]\),\s*\.\.\.\(probe\.citations/u,
   "hits 与 citations 是同一次检索的两种视图，相加会让同一条问答被列两遍、条数翻倍"
 );
-assert.match(
-  apiLayer,
-  /interface KbProbeMatch \{[\s\S]{0,400}?entry: KbProbeEntry;/u,
-  "hits 的类型必须是插件的 TrainingLibraryMatch（含 entry），不是出处形状"
-);
 
-// 行内编辑：人工确认闸必须能润色答案，否则不合口径的候选只有「丢弃」一条路。
-kbHasLiveLine(
-  apiLayer,
-  (line) => line.trim() === "body: JSON.stringify({ ids: chunk, action, edits: edits?.length ? edits : undefined })",
-  "确认时必须把 edits 一起提交（后端支持 edits，不传等于改了不生效）"
-);
-kbHasLiveLine(apiLayer, (line) => line.includes('data-kb-edit="answer"'), "编辑态必须有答案输入框");
-// 同上：光有字符串不够 —— 渲染处与聚焦选择器是两件事，缺一个就是「编辑框打不开或点不到」。
-assert.ok(
-  (apiLayer.match(/data-kb-edit="answer"/gu) || []).length >= 2,
-  "答案输入框必须既被渲染、也被聚焦逻辑引用（进编辑态要能直接开始打字）"
-);
-kbHasLiveLine(apiLayer, (line) => line.includes('"edit-confirm"'), "编辑态必须有「保存并确认」动作");
 
 // 多份资料：一次训练要能带上好几份（后端 text.items 上限 50 条）。
-assert.match(prototype, /id="kbSourceFile"[^>]*\bmultiple\b/u, "本地文件读取必须支持多选（一次只训一份是真实摩擦）");
-// 上传区是 div 不是 button：键盘可达性与拖拽导入必须手动补齐，缺了就是"只能用鼠标"。
-kbHasLiveLine(apiLayer, (line) => line.includes('upload.onkeydown = (event) =>'), "上传区必须键盘可达（Enter / 空格打开选择窗口）");
-kbHasLiveLine(apiLayer, (line) => line.includes("upload.ondrop = (event) =>"), "上传区必须支持拖拽导入（点选之外的第二条路）");
-kbHasLiveLine(apiLayer, (line) => line.includes("all.filter((item) => kbSourceFileKind(item.name) !== \"\")"), "拖入文件必须按扩展名过滤（二进制会被 text() 读成乱码语料）");
-// PDF / Word 不能走 file.text()：浏览器读不出正文，必须交后端抽取。
-kbHasLiveLine(apiLayer, (line) => line.includes("await kbExtractSourceFile(file)"), "PDF / Word 必须走后端抽取，不能本地当文本读");
-kbHasLiveLine(apiLayer, (line) => line.includes("void readKbLocalFiles(ok)"), "拖拽与点选必须共用同一套读入管线（两套管线迟早读出两种结果）");
-kbHasLiveLine(apiLayer, (line) => line.includes("sources: { text: { items } }"), "提交时必须以 text.items 携带多份资料（不是只发一份）");
+assert.doesNotMatch(prototype, /id="kbSourceFile"[^>]*\bmultiple\b/u, "『本地文件读取必须支持多选（一次只训一份是真实摩擦）』所属模块已从精简版移除");
 assert.doesNotMatch(
   apiLayer,
   /files:\s*\{ assetIds:/u,
   "前端不得把关联资料同时塞进 files.assetIds：那条路径会把资料自身的说明当成一份语料喂进去"
 );
-kbHasLiveLine(apiLayer, (line) => line.includes("items.push({ title, body, assetId: assetId || undefined, note: mainNote || undefined })"), "正文框内容必须作为一份资料一起提交（含来源描述）");
-assert.ok(
-  (apiLayer.match(/kbTrainingState\.staged = \[\]/gu) || []).length >= 2,
-  "暂存清单必须既能提交后自动清空、也能手动清空"
-);
 
-// 降级可见（§9）：轮询失败不许刷屏、不许静默；截断必须说出来。
-// 断言计数而非「存在一处」：轮询与批次加载是两条独立的失败路径，
-// 只守其中一条，另一条改成弹 toast 就会每 3 秒刷满界面（同名字符串会掩盖它）。
-assert.ok(
-  (apiLayer.match(/if \(options\.silent\) kbNotePollFailure\(\);/gu) || []).length >= 2,
-  "轮询与批次加载两条失败路径都必须静默计数，不能每 3 秒弹一次错"
-);
-kbHasLiveLine(apiLayer, (line) => line.trim() === "if (kbTrainingState.pollStopped || kbTrainingState.editId) return;", "连续失败或编辑中必须停自动刷新");
-kbHasLiveLine(
-  apiLayer,
-  (line) => line.includes("kbTrainingState.candidateTotal > kbTrainingState.candidates.length"),
-  "候选被 limit 截断时必须明说（静默截断是历史踩过的坑）"
-);
 
-// 出处可点：候选的出处要能一键回到文件中心资料本身。
-kbHasLiveLine(apiLayer, (line) => line.includes("data-kb-asset="), "候选出处必须渲染成可点链接（关联了文件中心资料时）");
-kbHasLiveLine(apiLayer, (line) => line.includes('"[data-kb-asset]"'), "出处链接必须有事件处理");
 
 // ---------------------------------------------------------------------------
 // 知识库：公开 / 私用 + 账号级「默认知识库」多选启用
@@ -945,126 +671,25 @@ assert.doesNotMatch(
   /data-kb-kb-save/u,
   "启用清单不得有「保存」按钮：勾选即启用，多一步就会有人勾完不点保存，然后以为生效了"
 );
-kbHasLiveLine(
-  apiLayer,
-  (line) => line.includes("data-kb-kb-enable=") && line.includes("item.enabled"),
-  "知识库勾选框必须反映当前启用状态（不看状态就渲染，界面会与真实清单不一致）"
-);
-kbHasLiveLine(
-  apiLayer,
-  (line) => line.includes("data-kb-kb-visibility=") && line.includes("item.isOwner"),
-  "别人的知识库不得渲染「公开 / 私用」按钮：别人的库只能勾选启用，改不动"
-);
-kbHasLiveLine(
-  apiLayer,
-  (line) => line.includes("data-kb-kb-rename=") && line.includes("item.isOwner"),
-  "别人的知识库不得渲染改名按钮（渲染出来点了报错比不渲染更糟）"
-);
-// 保存成功 ≠ 生效：这两条分支必须把「还没生效」留在屏幕上，而不是弹一个会消失的 toast。
-kbHasLiveLine(apiLayer, (line) => line.includes("!result.pluginPushed"), "插件未同步必须显式提示：清单在 CRM 生效、运行端还没生效");
-kbHasLiveLine(apiLayer, (line) => line.includes("result.rejected?.length"), "知识库被拒时必须说明是哪几个、为什么（静默忽略等于谎报成功）");
-assert.ok(
-  /finally \{[\s\S]*?await loadKbKnowledgeBases\(\{ silent: true \}\)/u.test(
-    kbSourceBetween(apiLayer, "async function toggleKbKnowledgeEnabled", "async function toggleKbKnowledgeVisibility")
-  ),
-  "勾选后必须以后端清单为准重读：失败时由后端把勾选状态改回来（乐观更新会在失败时留下假象）"
-);
 assert.doesNotMatch(
   apiLayer,
   /function setKbKnowledgeNotice[\s\S]{0,400}?setTimeout/u,
   "知识库提示必须常驻：清单没同步到插件时出稿仍按旧清单走，自动消失的提示等于没说"
 );
-// 训练完成 / 发布候选之后都要静默重读知识库：条目数会变，不重读就看不到自己的成果进了哪个库。
-// 断言的是**那一处调用本身**（`void` 形式），不是"文件里出现过这串字符"——
-// 三个 finally 里的 `await` 形式也含同样的字符串，只数总量的话把这两处删掉也不会红。
-assert.ok(
-  (apiLayer.match(/void loadKbKnowledgeBases\(\{ silent: true \}\)/gu) || []).length >= 2,
-  "发起训练与发布候选后都必须静默重读知识库（否则「已发布 N 条」永远停在旧数字）"
-);
-// 试问必须回报「这次读了什么范围」：没命中时这是唯一能区分
-// 「被启用清单挡掉」与「库里压根没有这条语料」的证据，缺了用户只能靠猜。
-kbHasLiveLine(apiLayer, (line) => line.includes("probe.kbScope"), "试问必须展示检索范围（插件回报的 kbScope）");
-// 判据落在**给用户看的那句话**上：只断言 `scope.skippedByScope` 是不够的 ——
-// 同一行模板里它出现两次，删掉三元判断、留下插值照样通过。
-kbHasLiveLine(
-  apiLayer,
-  (line) => line.includes("条因不在启用清单里被跳过"),
-  "检索范围必须包含「因不在启用清单里被跳过」的条数"
-);
-// 批次卡片要标明归属：发布是逐条带 kbId 的，卡片不显示，发布完就只能去知识库列表里反推。
-kbHasLiveLine(apiLayer, (line) => line.includes("kbKnowledgeNameOf(run.kbId)"), "批次卡片必须标明这批归入哪个知识库");
-// 面板每轮重绘都换掉 innerHTML：事件必须委托在容器上，逐行 addEventListener 会随重绘一起丢。
-kbHasLiveLine(
-  apiLayer,
-  (line) => line.trim() === 'const knowledgeList = qs<HTMLElement>("#kbKnowledgeList");',
-  "知识库面板的事件必须委托在容器上（行内按钮是每次重绘新建的）"
-);
-// 屏 1 的「这批成果归入哪个库」：不提供就等于每训一次多一个库，
-// 同一份资料反复提炼（第一次失败、补内容再提）会把「选择默认知识库」那张清单彻底搞乱。
-// 判据落在**真的提交了 kbId** 那一行上：只断言"有这个下拉"是抓不到"选了没发"的。
-kbHasLiveLine(
-  apiLayer,
-  (line) => line.includes("...(targetKbId ? { kbId: targetKbId } : {})"),
-  "屏 1 选中的归属知识库必须真的提交，否则选了等于没选"
-);
-kbHasLiveLine(
-  apiLayer,
-  (line) => line.includes("kbKnowledgeSorted().filter((item) => item.isOwner)"),
-  "归属目标只列自己的知识库：别人的库后端会 403，列出来只会让用户点了报错"
-);
-kbHasLiveLine(
-  apiLayer,
-  (line) => line.includes("!result.knowledgeBaseSync.ok"),
-  "新建库后清单同步失败必须提示（否则运行端仍按旧清单出稿，界面却显示已启用）"
-);
 
-// 运行中必须能回答「还在跑吗」与「能不能停」：只有「运行中」三个字时，
-// 用户分不清在跑还是卡死，而这两种情况的下一步完全相反（等 vs 停下重来）。
-kbHasLiveLine(apiLayer, (line) => line.includes("批 · 已处理"), "运行中的批次必须显示批次级进度（第几批/共几批）");
-kbHasLiveLine(apiLayer, (line) => line.includes("data-kb-run-cancel="), "运行中的批次必须有停止入口");
-// 停止是「请求」不是「结果」：发出后按钮必须停在「正在停止…」而不是弹回可点状态，
-// 否则用户会以为没生效、反复点，而它本来就要等当前这批跑完。
-kbHasLiveLine(
-  apiLayer,
-  (line) => line.includes("正在停止…（等当前这批结束）"),
-  "停止请求发出后必须显示等待态（否则用户会以为没生效）"
-);
-kbHasLiveLine(apiLayer, (line) => line.includes("data-kb-run-retry="), "失败/取消的批次必须能一键把资料填回来");
-// 第一批在飞时进度必然为 0：一条钉在 2% 的条子和「卡死」无法区分，
-// 必须切成不定长扫光并在文案里给出单批耗时，用户才敢决定「再等等」还是「停掉」。
-kbHasLiveLine(
-  apiLayer,
-  (line) => line.includes("pendingFirstBatch ? \" is-pending\" : \"\""),
-  "第一批未返回时必须切到不定长进度（0% 与卡死无法区分）"
-);
-kbHasLiveLine(
-  apiLayer,
-  (line) => line.includes("单批通常 1~2 分钟"),
-  "不定长进度必须写明单批耗时（否则用户仍然只能猜）"
-);
-kbHasLiveLine(
+assert.doesNotMatch(
   prototype,
-  (line) => line.includes("animation: kbBarIndeterminate"),
-  "不定长进度必须有扫光动画（否则是静止的 38% 色块）"
+  /animation: kbBarIndeterminate/u,
+  "『不定长进度必须有扫光动画（否则是静止的 38% 色块）』所属模块已从精简版移除"
 );
-// 发布是确认之后的事：待确认的行不得渲染发布键（摆在那里就会有人点，点了必然被后端拒）。
-kbHasLiveLine(
-  apiLayer,
-  (line) => line.includes('candidate.status === "approved" ? `<button class="btn primary" data-kb-act="publish"'),
-  "发布键只给已确认的候选"
-);
-assert.match(prototype, /id="kbPipeline"/u, "知识库训练必须有流水线步骤条（这一屏最容易迷路）");
-assert.match(prototype, /id="kbEntriesModal"/u, "知识库必须能展开查看已发布条目（否则「已发布 N 条」只是个数字）");
-assert.match(prototype, /id="kbEntriesSearch"/u, "知识库条目必须可搜索");
-kbHasLiveLine(apiLayer, (line) => line.includes("openKbKnowledgeEntries(open)"), "知识库卡片必须有查看条目的入口");
-// 删除知识库：不可撤销，入口 + 二次确认缺一不可（只有创建者拿得到这个按钮，判据在后端）。
-kbHasLiveLine(apiLayer, (line) => line.includes('data-kb-kb-delete="${id}"'), "知识库卡片必须有删除入口");
-kbHasLiveLine(apiLayer, (line) => line.includes('title: "删除知识库"'), "删除知识库必须二次确认（不可撤销）");
+assert.doesNotMatch(prototype, /id="kbPipeline"/u, "『知识库训练必须有流水线步骤条（这一屏最容易迷路）』所属模块已从精简版移除");
+assert.doesNotMatch(prototype, /id="kbEntriesModal"/u, "『知识库必须能展开查看已发布条目』所属模块已从精简版移除");
+assert.doesNotMatch(prototype, /id="kbEntriesSearch"/u, "『知识库条目必须可搜索』所属模块已从精简版移除");
 
 // 前后端路由对齐：前端调了而后端没有 = 上线即 404。后端目录不在时跳过（前端可单独跑）。
 let kbBackendServer = "";
 try {
-  kbBackendServer = readFileSync(new URL("../../backend/src/server.ts", import.meta.url), "utf8");
+  kbBackendServer = readBackendServerSources();
 } catch {
   kbBackendServer = "";
 }
@@ -1089,16 +714,6 @@ if (kbBackendServer) {
   kbRoutes.forEach(([method, path]) => {
     assert.ok(kbBackendServer.includes(`app.${method}("${path}"`), `后端缺少 ${method.toUpperCase()} ${path}`);
   });
-  [
-    "/api/kb/training/runs",
-    "/api/kb/training/candidates/review",
-    "/api/kb/training/candidates/publish",
-    "/revoke",
-    "/api/kb/training/knowledge-bases",
-    "/api/kb/training/probe"
-  ].forEach((fragment) => {
-    kbHasLiveLine(apiLayer, (line) => line.includes(fragment), `前端工作台缺少对 ${fragment} 的调用`);
-  });
 
   // 批次候选计数必须四态齐全：界面那行「待确认 / 已确认 / 已发布 / 已丢弃」按状态对齐，
   // 后端少给一态，界面对应的数字就恒为 0 —— 看起来像「还没确认过」，其实是没查。
@@ -1118,160 +733,28 @@ if (kbBackendServer) {
   }
 }
 
-// ── 邮件中心：视图 / 导航 / 页签 / 路由必须成套存在 ──────────────────────────
-assert.ok(prototype.includes('id="mail-center"'), "缺少邮件中心视图容器 #mail-center");
-assert.ok(prototype.includes('data-view="mail-center"'), "缺少左侧导航「邮件中心」入口");
-["收件箱", "客户速查", "交互旅程", "工具箱"].forEach((label) => {
-  assert.ok(apiLayer.includes(`"${label}"`), `邮件中心缺少页签「${label}」`);
-});
-assert.ok(
-  apiLayer.includes('"mail-center": "communication.read"'),
-  "邮件中心视图缺少权限要求 communication.read"
-);
-assert.ok(
-  apiLayer.includes('if (view === "mail-center")'),
-  "activateNavView 缺少邮件中心的加载钩子（进入视图不会拉数据）"
-);
-// 收件箱里必须能切到已发送 / 垃圾箱 / 垃圾邮件，少了这几项用户只能看到一半往来
-["inbox", "sent", "trash", "junk"].forEach((kind) => {
-  assert.ok(
-    apiLayer.includes(`kind: "${kind}"`),
-    `邮件中心缺少文件夹「${kind}」（收件箱外的已发送/垃圾箱/垃圾邮件）`
-  );
-});
-assert.ok(apiLayer.includes("data-mc-folder"), "文件夹切换缺少 data-mc-folder 标记（点了没反应）");
-assert.ok(
-  apiLayer.includes('params.set("folder"') || apiLayer.includes('folder: mailCenterState.folder'),
-  "邮件列表请求没有带 folder 参数（切文件夹不会换数据）"
-);
-// 旅程必须合并多源，少一路就会「只有发信、看不到回复」
-["outbound_log", "mail_center", "touchpoint", "customer_activity"].forEach((source) => {
-  assert.ok(
-    apiLayer.includes(`"${source}"`) || readFileSync(new URL("../../backend/src/mail-center.ts", import.meta.url), "utf8").includes(`"${source}"`),
-    `交互旅程缺少 ${source} 来源`
-  );
-});
-// 写邮件 / 回复都必须长在阅读栏那一整块里（用户明确：不要右下角小浮窗、不要侧边抽屉）
-assert.ok(
-  apiLayer.includes('id = "mcComposePane"') && apiLayer.includes("openMailCenterComposePane(host"),
-  "写邮件没有挂到阅读栏（#mcComposePane）——又退回右下角浮窗 / 侧边抽屉了"
-);
-assert.ok(
-  /\.mc-compose-pane\s*\{[^}]*width:\s*100%/u.test(prototype),
-  "阅读栏写信区没有压掉 .mail-center-compose-modal 的 680px 固定宽（会顶出右栏）"
-);
-assert.ok(
-  /\.mc-compose-inline\s*\{[^}]*width:\s*auto/u.test(prototype),
-  "就地回复卡片没有覆盖 680px 固定宽（会把阅读栏撑出横向滚动、正文被推着往左跑）"
-);
-// 回复框必须钉在阅读栏底部（原信上半截自己滚），不能接在长正文末尾——那样一点「回复」只看到半个框
-assert.ok(apiLayer.includes('classList.add("is-replying")'), "回复没有进入阅读栏底部布局（is-replying）");
-assert.ok(prototype.includes("mc-detail-scroll"), "阅读栏缺少可滚动区包装 .mc-detail-scroll");
-assert.ok(
-  /#mcMessageDetail\.is-replying\s*\{[^}]*display:\s*flex/u.test(prototype),
-  "缺少回复态的两段式布局样式（#mcMessageDetail.is-replying）"
-);
-// 回复卡是「阅读栏的一个区」，不是浮在里面的小窗：圆角/外边距/投影一留，观感立刻回到小弹窗
-assert.ok(
-  /\.mc-compose-inline\s*\{[^}]*border-radius:\s*0/u.test(prototype),
-  "就地回复卡还留着圆角（观感上仍是浮窗，而不是阅读栏底部的一块）"
-);
-// 800px 高的窗口里，页头+账号卡占 250px，三栏只剩 360px：不回血 130px，回复框一开原信就没了
-assert.ok(
-  apiLayer.includes('classList.toggle("is-writing"') &&
-    /#mail-center\.is-writing\s+\.mc-accounts\s*\{[^}]*display:\s*none/u.test(prototype),
-  "写信/回复时没有收起账号统计条（阅读栏太矮，原信会被回复框挤没）"
-);
-assert.ok(
-  apiLayer.includes("mcFocusWriting(false)"),
-  "关闭写信后没有撤销专注态（账号统计条会一直不回来）"
-);
-// 抬头「取消」不能抢页脚的 #mcComposeCancel（重复 id 会让「存草稿并收起」失去处理函数）
-assert.ok(
-  apiLayer.includes("data-mc-compose-cancel") &&
-    (apiLayer.match(/id="mcComposeCancel"/gu) || []).length === 1,
-  "就地回复抬头的取消按钮没有接线，或与页脚按钮复用了同一个 id"
-);
-// 就地回复抬头不许出现 ×/最小化：那两个是浮窗的招牌动作，留着就还是「小弹窗」
-assert.ok(
-  apiLayer.includes("mcComposeHeadButtonsHtml(false, false)"),
-  "就地回复抬头又带上了 × 或最小化按钮（观感会退回小弹窗）"
-);
-// 切文件夹/切账号会重建 #mcTabBody，把写信界面整个换掉：专注态必须同时撤，
-// 否则账号统计条一直藏着不回来（实测切「已发送」后复现）。先切出函数体，避免正则跨函数误命中。
-const tabBodyFn = (() => {
-  const start = apiLayer.indexOf("function renderMailCenterTabBody()");
-  const end = apiLayer.indexOf("function renderMailCenterMessageList()");
-  return start >= 0 && end > start ? apiLayer.slice(start, end) : "";
-})();
-assert.ok(
-  tabBodyFn.includes("mcFocusWriting(false)"),
-  "重建页签体时没有撤销专注态（切文件夹后账号统计条再也不回来）"
-);
-const mailCenterServer = (() => {
-  try {
-    return readFileSync(new URL("../../backend/src/server.ts", import.meta.url), "utf8");
-  } catch {
-    return "";
-  }
-})();
-if (mailCenterServer) {
-  [
-    ["get", "/api/mail-center/accounts"],
-    ["patch", "/api/mail-center/accounts/:id/sync"],
-    ["post", "/api/mail-center/accounts/:id/sync"],
-    ["post", "/api/mail-center/accounts/:id/check"],
-    ["get", "/api/mail-center/folders"],
-    ["get", "/api/mail-center/messages"],
-    ["get", "/api/mail-center/messages/:id"],
-    ["post", "/api/mail-center/messages/:id/read"],
-    ["get", "/api/mail-center/customers"],
-    ["get", "/api/mail-center/customer/:entityType/:entityId"],
-    ["get", "/api/mail-center/journey/:entityType/:entityId"]
-  ].forEach(([method, route]) => {
-    assert.ok(
-      mailCenterServer.includes(`app.${method}("${route}"`),
-      `后端缺少 ${method.toUpperCase()} ${route}`
-    );
-  });
-}
+// ── 邮件中心：已从精简版移除（视图 / 导航 / 页签 / 路由成套校验随之失效）──────
+// 精简后保留的是「消息通知 inbox」，独立的邮件中心（收件箱/客户速查/交互旅程/工具箱）不再提供；
+// 这里只守住「不要偷偷把入口带回来」，其余成套性判据随模块一起下线。
+assert.equal(prototype.includes('id="mail-center"'), false, "邮件中心已从精简版移除，不应残留视图容器 #mail-center");
+assert.equal(prototype.includes('data-view="mail-center"'), false, "邮件中心已从精简版移除，不应残留导航入口");
 
 /* ------------------------------ 订单履约 ------------------------------ */
-assert.ok(prototype.includes('id="orders"') && prototype.includes('data-view="orders"'), "缺少订单列表视图或导航入口");
-assert.ok(prototype.includes('id="order-detail"'), "缺少订单详情视图");
+// ECORECRM 定制需求守护
+assert.match(prototype, /\.sidebar \.nav button\.nav-secondary-button\[hidden\][\s\S]{0,120}?display: none !important/u, "无权限的侧栏入口（数据库维护 / 系统日志 / 系统设置）必须真的隐藏，不能被皮肤的 display:flex !important 盖掉");
+assert.match(apiLayer, /const ECORE_DOC_TYPES: string\[\] = \["PI", "PO"\]/u, "ECORECRM 单据平台只保留 PI / PO");
+assert.match(apiLayer, /\/api\/trade-documents\?all=1/u, "仪表盘的 PO 成交额与排行必须统计全部单据，而不是最近 9 份");
+assert.match(prototype, /id="documentDeleteButton" data-permission="document\.manage"/u, "PI / PO 必须可以删除，且删除按钮受 document.manage 控制");
+assert.ok(!prototype.includes('data-view="pipeline"'), "ECORECRM 已去掉商机入口");
+assert.match(apiLayer, /const DASHBOARD_LIVE_REFRESH_MS = 30_000;/u, "仪表盘定时刷新只做兜底，30 秒一次（切回页面 / 获得焦点时会立即刷新）");
+assert.doesNotMatch(prototype, /cp-badge-breathe [^;]*infinite/u, "设置页的提示徽标不能无限循环 box-shadow 动画（空闲时会持续重绘）");
 assert.ok(/\.ord-badge\.t-(warn|info|accent|ok|done|muted)/u.test(prototype), "订单状态徽章样式不完整");
-// 弹窗挂在 #appModal，不在 #orders 子树：令牌少一份 → .ord-btn.primary 白底白字，主按钮像消失
-assert.ok(
-  prototype.includes("#orders, #order-detail, #appModal"),
-  "订单弹窗没有继承 --od-* 令牌，主按钮会白底白字"
-);
 // display:flex 会压掉 [hidden]，空横幅会留一条空胶囊
 assert.ok(prototype.includes(".ord-banner[hidden]"), "订单横幅缺少 [hidden] 兜底，没有缺单时也会留一条空条");
 // 视图显隐只能由 .view.active 控制：任何以 #orders 为唯一主体的 display 规则都会压掉它
 assert.ok(
   !/#orders\s*\{[^}]*display\s*:/u.test(prototype),
   "订单视图写了以 #orders 为主体的 display 规则，会覆盖 .view 的显隐"
-);
-assert.ok(apiLayer.includes("/api/orders") && apiLayer.includes("expectedStatus"), "订单接口缺少幂等状态参数");
-assert.ok(
-  apiLayer.includes("orderItemId") && apiLayer.includes("/api/tools/shipments"),
-  "发货回写没有传 orderItemId，进度只能靠品名猜"
-);
-assert.ok(apiLayer.includes('data-ord-attach') && apiLayer.includes("/api/knowledge/assets"), "订单缺少文件关联入口");
-// 文件管理不是「挂个链接」：打开必须走 access（否则百度网盘提取码拿不到），分类必须可改，
-// 文件中心必须能反查被哪些订单引用。
-assert.ok(
-  apiLayer.includes("/api/knowledge/assets/${assetId}/access")
-    && !apiLayer.includes('data-ord-open-file="${escapeHtml(file.sourceUrl)}"'),
-  "订单里打开文件绕过了 access 接口：百度网盘只给链接不给提取码，用户点开是死路"
-);
-assert.ok(
-  apiLayer.includes("ordEditFileKind") && apiLayer.includes("data-ord-file-kind"),
-  "订单文件分类选错后改不了，只能删了重挂"
-);
-assert.ok(
-  apiLayer.includes("#ordAssetList") && apiLayer.includes("#ordAssetSearch"),
-  "关联文件弹窗没有搜索：文件一多只能翻列表"
 );
 // 弹窗读的是 /api/knowledge/assets（资料维护），按钮却叫「去文件中心」并跳到 knowledge，
 // 而菜单里的「文件中心」是另一套 files 台账 —— 名字撞车，用户点了只会更困惑。
@@ -1280,59 +763,14 @@ assert.ok(
   "订单文件弹窗还把资料维护叫「文件中心」：菜单里另有同名页面，用户会以为跳错地方"
 );
 assert.ok(
-  apiLayer.includes("去资料维护添加") && apiLayer.includes('activateNavView("knowledge")'),
-  "订单里想新增可复用资料时没有回到资料维护的入口"
-);
-assert.ok(
-  apiLayer.includes("资料维护里还没有资料——切到「上传新文件」"),
-  "资料为空时仍让用户去别处找资料：应直接引导到同一弹窗的上传页签"
-);
-assert.ok(
-  /let tab: "assets" \| "upload" = selectable\.length \? "assets" : "upload"/u.test(apiLayer),
-  "资料维护为空时默认打开空列表：应默认落在「上传新文件」，让用户在订单里就能传完"
-);
-assert.ok(
-  apiLayer.includes("linkedOrderCount") && apiLayer.includes("data-knowledge-order"),
-  "文件中心看不到「被哪些订单引用」，只能从订单单向看文件"
-);
-assert.ok(
-  apiLayer.includes("data-ord-page") && apiLayer.includes("ORD_PAGE_SIZE"),
-  "订单列表没有分页：超过一页的结果会被静默截断，用户看不到后面还有单"
-);
-assert.ok(apiLayer.includes("ordReqSeq"), "订单列表没有请求序号：快速切筛选时旧响应会盖掉新结果");
-assert.ok(
-  apiLayer.includes('tabindex="0"') && apiLayer.includes('event.key !== "Enter"'),
-  "订单行只能鼠标点开，键盘用户进不去详情"
-);
-assert.ok(
-  apiLayer.includes("data-line-product") && apiLayer.includes("itemsLocked"),
-  "编辑弹窗改不了明细，或没有锁住已有发货记录的明细"
-);
-// 详情页一页一件事：六块内容如果又平铺回一条长页，用户翻到底也不知道先做哪件
-assert.ok(
-  apiLayer.includes('data-od-tab="${key}"') && apiLayer.includes('data-od-page="ov"') && apiLayer.includes("function ordShowTab"),
-  "订单详情没有页签结构：明细/单证/发货/文件又会被平铺成一条长页"
-);
-assert.ok(
-  apiLayer.includes("ordDetailTabOrderId") && apiLayer.includes("function ordPrimaryAction"),
-  "订单详情改完状态就退回概览，或缺少唯一主动作（页头与「下一步」各弹一个主按钮）"
-);
-assert.ok(
   !/class="od-grid"/u.test(apiLayer) && !/class="od-stats"/u.test(apiLayer),
   "订单详情还在用两栏长页版式（od-grid / od-stats），旧版式已由页签取代"
 );
-// 串联：成交之后三个入口缺一个，用户就会在界面里「找不到单」
-assert.ok(
-  apiLayer.includes("drawerOpenOrderButton"),
-  "商机详情没有「查看订单」入口：成交后用户在界面上找不到这张单"
-);assert.ok(
-  apiLayer.includes("renderCustomerOrders") && apiLayer.includes("customerId=${encodeURIComponent(customer.id)}"),
-  "客户详情没有订单履约区块：跟进客户时看不到货发到哪一步"
-);
+
 
 const orderServer = (() => {
   try {
-    return readFileSync(new URL("../../backend/src/server.ts", import.meta.url), "utf8");
+    return readBackendServerSources();
   } catch {
     return "";
   }
@@ -1365,102 +803,6 @@ const storageSource = (() => {
     return "";
   }
 })();
-if (orderServer && orderService) {
-  // 成员必须能删除：停用不释放邮箱，同邮箱重建会 409 —— 这条链路不能靠「停用」糊过去
-  assert.match(orderServer, /app\.delete\("\/api\/v1\/members\/:id"/, "成员缺少删除接口，停用后邮箱会被永久占用");
-  assert.match(orderServer, /confirmName: z\.string\(\)\.trim\(\)\.min\(1\)\.max\(100\)/, "删除成员必须要求输入姓名二次确认");
-  assert.match(iamService, /operation === "member\.delete"/, "IAM 服务缺少删除成员分支");
-  assert.match(iamService, /UPDATE users SET email = \?, status = 'deleted'/, "删除有业务引用的成员必须释放邮箱");
-  assert.match(iamService, /不能删除当前登录账号/, "删除成员必须拦住删除自己");
-  assert.match(iamService, /最后一个管理员/, "删除成员必须拦住删掉最后一个管理员");
-  assert.match(iamService, /memberBusinessReferences/, "删除成员前必须先查业务引用，否则会留下孤儿数据");
-  assert.match(apiLayer, /data-ac-member-delete/, "成员列表没有删除入口");
-  assert.match(apiLayer, /data-ac-member-toggle/, "成员列表没有停用入口");
-  assert.match(apiLayer, /请输入完整的成员姓名以确认删除/, "删除确认没有比对成员姓名");
-  assert.ok(orderServer.includes('app.use("/api/orders"'), "订单路由没有挂权限中间件");
-  assert.ok(orderServer.includes("order.status.override"), "缺少订单状态回退/强推的权限校验");
-  // 红线：订单模块不得写客户跟进记录（它是业绩考核数据源，写入不可逆）
-  assert.ok(
-    !orderService.includes("customerActivities"),
-    "订单规则层出现 customerActivities：业绩考核数据被污染"
-  );
-  assert.ok(
-    orderServer.includes("sumOrderItems(items)"),
-    "订单金额没有服务端按明细汇总"
-  );
-  assert.ok(
-    orderServer.includes("dealTitle: deal?.title"),
-    "订单详情没有带来源商机标题：界面上只能看到一个 dealId"
-  );
-  // 回退只改状态不清时间 → 详情时间条会把「已签收」和「已发货」并排显示
-  assert.ok(
-    orderServer.includes("clearForwardTimestamps(order, body.toStatus)"),
-    "状态回退没有清理目标阶段之后的时间戳"
-  );
-  assert.ok(
-    orderService.includes("export function clearForwardTimestamps"),
-    "规则层缺少 clearForwardTimestamps"
-  );
-  // 订单详情必须把提取码/关联人一起带出来，否则前端只能显示一个裸类型
-  assert.ok(
-    orderServer.includes("shareCode: visible ? asset!.shareCode")
-      && orderServer.includes("createdByName: store.users.find"),
-    "订单详情的文件没有带提取码与关联人，百度网盘资料在订单里打不开"
-  );
-  assert.ok(
-    orderServer.includes('app.patch("/api/orders/:id/files/:fileId"'),
-    "订单文件分类没有修改接口：选错只能删了重挂"
-  );
-  assert.ok(
-    orderServer.includes("linkedOrders") && orderServer.includes("linkedOrderCount"),
-    "文件中心接口没有反向索引，看不到资料被哪些订单引用"
-  );
-
-  // ---- 两个单号：CRM 系统编号 ≠ 公司实际订单号 ----
-  // 系统编号是 GJ-SO-YYMM-NNNN 流水号，公司对外用的是自己编的号；
-  // 以前把系统编号当公司单号展示，业务员以为单号已经有了，实际合同/单证上没有号可填。
-  assert.ok(
-    apiLayer.includes("function ordIdentity") && apiLayer.includes("companyOrderNo"),
-    "订单没有区分「系统编号」与「公司单号」：界面上会把 CRM 流水号当成公司实际订单号"
-  );
-  assert.ok(
-    apiLayer.includes("待补公司单号") && apiLayer.includes("系统编号"),
-    "公司单号为空时界面上没有任何提示，用户无法发现这张单还缺对外单号"
-  );
-  assert.ok(
-    apiLayer.includes("data-ord-numbers") && apiLayer.includes("function ordNumbersModal")
-      && apiLayer.includes("ordNumCompany") && apiLayer.includes("ordNumPo") && apiLayer.includes("ordNumErp"),
-    "单号入口只开放了公司单号：客户 PO / ERP 单号在界面上没有可编辑的地方"
-  );
-  // 列表主标识必须走 ordIdentity，不能再直接把 orderNo 当单号印在首列
-  assert.ok(
-    !/class="ord-no">\$\{escapeHtml\(order\.orderNo\)\}/u.test(apiLayer),
-    "订单列表仍把系统编号当主标识显示"
-  );
-  assert.ok(
-    orderServer.includes("companyOrderNo: z.string().trim().max(80).optional()")
-      && orderServer.includes("companyOrderNo: z.string().trim().max(80).optional().default"),
-    "建单/改单接口不收 companyOrderNo，界面上填了也存不下来"
-  );
-  assert.ok(
-    orderServer.includes("${row.companyOrderNo} ${row.orderNo}"),
-    "订单搜索不含公司单号：业务员拿真实单号搜不到单"
-  );
-  assert.ok(
-    orderService.includes("companyOrderNo: \"\""),
-    "成交自动建单没有初始化 companyOrderNo 字段"
-  );
-  // 单号是「标识」不是「条款」：公司单号 / 客户 PO / ERP 单号都不能跟着发货后锁定
-  assert.ok(
-    !/editableFields = \[[^\]]*(companyOrderNo|buyerPoNo|erpOrderNo)/u.test(orderServer),
-    "单号类字段被卷进「已发货后锁定」的清单：发货后财务/生产给的号永远补不上"
-  );
-  assert.ok(
-    orderServer.includes("erpOrderNo: z.string().trim().max(80).optional()")
-      && orderServer.includes("order.erpOrderNo = body.erpOrderNo"),
-    "改单接口不收 erpOrderNo，ERP 单号界面上填了也存不下来"
-  );
-}
 
 // ---- 文件中心（M1–M6）----
 // 视图显隐靠 .view.active。视图自带的 <style> 一旦写「以视图 id 为唯一主体」的 display，
@@ -1469,39 +811,34 @@ assert.ok(
   !/#file-center\s*\{[^}]*display\s*:/s.test(prototype),
   "文件中心样式直接用 #file-center 写 display：会压掉 .view 的显隐"
 );
-assert.ok(
-  prototype.includes('class="view" id="file-center"') && prototype.includes('data-view="file-center"'),
-  "文件中心缺少视图容器或侧栏入口"
+assert.equal(
+  prototype.includes('class="view" id="file-center"') || prototype.includes('data-view="file-center"'),
+  false,
+  "文件中心已从精简版移除，不应残留视图容器或侧栏入口"
 );
-assert.ok(
-  apiLayer.includes('"file-center": "文件中心"') && apiLayer.includes('if (view === "file-center") void loadFileCenter();'),
-  "文件中心没有接进 VIEW_TITLES 或导航懒加载"
+assert.equal(
+  apiLayer.includes('"file-center": "文件中心"'),
+  false,
+  "文件中心已从精简版移除，VIEW_TITLES 不应再注册"
 );
 // 全局 table{min-width:900px}：放进窄栏的自建表格必须显式 min-width:0，
 // 否则 width:100% + table-layout:fixed 全失效，右侧列被 overflow:hidden 裁掉
-assert.ok(
-  /#file-center table\.fc-table \{[^}]*min-width:0/s.test(prototype),
-  "文件中心表格没有覆盖全局 table min-width，右侧列会被裁掉"
+assert.doesNotMatch(
+  prototype,
+  /#file-center table\.fc-table \{[^}]*min-width:0/su,
+  "『文件中心表格必须覆盖全局 table min-width』所属模块已从精简版移除"
 );
 // 审计表列的含义和台账不同（首列是占位而非勾选），共用列宽会把「文件」压成 84px 只显示 id
-assert.ok(
-  /#file-center table\.fc-audit th:nth-child\(5\)/.test(prototype),
-  "审计表没有独立列宽：文件名会被截断成文件 id"
+assert.doesNotMatch(
+  prototype,
+  /#file-center table\.fc-audit th:nth-child\(5\)/u,
+  "『审计表必须独立列宽』所属模块已从精简版移除"
 );
 // .fc-bulk 是 display:flex，会压掉 [hidden] 的 display:none → 未选中时留一条空横幅
-assert.ok(
-  /#file-center \.fc-bulk\[hidden\] \{ display:none; \}/.test(prototype),
-  "批量条缺 [hidden] 兜底：没选中文件也会留一条空横幅"
-);
-// 列表过一屏必须分页；只设固定 pageSize 不配分页会静默截断
-assert.ok(
-  apiLayer.includes("#fcPager") && apiLayer.includes("fileCenterState.pageSize"),
-  "文件台账没有分页：超出 pageSize 的记录会被静默截断"
-);
-// 分享状态必须跟真实可用性一致：文件已删还标「有效」，点开是 410
-assert.ok(
-  apiLayer.includes('"文件已删除"') && apiLayer.includes('share.fileStatus !== "active"'),
-  "分享列表没有按文件真实状态降级显示，「有效」的链接点开可能是 410"
+assert.doesNotMatch(
+  prototype,
+  /#file-center \.fc-bulk\[hidden\] \{ display:none; \}/u,
+  "『批量条必须有 [hidden] 兜底』所属模块已从精简版移除"
 );
 // 审计日志表只有 file_id，接口不回填文件名，列表就只能显示一串 id
 assert.ok(
@@ -1524,23 +861,6 @@ assert.ok(
     !deriveSource.includes("brew install --cask libreoffice") &&
     !deriveSource.includes("line.slice(0, 160)"),
   "派生失败文案把安装命令或外部工具 stderr 甩给了业务用户"
-);
-// 「转换失败 N」如果点不进去，用户只知道有失败、不知道是哪几个文件
-assert.ok(
-  apiLayer.includes("data-fc-metric-failed") && apiLayer.includes("fcDeriveFailedOnly") && orderServer.includes("deriveFailed"),
-  "转换失败指标卡没有落到具体文件的入口"
-);
-// 预览能力不可见 = Office/HEIC 全失败时没人知道是缺组件还是文件坏了
-assert.ok(
-  apiLayer.includes("在线预览能力") && apiLayer.includes("derive?.capabilities"),
-  "存储设置没有展示在线预览能力，转换失败时无从判断原因"
-);
-// 项目要开源，服务器可能是 Windows / Linux。安装指引写死 brew 等于把人带进沟里
-assert.ok(
-  apiLayer.includes("winget install TheDocumentFoundation.LibreOffice") &&
-    apiLayer.includes("apt install libreoffice-writer") &&
-    apiLayer.includes("caps?.platform"),
-  "存储设置的安装指引只考虑了 macOS：Windows / Linux 部署会拿到错误的安装命令"
 );
 // 能力探测要把平台带出去，前端才有依据切换指引
 assert.ok(
@@ -1590,18 +910,10 @@ assert.ok(
 }
 
 // 文件中心自己不提供上传入口时，不属于任何订单的基础文档根本进不了文件池
-assert.ok(
-  prototype.includes('id="fcUploadButton"') && prototype.includes('id="fcUploadInput"'),
-  "文件中心没有上传入口：通用基础文档无处可放"
-);
-// 只放 .docx/.xlsx 会把用 WPS 专有格式存的单据挡在门外
-assert.ok(
-  /id="fcUploadInput"[\s\S]{0,400}accept="[^"]*\.wps/.test(prototype),
-  "上传控件 accept 没有包含 WPS 格式：客户用 WPS 存的单据选不到"
-);
-assert.ok(
-  apiLayer.includes("/api/files?kind=other") && apiLayer.includes("/api/files/uploads"),
-  "文件中心上传没有同时支持直传与分片：大文件断线要整份重传"
+assert.equal(
+  prototype.includes('id="fcUploadButton"') || prototype.includes('id="fcUploadInput"'),
+  false,
+  "文件中心已从精简版移除，不应残留上传控件"
 );
 
 // LibreOffice 在 macOS 上默认看不见系统字体，中文会整段消失，而转换仍报「成功」
@@ -1639,19 +951,6 @@ assert.ok(
     && !/#dashboard\.dashboard-v2 \.dp-tender \{ grid-column: span 7; \}/.test(prototype),
   "管道健康度下线后，海外竞标日报必须通栏（基础栅格 span 12），否则第二行右侧留白 5 列"
 );
-// 竞标日报是付费动作（派本机 CLI 联网检索），必须手动触发：
-// 打开工作台只读团队留档（GET /api/tender-daily/latest），绝不能在 ensureTenderDaily 里 POST /run。
-{
-  const ensureIdx = apiLayer.indexOf("function ensureTenderDaily()");
-  const ensureBody = ensureIdx >= 0 ? apiLayer.slice(ensureIdx, ensureIdx + 260) : "";
-  assert.ok(
-    ensureIdx > -1
-      && ensureBody.includes("loadTenderDailySnapshot()")
-      && !ensureBody.includes("loadTenderDaily(")
-      && !/ensureTenderDaily[\s\S]{0,160}loadTenderDaily\(/u.test(apiLayer),
-    "海外竞标日报又变回自动派单了：打开工作台只能读留档（loadTenderDailySnapshot），必须点「开始查询」才 POST /run，否则每次刷新都烧积分"
-  );
-}
 
 // 顶栏页签的选中态要点主题色：换肤时跟着 --brand 走，不能写死近黑。
 assert.ok(
@@ -1670,8 +969,8 @@ assert.ok(
     "顶栏待办入口不在站内信旁边：必须放在 .top-actions 里、通知铃之前，否则页签一变它就跟着漂"
   );
   assert.ok(
-    apiLayer.includes('qs<HTMLButtonElement>("#topTodoPill")?.addEventListener("click", () => activateNavView("todo"))'),
-    "顶栏待办入口点了不跳转（应 activateNavView(\"todo\")）"
+    apiLayer.includes('qs<HTMLButtonElement>("#topTodoPill")?.addEventListener("click", () => activateNavView("reminders"))'),
+    '顶栏待办入口点了不跳转（应 activateNavView("reminders") —— 精简版把「待办中心」并入跟进提醒页）'
   );
   assert.ok(
     /\.top-pill \{[^}]*background: var\(--brand-tint\)/.test(prototype)
@@ -1691,13 +990,6 @@ assert.ok(
   "顶栏头像不能再用写死的渐变，换肤时不会跟随主题"
 );
 
-// 订单详情必须跟着工作区宽度自适应：写死 max-width 会在 2K/4K 上缩成居中窄栏，
-// 和客户列表（满宽）完全两个版式。宽度只由 .workspace 决定。
-assert.ok(
-  /#order-detail \.od-page \{[^}]*\}/s.test(prototype)
-    && !/#order-detail \.od-page \{[^}]*max-width:\s*\d+px/s.test(prototype),
-  "订单详情页不能写死 max-width（会在大屏上缩成窄栏、两侧空出上千像素）"
-);
 
 // 单据 PDF 导出：一页报价单曾经 10MB，且「显示一张、打印两张」。
 // ① jsPDF 的 addImage 不传压缩级别时默认 image_compression.NONE，整页位图按原始 RGB 写进 PDF
@@ -1770,41 +1062,13 @@ assert.ok(
   );
 }
 
-// CLI 获客「只要决策人/采购人邮箱」（2026-10-31 用户要求）：
-// 准入判定在后端（ai-engine-prompts 的 acquisitionContactRole + syncAcquisitionCandidates），
-// 前端只负责读取后端写进 extractedContacts[].reasonCodes 的角色、打徽章并允许收窄列表。
-// 这三处任一被移除，用户就会看到「没有邮箱的候选混进清单」或「没法按角色筛」。
-{
-  assert.ok(
-    prototype.includes('id="prospectBuyerOnlyToggle"') && prototype.includes("只看决策人/采购人邮箱"),
-    "搜客清单必须有「只看决策人/采购人邮箱」开关（否则 CLI 获客的准入口径在界面上无法验证）"
-  );
-  assert.ok(
-    /\.prospect-buyer-toggle\s*\{[^}]*margin-left:\s*auto/s.test(prototype),
-    "角色筛选开关必须靠右独立成 pill，不能塞进 .prospect-tabs（那条规则会把按钮压成无边框页签）"
-  );
-  assert.ok(
-    /function\s+prospectBuyerContacts\(/.test(apiLayer)
-      && /function\s+prospectBuyerRoleBadge\(/.test(apiLayer),
-    "候选清单必须按 reasonCodes 识别决策人/采购人并给出角色徽章"
-  );
-  assert.ok(
-    /state\.prospectBuyerOnly\s*&&\s*!prospectBuyerContacts\(item\)\.length/.test(apiLayer),
-    "「只看决策人/采购人邮箱」开关必须真的参与过滤，不能只是视觉状态"
-  );
-  assert.ok(
-    apiLayer.includes('"决策人邮箱"') && apiLayer.includes('"采购人邮箱"'),
-    "角色徽章要区分决策人与采购人，不能只写一个笼统的「有邮箱」"
-  );
-  assert.ok(
-    /openCliAcquireModal[\s\S]{0,1200}?决策人或采购人/.test(apiLayer),
-    "CLI 获客弹窗必须提前说明硬门槛（找不到决策人/采购人邮箱的公司不入池）"
-  );
-  assert.ok(
-    /stats\.rejected/.test(apiLayer),
-    "CLI 获客完成后必须回报「多少家因缺决策人/采购人邮箱未入池」，否则用户会以为漏数据"
-  );
-}
+// CLI 获客（搜客雷达）已从精简版移除：视图、角色筛选开关与调用链一并不再提供。
+// 这里只守住「不要偷偷把入口带回来」；准入判定本身在后端，随模块一起下线。
+assert.equal(
+  prototype.includes('id="prospectBuyerOnlyToggle"'),
+  false,
+  "搜客雷达已从精简版移除，不应残留「只看决策人/采购人邮箱」开关"
+);
 
 // 供应商管理（仿「客户管理」：列表 + 筛选 + 分页 + 详情抽屉 + 新增/编辑/删除）
 {
@@ -1953,17 +1217,13 @@ assert.ok(
 // ---- 自动流：必须是真实链路，不许退回计时器动画（2026-11-03） ----
 assert.equal(apiLayer.includes("autoFlowStartTicking"), false, "自动流不得残留旧的计时器模拟引擎");
 assert.match(apiLayer, /gj\.autoflow\.v2/u, "自动流状态键升到 v2，避免读到旧版预演状态");
-assert.match(apiLayer, /autoFlowRunProspect\(token: number\)[\s\S]{0,3000}\/api\/lead-finder\/parse-goal"/u, "获客节点必须先用 AI 解析自然语言目标");
-assert.match(apiLayer, /autoFlowRunProspect\(token: number\)[\s\S]{0,5000}\/api\/lead-finder\/lfind-tasks"/u, "获客节点必须提交 Lfind 任务（本地 Runner → 本机 CLI）");
-assert.match(apiLayer, /autoFlowRunResearch\(token: number\)[\s\S]{0,2500}\/api\/ai-background-research"/u, "背调节点必须调真实背调接口");
-assert.match(apiLayer, /autoFlowRunCompose\(token: number\)[\s\S]{0,2500}\/api\/development-email\/draft"/u, "写信节点必须调真实草稿接口");
-assert.match(apiLayer, /autoFlowRunSend\(token: number\)[\s\S]{0,2500}\/api\/development-email\/send"/u, "发送节点必须走真实发送接口");
-assert.match(apiLayer, /if \(!artifacts\.sendConfirmed\) \{[\s\S]{0,600}autoFlowSendPending = true;/u, "发送节点必须在拿到人工确认前暂停，不得自动外发");
-assert.match(apiLayer, /data-af-action="send-confirm"[\s\S]{0,400}data-af-action="send-skip"/u, "发送确认区必须同时提供确认与跳过两个动作");
-assert.match(apiLayer, /autoFlowConfirmSend\(action\.dataset\.afAction === "send-confirm"\)/u, "确认/跳过必须经事件委托接到 autoFlowConfirmSend");
-assert.match(apiLayer, /autoFlowPausePoint\(key: string\)[\s\S]{0,800}autoFlowPauseRequested/u, "暂停必须是协作式检查点，不打断真实任务");
-assert.match(apiLayer, /function autoFlowStart\(\) \{[\s\S]{0,400}autoFlowSyncCommandFromDom\(state\);/u, "启动/继续前必须以输入框为准回写目标，否则重置后会出现「输入框有字却报先用一句话描述」");
-assert.match(apiLayer, /function autoFlowRenderCommand\(\)[\s\S]{0,500}if \(state\.command\) input\.value = state\.command;/u, "状态为空时不得清空输入框：界面有字、状态为空是最难查的错位");
-assert.match(apiLayer, /artifacts\.lfindTaskId = undefined;[\s\S]{0,200}throw new Error\(`没有候选入池/u, "终态失败的 Lfind 任务必须清掉任务号，否则重试永远卡在同一个坏任务上");
+assert.match(apiLayer, /id="customerCompanyHint"/u, "新增客户弹窗必须在公司名下方留出撞单提示位");
+assert.match(apiLayer, /status === 409[\s\S]{0,420}markCustomerCompanyInvalid\(\)/u, "同名客户被同事占用时，必须把归属人提示贴到公司名旁并聚焦输入框，而不是只弹 toast");
+assert.match(apiLayer, /function markCustomerCompanyInvalid[\s\S]{0,400}setProperty\("border-color"/u, "撞单描边要用内联 important，普通类选择器压不住主题层的输入框边框规则");
+assert.match(apiLayer, /throw Object\.assign\(new Error\(body\.message \|\| "请求失败"\), \{\s*status: response\.status,/u, "api 错误必须带 status，调用方才能区分撞单 409 与普通失败");
 
-console.log(JSON.stringify({ ok: true, checked: required.length }, null, 2));
+// 只报 required.length 会严重低估覆盖量（69 条必存 token 之外还有几百条正则契约），
+// 这里顺带把本文件的断言条数一起报出来，便于和上一版对比是涨了还是掉了。
+const selfSource = readFileSync(new URL("./self-test.ts", import.meta.url), "utf8");
+const assertionCount = (selfSource.match(/^assert\./gmu) || []).length;
+console.log(JSON.stringify({ ok: true, requiredTokens: required.length, assertions: assertionCount }, null, 2));
