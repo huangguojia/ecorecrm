@@ -538,7 +538,7 @@ export function registerCommunicationRoutes(app: Express) {
       const readReply = fastWeComCommand(message.content, weComFastReadData(actor));
       const reply = readReply || (looksLikeWriteCommand(message.content)
         ? "已收到。系统已创建 CRM 待确认操作，不会直接修改数据或发送外部消息，请到 Agent 或审批中心确认。"
-        : "已收到。当前支持：查我的待办、查我的客户、查我的商机；涉及写入、转交或外发的操作会先进入 CRM 待确认。" );
+        : "已收到。当前支持：查我的待办、查我的客户、查我的单据；涉及写入、转交或外发的操作会先进入 CRM 待确认。" );
       recordWeComReceipt(endpoint, messageKey, message.fromUserName, reply);
       await store.persist();
       if (!readReply) {

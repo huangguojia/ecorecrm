@@ -39,6 +39,7 @@ import {
 } from "./agent-turn-decision.js";
 import type { CrmStore } from "./store.js";
 import type { AgentMissionCheckpointRecord, AgentRunEventRecord, AgentRunRecord, AgentRunStatus, AgentRunStepRecord, AiModelConfig, Customer, CustomerActivity, Lead, SessionUser, Todo, User } from "./types.js";
+import { notFound } from "./http-errors.js";
 
 export type AgentActor = Pick<User, "id" | "teamId" | "role"> & Partial<Pick<SessionUser,
   "iamPermissions" | "iamRoleNames" | "iamSource" | "iamDataScope">>;
@@ -2222,7 +2223,7 @@ export async function createAgentPlan(
 function requireRun(store: CrmStore, runId: string, user: AgentActor, allowExpired = false) {
   const run = hydrateAgentRun(store, runId);
   if (!run || run.ownerId !== user.id || run.teamId !== user.teamId) {
-    throw new Error("Agent 运行不存在");
+    throw notFound("Agent 运行不存在或无权访问");
   }
   if (!allowExpired && new Date(run.expiresAt).getTime() <= Date.now()) throw new Error("Agent 运行已过期，请重新生成计划");
   return run;

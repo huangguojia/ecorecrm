@@ -170,7 +170,9 @@ export function registerAuthRoutes(app: Express) {
   }));
 
   app.patch("/api/profile/theme", requireAuth, asyncRoute(async (req, res) => {
-    const schema = z.object({ theme: z.string().max(48).default("rose") });
+    // 之前是 `.default("rose")`：不带 theme 的请求会把账号主题直接改成 rose，
+    // 用户下次登录就换了一套配色，而且接口返回 200，无从察觉。
+    const schema = z.object({ theme: z.string().trim().min(1).max(48).regex(/^[a-z0-9-]+$/, "主题标识不合法") });
     const { theme } = schema.parse(req.body);
     const store = getStore();
     const user = store.users.find((item) => item.id === req.user!.id);

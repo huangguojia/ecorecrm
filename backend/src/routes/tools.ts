@@ -885,6 +885,12 @@ export function registerToolsRoutes(app: Express) {
       return;
     }
     const store = getStore();
+    // 空表单（所有字段都走默认值）会生成一条既无客户、也无订单、也无运单号的空发货单，
+    // 列表里只剩一行占位、删起来还得先找它。至少要有一个能识别这次发货的锚点。
+    if (!body.id && !body.shipmentNo.trim() && !body.dealId.trim() && !body.orderId.trim() && !body.customerName.trim()) {
+      res.status(400).json({ message: "发货单至少要填写客户、订单或运单号" });
+      return;
+    }
     const existing = body.id
       ? store.shipments.find((item) => item.id === body.id && item.ownerId === req.user!.id)
       : undefined;

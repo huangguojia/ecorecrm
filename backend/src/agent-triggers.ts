@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { AgentActor, AgentPlanContext } from "./ai-agent.js";
 import type { CrmStore } from "./store.js";
 import type { AgentTriggerEventRecord, AgentTriggerEventType, AgentTriggerRuleRecord } from "./types.js";
+import { notFound } from "./http-errors.js";
 
 const triggerInputSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -109,7 +110,7 @@ export async function createAgentTriggerRule(store: CrmStore, actor: AgentActor,
 
 export async function updateAgentTriggerRule(store: CrmStore, actor: AgentActor, id: string, rawInput: unknown) {
   const rule = store.agentTriggerRules.find((item) => item.id === id && canAccess(item, actor));
-  if (!rule) throw new Error("自动触发规则不存在或无权访问");
+  if (!rule) throw notFound("自动触发规则不存在或无权访问");
   const input = triggerInputSchema.partial().parse(rawInput);
   Object.assign(rule, input, { updatedAt: new Date().toISOString() });
   await store.persist();
@@ -118,7 +119,7 @@ export async function updateAgentTriggerRule(store: CrmStore, actor: AgentActor,
 
 export async function setAgentTriggerRuleStatus(store: CrmStore, actor: AgentActor, id: string, status: "active" | "paused") {
   const rule = store.agentTriggerRules.find((item) => item.id === id && canAccess(item, actor));
-  if (!rule) throw new Error("自动触发规则不存在或无权访问");
+  if (!rule) throw notFound("自动触发规则不存在或无权访问");
   rule.status = status;
   rule.nextScanAt = status === "active" ? new Date().toISOString() : rule.nextScanAt;
   rule.updatedAt = new Date().toISOString();
@@ -128,7 +129,7 @@ export async function setAgentTriggerRuleStatus(store: CrmStore, actor: AgentAct
 
 export async function deleteAgentTriggerRule(store: CrmStore, actor: AgentActor, id: string) {
   const rule = store.agentTriggerRules.find((item) => item.id === id && canAccess(item, actor));
-  if (!rule) throw new Error("自动触发规则不存在或无权访问");
+  if (!rule) throw notFound("自动触发规则不存在或无权访问");
   store.agentTriggerRules = store.agentTriggerRules.filter((item) => item.id !== id);
   await store.persist();
   return rule;
@@ -140,7 +141,7 @@ function missionGoal(rule: AgentTriggerRuleRecord, fact: TriggerFact) {
 }
 
 export async function runAgentTriggerRule(store: CrmStore, actor: AgentActor, rule: AgentTriggerRuleRecord, createMission: AgentTriggerMissionFactory, now = new Date()) {
-  if (!canAccess(rule, actor)) throw new Error("自动触发规则不存在或无权访问");
+  if (!canAccess(rule, actor)) throw notFound("自动触发规则不存在或无权访问");
   if (rule.status !== "active") throw new Error("自动触发规则已暂停");
   const facts = detectAgentTriggerFacts(store, rule, now);
   const freshFacts = facts.filter((fact) => !store.agentTriggerEvents.some((item) => item.ruleId === rule.id && item.factKey === fact.factKey)).slice(0, rule.maxPerScan);

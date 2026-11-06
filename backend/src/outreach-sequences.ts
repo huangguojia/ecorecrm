@@ -4,6 +4,7 @@ import type { AgentActor } from "./ai-agent.js";
 import { assertCrmOutreachEligible } from "./prospect-outreach-eligibility.js";
 import type { CrmStore } from "./store.js";
 import type { OutreachSequence, OutreachSequenceStepSnapshot } from "./types.js";
+import { notFound } from "./http-errors.js";
 
 const stepInputSchema = z.object({
   delayHours: z.coerce.number().min(0).max(24 * 30),
@@ -53,7 +54,7 @@ export async function createOutreachSequence(
   const entity = input.entityType === "customer"
     ? store.customers.find((item) => item.id === input.entityId && item.ownerId === user.id && item.teamId === user.teamId)
     : store.leads.find((item) => item.id === input.entityId && item.ownerId === user.id && !item.deletedAt && item.teamId === user.teamId);
-  if (!entity) throw new Error("触达对象不存在，或仅对象负责人可创建自动触达序列");
+  if (!entity) throw notFound("触达对象不存在，或仅对象负责人可创建自动触达序列");
   if (input.channel === "communication" && input.entityType !== "customer") {
     throw new Error("Communication 自动触达目前仅支持已进入客户库的对象");
   }
@@ -141,7 +142,7 @@ export async function controlOutreachSequence(
   action: "pause" | "resume" | "cancel"
 ) {
   const sequence = store.outreachSequences.find((item) => item.id === id && canAccess(item, user));
-  if (!sequence) throw new Error("触达序列不存在");
+  if (!sequence) throw notFound("触达序列不存在");
   if (action === "pause") {
     if (sequence.status !== "active") throw new Error("只有运行中的序列可以暂停");
     sequence.status = "paused";

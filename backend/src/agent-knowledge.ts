@@ -13,6 +13,7 @@ import type {
   AgentKnowledgeScope,
   AgentKnowledgeStatus,
 } from "./types.js";
+import { notFound } from "./http-errors.js";
 const kindSchema = z.enum(["system", "module", "workflow", "policy", "field", "playbook", "failure_case"]);
 const systemFileSchema = z.object({
   id: z.string().trim().min(4).max(160),
@@ -276,7 +277,7 @@ export async function createAgentKnowledgeDraft(store: CrmStore, actor: AgentAct
 
 export async function updateAgentKnowledgeDraft(store: CrmStore, actor: AgentActor, id: string, input: unknown) {
   const document = store.agentKnowledgeDocuments.find((item) => item.id === id);
-  if (!document || !canEditManaged(actor, document)) throw new Error("知识不存在或无权编辑");
+  if (!document || !canEditManaged(actor, document)) throw notFound("知识不存在或无权编辑");
   const parsed = managedInputSchema.partial().parse(input);
   Object.assign(document, parsed);
   if (document.status === "published") {
@@ -293,7 +294,7 @@ export async function updateAgentKnowledgeDraft(store: CrmStore, actor: AgentAct
 
 export async function setAgentKnowledgeStatus(store: CrmStore, actor: AgentActor, id: string, action: "submit" | "publish" | "archive") {
   const document = store.agentKnowledgeDocuments.find((item) => item.id === id);
-  if (!document || !canEditManaged(actor, document)) throw new Error("知识不存在或无权操作");
+  if (!document || !canEditManaged(actor, document)) throw notFound("知识不存在或无权操作");
   const now = new Date().toISOString();
   if (action === "publish") {
     if (!canManageTeam(actor)) throw new Error("发布团队知识需要主管或管理员审核");

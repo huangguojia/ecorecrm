@@ -738,6 +738,12 @@ export interface Customer {
   releaseReason?: string;
   claimedAt?: string;
   ownershipVersion?: number;
+  /**
+   * 客户建档时间（customers.created_at）。
+   * 持久化是整表 DELETE + INSERT，如果不把原值带回来，MySQL 的 DEFAULT CURRENT_TIMESTAMP
+   * 会在每次保存时把所有客户的建档时间刷成保存时刻，列表「最近新增」排序随之失真。
+   */
+  createdAt?: string;
 }
 
 export interface CustomerOwnershipEvent {

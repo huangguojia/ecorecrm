@@ -559,9 +559,8 @@ app.use(["/api/knowledge", "/api/exams", "/api/exam-questions", "/api/exam-attem
 app.use("/api/kb", requireAuth, asyncRoute(async (req, res, next) => {
   await enforceIamTenantPermission(req, res, next, req.method === "GET" ? "training.read" : "training.manage");
 }));
-app.use("/api/products", requireAuth, asyncRoute(async (req, res, next) => {
-  await enforceIamTenantPermission(req, res, next, req.method === "GET" ? "product.read" : "product.manage");
-}));
+// /api/products 的守卫已删：产品走 /api/tools/products（下方有对应守卫），
+// /api/products 下从未注册过任何路由，留着只会让探测脚本收到 401/404 两种噪音。
 app.use("/api/shipments", requireAuth, asyncRoute(async (req, res, next) => {
   await enforceIamTenantPermission(req, res, next, req.method === "GET" ? "shipment.read" : "shipment.manage");
 }));

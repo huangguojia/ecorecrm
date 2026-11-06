@@ -394,6 +394,7 @@ function newCustomer(
     health: 72,
     source: lead.source || lead.sourceChannel || "智能获客",
     nextReminder: input.nextReminder || lead.nextFollowAt,
+    createdAt: input.convertedAt,
     wecomBound: false,
     billingName: "",
     companyFullName: input.company || lead.company,

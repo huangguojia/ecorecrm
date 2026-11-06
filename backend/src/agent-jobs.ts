@@ -2,6 +2,7 @@ import { createHmac, randomUUID } from "node:crypto";
 import { encryptAgentJobPayload } from "./agent-job-security.js";
 import type { CrmStore } from "./store.js";
 import type { AgentJob, AgentJobIdempotencyAlias, AgentJobStatus } from "./types.js";
+import { notFound } from "./http-errors.js";
 
 const RETRYABLE_STATUSES = new Set<AgentJobStatus>(["failed", "dead_letter"]);
 const CANCELLABLE_STATUSES = new Set<AgentJobStatus>(["queued", "running", "retry_scheduled"]);
@@ -20,7 +21,7 @@ export function isProspectRunBridgeJob(
 
 function assertGenericAgentJob(job: Pick<AgentJob, "jobType">) {
   if (isProspectRunBridgeJob(job)) {
-    throw new Error("任务不存在或不能通过通用任务入口操作");
+    throw notFound("任务不存在或不能通过通用任务入口操作");
   }
 }
 
@@ -112,7 +113,7 @@ export function attachAgentJobIdempotencyAlias(
     && item.teamId === job.teamId
     && item.jobType === job.jobType
   )) {
-    throw new Error("幂等别名目标任务不存在");
+    throw notFound("幂等别名目标任务不存在");
   }
   const idempotencyKey = rawIdempotencyKey.trim();
   if (!idempotencyKey) throw new Error("智能获客任务别名必须提供幂等键");
@@ -163,7 +164,7 @@ export function enqueueAgentJob(store: CrmStore, input: EnqueueAgentJobInput) {
   if (!idempotencyKey) throw new Error("智能获客任务必须提供幂等键");
   const owner = store.users.find((item) => item.id === ownerId && item.status === "active");
   if (!owner || owner.teamId !== teamId) {
-    throw new Error("任务负责人不存在、已停用或不属于当前团队");
+    throw notFound("任务负责人不存在、已停用或不属于当前团队");
   }
 
   const digest = idempotencyDigest(idempotencyKey);
@@ -176,7 +177,7 @@ export function enqueueAgentJob(store: CrmStore, input: EnqueueAgentJobInput) {
 
   if (input.parentJobId) {
     const parent = store.agentJobs.find((item) => item.id === input.parentJobId);
-    if (!parent || parent.teamId !== teamId) throw new Error("父任务不存在或不属于当前团队");
+    if (!parent || parent.teamId !== teamId) throw notFound("父任务不存在或不属于当前团队");
   }
 
   const id = `aj_${randomUUID()}`;

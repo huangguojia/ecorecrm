@@ -4,6 +4,7 @@ import { callAiModel } from "./ai-model-runtime.js";
 import { canSeeOwner, hasIamPermission, type IamActor } from "./auth.js";
 import type { CrmStore } from "./store.js";
 import type { AiModelConfig, SalesDistillation, SalesDistillationMetrics, SalesDistillationPlaybookItem, SessionUser, User } from "./types.js";
+import { notFound } from "./http-errors.js";
 
 type DistillationActor = IamActor;
 
@@ -131,7 +132,7 @@ export function listSalesPlaybookActivations(store: CrmStore, actor: Distillatio
 export async function activateSalesPlaybook(store: CrmStore, actor: DistillationActor, distillationId: string) {
   const distillation = store.salesDistillations.find((item) => item.id === distillationId);
   if (!distillation || distillation.status !== "published" || distillation.teamId !== actor.teamId) {
-    throw new Error("只有当前团队已发布的蒸馏打法可以应用");
+    throw notFound("只有当前团队已发布的蒸馏打法可以应用");
   }
   const now = new Date().toISOString();
   store.salesPlaybookActivations
@@ -163,7 +164,7 @@ export async function activateSalesPlaybook(store: CrmStore, actor: Distillation
 
 export async function pauseSalesPlaybook(store: CrmStore, actor: DistillationActor, activationId: string) {
   const activation = store.salesPlaybookActivations.find((item) => item.id === activationId && item.ownerId === actor.id && item.teamId === actor.teamId);
-  if (!activation) throw new Error("打法应用记录不存在");
+  if (!activation) throw notFound("打法应用记录不存在");
   activation.status = "paused";
   activation.updatedAt = new Date().toISOString();
   await store.persist();

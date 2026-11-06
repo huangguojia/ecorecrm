@@ -16,6 +16,7 @@ import type {
   SessionUser,
   User
 } from "./types.js";
+import { notFound } from "./http-errors.js";
 
 type TrainingActor = IamActor;
 
@@ -227,7 +228,7 @@ export function listSalesTrainingRuns(store: CrmStore, actor: TrainingActor) {
 
 export function getSalesTrainingRun(store: CrmStore, actor: TrainingActor, id: string) {
   const run = store.salesTrainingRuns.find((item) => item.id === id && canSeeRun(actor, item));
-  if (!run) throw new Error("销售训练任务不存在或无权访问");
+  if (!run) throw notFound("销售训练任务不存在或无权访问");
   return run;
 }
 
@@ -278,7 +279,7 @@ export async function updateSalesTrainingSample(store: CrmStore, actor: Training
   if (!canManageTeam(actor) && run.sourceUserId !== actor.id) throw new Error("无权修改该训练样本");
   if (!['awaiting_review', 'paused', 'failed'].includes(run.status)) throw new Error("训练运行中不能修改样本，请先暂停任务");
   const sample = run.samples.find((item) => item.id === sampleId);
-  if (!sample) throw new Error("训练样本不存在");
+  if (!sample) throw notFound("训练样本不存在");
   if (input.label) sample.label = input.label;
   if (typeof input.included === "boolean") sample.included = input.included;
   if (typeof input.managerNote === "string") sample.managerNote = input.managerNote.trim().slice(0, 500);

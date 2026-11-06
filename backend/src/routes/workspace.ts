@@ -204,7 +204,7 @@ function reminderRuleTitle(ruleType = "quote_no_reply") {
     sample_feedback: "样品阶段待确认",
     inactive_customer: "长期未联系提醒",
     high_value_revisit: "高价值客户复访",
-    custom_due: "商机下一动作到期提醒"
+    custom_due: "下一动作到期提醒"
   };
   return map[ruleType] || "自定义跟进提醒";
 }
@@ -220,7 +220,7 @@ function reminderRuleText(rule: { ruleType?: string; targetStage?: string; days?
   if (rule.ruleType === "sample_feedback") return `进入样品阶段 ${days} ${unit}未更新时生成站内任务`;
   if (rule.ruleType === "inactive_customer") return `距离最后一次客户活动超过 ${days} ${unit}时生成站内任务`;
   if (rule.ruleType === "high_value_revisit") return `高价值或低健康度客户超过 ${days} ${unit}未活动时生成站内任务`;
-  if (rule.ruleType === "custom_due") return `${stage}阶段商机下一动作到期后生成站内任务`;
+  if (rule.ruleType === "custom_due") return `${stage}阶段下一动作到期后生成站内任务`;
   return `进入${stage}阶段 ${days} ${unit}未更新时生成站内任务`;
 }
 

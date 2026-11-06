@@ -130,6 +130,9 @@ for (const view of ["dashboard", "customers", "customer-pool", "suppliers", "doc
   assert.ok(navBlock.includes(`data-view="${view}"`), `导航必须保留 ${view} 入口`);
 }
 assert.equal(navBlock.includes('data-view="pipeline"'), false, "商机看板已移除，导航不得再出现商机入口");
+// ECORECRM 界面上不再有商机这一概念：从导航、卡片、筛选到提示语一律清除，后端接口与数据不动。
+assert.equal(prototype.includes("商机"), false, "界面壳层不得再出现「商机」字样");
+assert.equal(apiLayer.includes("商机"), false, "前端逻辑层不得再出现「商机」字样");
 
 assert.match(apiLayer, /const ECORE_DOC_TYPES: string\[\] = \["PI", "PO"\];/u, "单据类型白名单必须只有 PI 与 PO");
 const docTypeTabStart = prototype.indexOf('id="documentTypeTabs"');
@@ -493,7 +496,9 @@ assert.match(apiLayer, /logoUrl, \.\.\.readDocumentLetterheadLogoPlacements\("as
 assert.match(prototype, /id="docSellerProfileInput"[\s\S]{0,1400}?class="doc-logo-inline" id="docLogoInline"/u, "一行式 Logo 调节器必须放在卖方公司档案下方（单据编辑表单里）");
 assert.match(prototype, /id="docLogoInline"[^>]*hidden[\s\S]{0,600}?data-doc-logo-dir="0\|-1"[\s\S]{0,800}?data-doc-logo-zoom="-5"[\s\S]{0,400}?data-doc-logo-zoom="5"/u, "一行调节器默认隐藏，且必须带方向键与缩小/放大键");
 assert.match(apiLayer, /function syncDocumentLogoInline[\s\S]{0,400}?if \(!active \|\| !letterhead\) \{\s*row\.hidden = true;\s*return;/, "调节器只对会消费该设置的模板出现（定制B 的 PI / PO），其余模板必须隐藏");
-assert.match(apiLayer, /function renderDocumentPreview\([\s\S]{0,200}?syncDocumentLogoInline\(document\);/, "调节器必须随预览刷新同步（预览画哪套值，调节器就显示哪套）");
+// renderDocumentPreview 现在拆成「壳 + 内容」两层：壳负责渲染后按预览栏宽度做等比缩放，
+// 内容函数负责真正画纸面并在第一行同步调节器，所以断言要落到 renderDocumentPreviewContent 上。
+assert.match(apiLayer, /function renderDocumentPreviewContent\(document: TradeDocument\) \{[\s\S]{0,220}?syncDocumentLogoInline\(document\);/, "调节器必须随预览刷新同步（预览画哪套值，调节器就显示哪套）");
 assert.match(apiLayer, /letterhead\.logoPlacements = \{ \.\.\.\(letterhead\.logoPlacements \|\| \{\}\), \[key\]: value \}/, "行内调节必须按当前模板的键写入对应那一套，不能覆盖其他模板");
 assert.match(apiLayer, /docLogoInlineSaveTimer = window\.setTimeout\([\s\S]{0,120}?saveDocumentLogoInline/, "行内调节必须停手后静默保存，不能只在内存里改");
 assert.match(apiLayer, /async function saveDocumentLogoInline[\s\S]{0,900}?\/api\/document-assets\/letterheads[\s\S]{0,700}?logoPlacements: asset\.logoPlacements \|\| \{\}/, "静默保存必须把分模板 logoPlacements 一并回传给卖方公司档案");

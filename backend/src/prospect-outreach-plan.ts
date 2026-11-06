@@ -21,6 +21,7 @@ import type {
   ProspectOutreachPlanStatus,
   WebsiteOpportunity
 } from "./types.js";
+import { notFound } from "./http-errors.js";
 
 // ---------------------------------------------------------------------------
 // 自动发送方案：一个长期运行的后台任务。配置目标筛选（国家/关键词/人数上限）
@@ -210,7 +211,7 @@ export function listProspectOutreachPlans(store: CrmStore, user: ProspectOutreac
 
 export function getProspectOutreachPlan(store: CrmStore, user: ProspectOutreachPlanActor, id: string) {
   const plan = store.prospectOutreachPlans.find((item) => item.id === id && canAccess(item, user));
-  if (!plan) throw new Error("发送方案不存在或无权访问");
+  if (!plan) throw notFound("发送方案不存在或无权访问");
   return plan;
 }
 

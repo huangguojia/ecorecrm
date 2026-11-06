@@ -167,7 +167,7 @@ export function registerReportsRoutes(app: Express) {
       { key: "pending", label: "待清洗", count: pendingCleanLeads.length },
       { key: "valid", label: "有效线索", count: validLeads.length },
       { key: "customer", label: "已转客户", count: customerLeads.length },
-      { key: "deal", label: "已建商机", count: dealLeads.length }
+      { key: "deal", label: "已建跟进", count: dealLeads.length }
     ];
     const scopedTodos = todos.filter((todo) => canSeePersonalData(req.user!, todo.ownerId));
     const scopedDeals = deals.filter((deal) => canSeeOwner(req.user!, deal.ownerId, deal.teamId) && !deal.archivedAt && deal.stage !== "成交" && deal.stage !== "丢单");
@@ -245,20 +245,20 @@ export function registerReportsRoutes(app: Express) {
       const expectedAmounts = reportMoneyRows(expectedDeals);
       const topExpectedDeal = [...expectedDeals].sort((left, right) => right.amount - left.amount)[0];
       const title = highPriorityTodos.length
-        ? `${label}最该优先处理 ${highPriorityTodos.length} 个高优先级待办，并跟进 ${expectedDeals.length} 个预计成交商机。`
+        ? `${label}最该优先处理 ${highPriorityTodos.length} 个高优先级待办，并跟进 ${expectedDeals.length} 个待成交记录。`
         : expectedDeals.length
-          ? `${label}有 ${expectedDeals.length} 个预计成交商机，建议围绕成交节点集中推进。`
-          : `${label}暂无预计成交商机，建议优先补充线索、推进报价并校准成交日期。`;
+          ? `${label}有 ${expectedDeals.length} 个待成交记录，建议围绕成交节点集中推进。`
+          : `${label}暂无待成交记录，建议优先补充线索、推进报价并校准成交日期。`;
       const description = topExpectedDeal
         ? `金额最高的是“${topExpectedDeal.title}”，预计成交金额为 ${topExpectedDeal.currency} ${Math.round(topExpectedDeal.amount).toLocaleString("en-US")}。`
         : newLeads.length
-          ? `${label}新增 ${newLeads.length} 条线索，可优先完成清洗并转入客户或商机。`
-          : `${label}暂未形成新的成交节点，建议检查活跃商机是否缺少预计成交日期。`;
+          ? `${label}新增 ${newLeads.length} 条线索，可优先完成清洗并转入客户档案。`
+          : `${label}暂未形成新的成交节点，建议检查待成交记录是否缺少成交日期。`;
       const action = highPriorityTodos.length
-        ? `先完成 ${highPriorityTodos.length} 个高优先级待办，再逐一确认预计成交商机的决策人、付款条件和下一步。`
+        ? `先完成 ${highPriorityTodos.length} 个高优先级待办，再逐一确认待成交记录的决策人、付款条件和下一步。`
         : expectedDeals.length
-          ? `逐一核对 ${expectedDeals.length} 个预计成交商机的关键人、报价反馈和下一步时间。`
-          : `清洗新增线索、推进有效报价，并为活跃商机补全预计成交日期。`;
+          ? `逐一核对 ${expectedDeals.length} 个待成交记录的关键人、报价反馈和下一步时间。`
+          : `清洗新增线索、推进有效报价，并为待成交记录补全成交日期。`;
       return {
         label,
         start,
@@ -271,11 +271,11 @@ export function registerReportsRoutes(app: Express) {
         briefing: {
           title,
           description,
-          basis: `${periodTodos.length} 个周期待办、${highPriorityTodos.length} 个高优先级待办、${newLeads.length} 条新增线索、${expectedDeals.length} 个预计成交商机。`,
+          basis: `${periodTodos.length} 个周期待办、${highPriorityTodos.length} 个高优先级待办、${newLeads.length} 条新增线索、${expectedDeals.length} 个待成交记录。`,
           action,
           impact: expectedDeals.length
             ? `${label}预计成交 ${periodMoneyText(expectedAmounts)}，应优先降低成交日期延误风险。`
-            : `${label}暂无预计成交金额，补齐商机日期和推进动作后才能形成可靠预测。`
+            : `${label}暂无预计成交金额，补齐成交日期和推进动作后才能形成可靠预测。`
         }
       };
     };
@@ -317,11 +317,11 @@ export function registerReportsRoutes(app: Express) {
           : "今天暂无未完成待办，可以复盘客户资料和销售知识库。",
         description: riskCustomers.length
           ? `系统根据客户金额、健康度、阶段和提醒状态计算，建议优先处理 ${topRiskNames}。`
-          : `当前客户风险较低，建议推进 ${topDeals[0]?.title || "高金额商机"} 并保持企微记录归档。`,
-        basis: `${pendingTodos.length} 个未完成待办、${riskCustomers.length} 个风险客户、${readyDeals.length} 个可推进商机、${pendingMessages.length} 条企微待归档。`,
+          : `当前客户风险较低，建议推进 ${topDeals[0]?.title || "高金额记录"} 并保持企微记录归档。`,
+        basis: `${pendingTodos.length} 个未完成待办、${riskCustomers.length} 个风险客户、${readyDeals.length} 个可推进记录、${pendingMessages.length} 条企微待归档。`,
         action: overdueTodos.length
-          ? `先处理 ${overdueTodos.length} 个高优先级待办，再跟进金额最高的商机。`
-          : `按今日节奏完成待办，并把可成交商机推进到下一阶段。`,
+          ? `先处理 ${overdueTodos.length} 个高优先级待办，再跟进金额最高的记录。`
+          : `按今日节奏完成待办，并把待成交记录推进到下一阶段。`,
         impact: riskAmount
           ? `${moneyText(riskAmount)} 风险金额，处理后可降低逾期和报价流失。`
           : `${moneyText(readyDeals.reduce((sum, deal) => sum + deal.amount, 0))} 可推进金额，适合用于晨会安排。`,
@@ -468,7 +468,7 @@ export function registerReportsRoutes(app: Express) {
       { id: "streak_7", name: "持续跟进", icon: "🔥", desc: "连续7天有跟进记录", earned: streak7, progress: `${weekFollowUps}/7天` },
       { id: "monthly_champ", name: "月度之星", icon: "⭐", desc: "当月成交3笔以上", earned: isMonthlyChamp, progress: `${monthWon}/3` },
       { id: "explorer", name: "客户开拓者", icon: "🧭", desc: "名下客户达20个", earned: isExplorer, progress: `${customerCount}/20` },
-      { id: "sample_master", name: "样品达人", icon: "📦", desc: "推动5个商机进入样品阶段", earned: isSampleMaster, progress: `${sampleDeals.length}/5` },
+      { id: "sample_master", name: "样品达人", icon: "📦", desc: "推动 5 个记录进入样品阶段", earned: isSampleMaster, progress: `${sampleDeals.length}/5` },
       { id: "millionaire", name: "十万俱乐部", icon: "💰", desc: "累计成交金额达$100K", earned: isMillionaire, progress: `$${Math.round(totalAmount / 1000)}K/$100K` },
       { id: "big_deal", name: "大单猎手", icon: "🏆", desc: "单笔成交金额超$50K", earned: bigDeal, progress: bigDeal ? "已达成" : "未达成" },
       { id: "fast_closer", name: "闪电成交", icon: "⚡", desc: "7天内从创建到成交", earned: fastCloser, progress: fastCloser ? "已达成" : "未达成" },
@@ -607,7 +607,7 @@ export function registerReportsRoutes(app: Express) {
         activeDealCount: ownerActiveDeals.length,
         forecastAmounts: reportMoneyRows(ownerActiveDeals, (deal) => deal.amount * (reportStageWeights[deal.stage] || 0)),
         riskCount: ownerRiskDeals.length,
-        riskLabel: ownerRiskDeals.length ? `${ownerRiskDeals.length} 个风险商机` : "当前健康"
+        riskLabel: ownerRiskDeals.length ? `${ownerRiskDeals.length} 个风险记录` : "当前健康"
       };
     }).sort((left, right) => right.activeDealCount - left.activeDealCount || right.followUpCount - left.followUpCount);
     const busiestStage = [...stageRows].sort((left, right) => right.count - left.count)[0];
@@ -621,20 +621,20 @@ export function registerReportsRoutes(app: Express) {
     const dataStatus = activeDeals.length || periodClosedDeals.length ? "实时数据" : "数据不足";
     const conclusions = [
       {
-        title: expectedThisMonth.length ? `本月有 ${expectedThisMonth.length} 个商机预计成交` : "本月暂无明确预计成交商机",
-        detail: expectedThisMonth.length ? "预测基于商机预计成交日期，并按原币分别展示。" : "建议补齐商机预计成交日期，避免预测遗漏。"
+        title: expectedThisMonth.length ? `本月有 ${expectedThisMonth.length} 个记录预计成交` : "本月暂无明确成交预期",
+        detail: expectedThisMonth.length ? "预测基于预计成交日期，并按原币分别展示。" : "建议补齐预计成交日期，避免预测遗漏。"
       },
       {
-        title: riskRows.length ? `${riskRows.length} 个风险商机需要处理` : "当前未识别到风险商机",
+        title: riskRows.length ? `${riskRows.length} 个风险记录需要处理` : "当前未识别到风险记录",
         detail: riskRows.length ? riskRows.slice(0, 2).map((row) => `${row.customer}：${row.riskReasons.join("、")}`).join("；") : "风险规则包含逾期、低健康度、预计成交日已过和动作缺失。"
       },
       {
-        title: busiestStage?.count ? `${busiestStage.stage}阶段商机最多` : "当前漏斗暂无活跃商机",
-        detail: busiestStage?.count ? `${busiestStage.count} 个商机处于该阶段，建议优先检查停留时间和下一动作。` : "新增或同步商机后，系统将自动生成漏斗快照。"
+        title: busiestStage?.count ? `${busiestStage.stage}阶段记录最多` : "当前漏斗暂无活跃记录",
+        detail: busiestStage?.count ? `${busiestStage.count} 个记录处于该阶段，建议优先检查停留时间和下一动作。` : "新增或同步记录后，系统将自动生成漏斗快照。"
       },
       {
-        title: winRate === null ? "本月暂无可计算的赢单率" : `本月商机赢单率 ${winRate}%`,
-        detail: winRate === null ? "赢单率仅按本月已关闭的成交与丢单商机计算。" : `${wonDeals.length} 个成交，${lostDeals.length} 个丢单，分母为本月已关闭商机。`
+        title: winRate === null ? "本月暂无可计算的赢单率" : `本月赢单率 ${winRate}%`,
+        detail: winRate === null ? "赢单率仅按本月已关闭的成交与丢单记录计算。" : `${wonDeals.length} 个成交，${lostDeals.length} 个丢单，分母为本月已关闭记录。`
       }
     ];
     const actions = riskRows.length
@@ -671,8 +671,8 @@ export function registerReportsRoutes(app: Express) {
       },
       dataStatus,
       headline: expectedThisMonth.length
-        ? `本月共有 ${expectedThisMonth.length} 个商机进入预计成交窗口，当前识别 ${riskRows.length} 个风险商机。`
-        : `当前有 ${activeDeals.length} 个活跃商机，本月尚无商机进入明确预计成交窗口。`,
+        ? `本月共有 ${expectedThisMonth.length} 个记录进入预计成交窗口，当前识别 ${riskRows.length} 个风险记录。`
+        : `当前有 ${activeDeals.length} 个活跃记录，本月尚无记录进入明确预计成交窗口。`,
       note: "活跃漏斗为当前快照；本月成交、丢单和跟进按自然月统计；预计成交按预计成交日期判断。",
       reportNote: reportOwner?.reportNote || "",
       metrics: {
@@ -700,10 +700,10 @@ export function registerReportsRoutes(app: Express) {
       riskRows,
       actions,
       definitions: [
-        "活跃管道：未成交、未丢单且未归档的当前商机。",
+        "活跃管道：未成交、未丢单且未归档的当前记录。",
         "阶段加权预测：询盘 5%、已联系 10%、已报价 30%、样品 50%、谈判 70%。",
-        "本月赢单率：本月成交数 ÷ 本月已关闭商机数。",
-        "风险商机：跟进逾期、客户健康度低于 60、预计成交日已过或下一动作信息缺失。",
+        "本月赢单率：本月成交数 ÷ 本月已关闭记录数。",
+        "风险记录：跟进逾期、客户健康度低于 60、预计成交日已过或下一动作信息缺失。",
         "金额未应用汇率，所有金额按原币分别展示。"
       ]
     });

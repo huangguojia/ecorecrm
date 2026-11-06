@@ -4,6 +4,7 @@ import type { AgentActor } from "./ai-agent.js";
 import { canSeeOwner, hasIamPermission } from "./auth.js";
 import type { CrmStore } from "./store.js";
 import type { AgentMemoryRecord, AgentMemoryScope, AgentMemoryStatus, AgentMemoryType } from "./types.js";
+import { notFound } from "./http-errors.js";
 
 const memoryInputSchema = z.object({
   type: z.enum(["user_preference", "company_knowledge", "customer_memory", "team_playbook"]),
@@ -34,7 +35,7 @@ function visibleMemory(store: CrmStore, actor: AgentActor, item: AgentMemoryReco
 }
 
 function assertManageable(store: CrmStore, actor: AgentActor, item: AgentMemoryRecord) {
-  if (!visibleMemory(store, actor, item)) throw new Error("业务记忆不存在或无权访问");
+  if (!visibleMemory(store, actor, item)) throw notFound("业务记忆不存在或无权访问");
   if (["team", "company"].includes(item.scope) && !canManageTeam(actor)) throw new Error("团队或公司记忆需要主管或管理员维护");
   if (["personal", "customer"].includes(item.scope) && item.ownerId !== actor.id && !canManageTeam(actor)) throw new Error("只能维护本人创建的业务记忆");
 }
@@ -87,7 +88,7 @@ export async function proposeAgentMemory(store: CrmStore, actor: AgentActor, inp
 
 export async function updateAgentMemory(store: CrmStore, actor: AgentActor, id: string, input: unknown) {
   const item = store.agentMemories.find((entry) => entry.id === id);
-  if (!item) throw new Error("业务记忆不存在或无权访问");
+  if (!item) throw notFound("业务记忆不存在或无权访问");
   assertManageable(store, actor, item);
   const patch = z.object({
     title: z.string().trim().min(2).max(120).optional(),
@@ -101,7 +102,7 @@ export async function updateAgentMemory(store: CrmStore, actor: AgentActor, id: 
 
 export async function setAgentMemoryStatus(store: CrmStore, actor: AgentActor, id: string, status: AgentMemoryStatus) {
   const item = store.agentMemories.find((entry) => entry.id === id);
-  if (!item) throw new Error("业务记忆不存在或无权访问");
+  if (!item) throw notFound("业务记忆不存在或无权访问");
   assertManageable(store, actor, item);
   item.status = status;
   item.updatedAt = new Date().toISOString();
@@ -111,7 +112,7 @@ export async function setAgentMemoryStatus(store: CrmStore, actor: AgentActor, i
 
 export async function deleteAgentMemory(store: CrmStore, actor: AgentActor, id: string) {
   const item = store.agentMemories.find((entry) => entry.id === id);
-  if (!item) throw new Error("业务记忆不存在或无权访问");
+  if (!item) throw notFound("业务记忆不存在或无权访问");
   assertManageable(store, actor, item);
   store.agentMemories = store.agentMemories.filter((entry) => entry.id !== id);
   await store.persist();

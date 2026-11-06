@@ -566,6 +566,7 @@ export function registerCustomersRoutes(app: Express) {
       nextReminder: "明天 10:00",
       wecomBound: false,
       lifecycleStatus: "open" as const,
+      createdAt: new Date().toISOString(),
       ...body,
       companyFullName,
       billingName: body.billingName || companyFullName

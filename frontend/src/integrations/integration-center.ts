@@ -455,7 +455,7 @@ export function mountIntegrationCenter(dependencies: IntegrationCenterDependenci
       return;
     }
     dependencies.openModal("绑定企业微信成员", `<div class="form-grid integration-wecom-form">
-      <p class="hint full">绑定后，企业微信成员只能通过 CRM 查询自己的待办、客户和商机。写入指令仍需回到 Agent 或审批中心确认。</p>
+      <p class="hint full">绑定后，企业微信成员只能通过 CRM 查询自己的待办、客户和单据。写入指令仍需回到 Agent 或审批中心确认。</p>
       <label>企业微信回调<select id="integrationWecomBindingEndpoint">${endpoints.map((endpoint) => `<option value="${escapeHtml(endpoint.connectionId)}">${escapeHtml(wecomConnectionName(endpoint.connectionId))} · ${escapeHtml(endpoint.corpId)}</option>`).join("")}</select></label>
       <label>CRM 成员<select id="integrationWecomBindingCrmUser">${activeAccounts.map((account) => `<option value="${escapeHtml(account.id)}">${escapeHtml(account.name)} · ${escapeHtml(account.email)}</option>`).join("")}</select></label>
       <label class="full">企业微信 UserID<input id="integrationWecomBindingUserId" maxlength="128" autocomplete="off" placeholder="企业微信成员资料中的 UserID" required></label>

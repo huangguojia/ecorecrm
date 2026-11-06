@@ -12,6 +12,7 @@ import {
   
 } from "./lead-source-selection";
 import type { CustomerMapController, CustomerMapRegion } from "./customer-map";
+import { ecoreDisplayName } from "./ecore-labels";
 import type {
   
   ProspectRadarController,
@@ -683,7 +684,7 @@ interface Deal {
   expectedCloseAt: string;
   stageChangedAt: string;
   closedAt?: string;
-  /** 成交自动建单后回写的订单 id：商机详情据此提供「查看订单」入口。 */
+  /** 成交自动建单后回写的订单 id：单据详情据此提供「查看订单」入口。 */
   orderId?: string;
   wonReason?: string;
   lostReason?: string;
@@ -3786,8 +3787,6 @@ const viewLabels: Record<string, string> = {
   suppliers: "供应商",
   "customer-pool": "客户公池",
   "customer-detail": "客户全景",
-  pipeline: "商机",
-  "deal-archive": "商机归档",
   orders: "订单",
   "order-detail": "订单详情",
   reminders: "跟进提醒",
@@ -5615,7 +5614,7 @@ function renderPlatformTenants() {
 }
 
 function renderPlatformSupport() {
-  const permissionLabels: Record<string, string> = { "customer.read": "客户", "lead.read": "线索", "deal.read": "商机", "daily_report.read": "日报" };
+  const permissionLabels: Record<string, string> = { "customer.read": "客户", "lead.read": "线索", "deal.read": "成交记录", "daily_report.read": "日报" };
   const rows = platformSupportRequests.map((request) => {
     const ownRequest = request.requestedByUserId === state.user?.id;
     const session = request.session;
@@ -5740,7 +5739,7 @@ function openPlatformTenantAdminCreator(tenantId: string) {
 
 function openPlatformSupportCreator() {
   const tenantOptions = platformTenants.filter((tenant) => tenant.status !== "closed").map((tenant) => `<option value="${escapeHtml(tenant.id)}">${escapeHtml(tenant.name)}</option>`).join("");
-  openModal("创建支持访问申请", `<div class="form-grid"><div class="form-field full"><label>目标公司</label><select id="platformSupportTenant">${tenantOptions}</select></div><div class="form-field"><label>工单号</label><input id="platformSupportTicket" maxlength="120"></div><div class="form-field"><label>访问时长</label><select id="platformSupportMinutes"><option value="15">15 分钟</option><option value="30">30 分钟</option><option value="60">60 分钟</option></select></div><div class="form-field full"><label>只读范围</label><div><label><input type="checkbox" data-platform-support-permission value="customer.read" checked> 客户</label>　<label><input type="checkbox" data-platform-support-permission value="lead.read"> 线索</label>　<label><input type="checkbox" data-platform-support-permission value="deal.read"> 商机</label>　<label><input type="checkbox" data-platform-support-permission value="daily_report.read"> 日报</label></div></div><div class="form-field full"><label>访问原因</label><textarea id="platformSupportReason" maxlength="500" placeholder="说明客户问题和排查目的"></textarea></div></div>`, `<button class="btn" data-modal-close>取消</button><button class="btn primary" id="platformSupportSave">提交审批</button>`);
+  openModal("创建支持访问申请", `<div class="form-grid"><div class="form-field full"><label>目标公司</label><select id="platformSupportTenant">${tenantOptions}</select></div><div class="form-field"><label>工单号</label><input id="platformSupportTicket" maxlength="120"></div><div class="form-field"><label>访问时长</label><select id="platformSupportMinutes"><option value="15">15 分钟</option><option value="30">30 分钟</option><option value="60">60 分钟</option></select></div><div class="form-field full"><label>只读范围</label><div><label><input type="checkbox" data-platform-support-permission value="customer.read" checked> 客户</label>　<label><input type="checkbox" data-platform-support-permission value="lead.read"> 线索</label>　<label><input type="checkbox" data-platform-support-permission value="daily_report.read"> 日报</label></div></div><div class="form-field full"><label>访问原因</label><textarea id="platformSupportReason" maxlength="500" placeholder="说明客户问题和排查目的"></textarea></div></div>`, `<button class="btn" data-modal-close>取消</button><button class="btn primary" id="platformSupportSave">提交审批</button>`);
   qs("#platformSupportSave")?.addEventListener("click", () => void runPlatformMutation(() => api("/api/platform/v1/support-requests", { method: "POST", body: JSON.stringify({ tenantId: qs<HTMLSelectElement>("#platformSupportTenant")?.value, ticketNo: qs<HTMLInputElement>("#platformSupportTicket")?.value.trim(), reason: qs<HTMLTextAreaElement>("#platformSupportReason")?.value.trim(), requestedMinutes: Number(qs<HTMLSelectElement>("#platformSupportMinutes")?.value || 15), permissionCodes: qsa<HTMLInputElement>("[data-platform-support-permission]:checked").map((item) => item.value) }) }), "支持访问申请已提交"));
 }
 
@@ -5808,7 +5807,7 @@ async function refreshAll(user: User) {
   }
   renderDashboardCache(user);
   // ECORECRM 只保留仪表盘 / 客户 / 公池 / 供应商 / 单据 / 权限 / 系统配置（外加顶栏的跟进提醒与消息通知）：
-  // 登录时只拉这些模块的数据。原来一次并发 30 个接口，含线索、商机、知识库、考试、获客、备忘、同行、提成等已隐藏模块。
+  // 登录时只拉这些模块的数据。原来一次并发 30 个接口，含线索、知识库、考试、获客、备忘、同行、提成等已隐藏模块。
   const [summary, customers, publicCustomers, todos, reminders, tradeDocs, documentDefaults, documentAssets, aiConfig] = await Promise.all([
     api<DashboardSummary>("/api/dashboard/summary"),
     api<{ customers: Customer[]; mineCount: number; publicCount: number }>("/api/customers"),
@@ -5908,16 +5907,17 @@ function renderExchangeTickerContent(content: string) {
 }
 
 function renderExchangeTickerStatus(label: string, message: string) {
-  renderExchangeTickerContent(`<span class="dashboard-ticker-label">${escapeHtml(label)}</span><b>///</b><span class="dashboard-rate-empty">${escapeHtml(message)}</span>`);
+  renderExchangeTickerContent(`<span class="dashboard-ticker-label">${escapeHtml(label)}</span><b class="dashboard-ticker-sep" aria-hidden="true">·</b><span class="dashboard-rate-empty">${escapeHtml(message)}</span>`);
 }
 
 function renderExchangeTicker(rates: TodayExchangeRates) {
   const label = exchangeRateDateLabel(rates.date);
+  const sep = `<b class="dashboard-ticker-sep" aria-hidden="true">·</b>`;
   const items = rates.rates
     .filter((rate) => Number.isFinite(rate.value) && rate.value > 0)
     .map((rate) => `<span class="dashboard-rate"><span class="dashboard-rate-key">${escapeHtml(rate.pair)}</span><strong class="dashboard-rate-value">${rate.value.toFixed(rate.decimals)}</strong></span>`)
-    .join(`<b>///</b>`);
-  renderExchangeTickerContent(`<span class="dashboard-ticker-label">${escapeHtml(label)}</span><b>///</b>${items || `<span class="dashboard-rate-empty">暂无报价</span>`}<b>///</b><span class="dashboard-rate-meta" title="数据源：${escapeHtml(rates.source)}；公开参考汇率仅提供最近一个交易日">公开参考源 · 仅提供最近一个交易日</span>`);
+    .join(sep);
+  renderExchangeTickerContent(`<span class="dashboard-ticker-label">${escapeHtml(label)}</span>${sep}${items || `<span class="dashboard-rate-empty">暂无报价</span>`}${sep}<span class="dashboard-rate-meta" title="数据源：${escapeHtml(rates.source)}；公开参考汇率仅提供最近一个交易日">公开参考源 · 仅提供最近一个交易日</span>`);
 }
 
 async function refreshExchangeTicker(force = false) {
@@ -6028,7 +6028,7 @@ function renderDashboard(summary: DashboardSummary, todos: Todo[], customers: Cu
   const focusMetrics = qsa<HTMLElement>(".focus-metric");
   if (focusMetrics[0]) focusMetrics[0].innerHTML = `<span>当前高风险金额 · ${escapeHtml(scopeLabels.business)}</span><b>${money(summary.briefing.riskAmount)}</b><small>${escapeHtml(summary.briefing.riskLabel)} · 实时快照</small>`;
   if (focusMetrics[1]) focusMetrics[1].innerHTML = `<span>${escapeHtml(period.label)}高优先级待办 · ${escapeHtml(scopeLabels.todos)}</span><b>${period.highPriorityTodos} 项</b><small>${period.pendingTodos} 个周期待办</small>`;
-  if (focusMetrics[2]) focusMetrics[2].innerHTML = `<span>${escapeHtml(period.label)}预计成交金额 · ${escapeHtml(scopeLabels.business)}</span><b>${escapeHtml(dashboardMoneyText(period.expectedAmounts))}</b><small>${period.expectedDeals} 个预计成交商机 · ${escapeHtml(periodDateText(period.start, period.end))}</small>`;
+  if (focusMetrics[2]) focusMetrics[2].innerHTML = `<span>${escapeHtml(period.label)}预计成交金额 · ${escapeHtml(scopeLabels.business)}</span><b>${escapeHtml(dashboardMoneyText(period.expectedAmounts))}</b><small>${period.expectedDeals} 个成交预测 · ${escapeHtml(periodDateText(period.start, period.end))}</small>`;
   if (focusMetrics[3]) focusMetrics[3].innerHTML = `<span>${escapeHtml(period.label)}新增线索 · ${escapeHtml(scopeLabels.business)}</span><b>${period.newLeads} 条</b><small>当前另有 ${summary.briefing.unreadWecom} 条客户消息待处理</small>`;
   renderTodoInsights(summary);
   renderPriorityTasks(summary);
@@ -6089,7 +6089,7 @@ async function renderEcoreDashboard(force = false): Promise<void> {
   const emptyDocs: { documents: Array<Record<string, unknown>> } = { documents: [] };
   const emptyRank: { entries: Array<Record<string, unknown>> } = { entries: [] };
 
-  // ECORECRM 已去掉商机：成交额 / 在谈金额 / 销售排行全部按 PI、PO 单据统计。
+  // ECORECRM 的成交额 / 在谈金额 / 销售排行全部按 PI、PO 单据统计。
   // 排行接口只用来拿团队成员名单（金额按 PO 自己算）。
   const [docsRes, rankRes] = await Promise.all([
     api<{ documents: Array<Record<string, unknown>> }>("/api/trade-documents?all=1").catch(() => emptyDocs),
@@ -6681,7 +6681,7 @@ async function deleteTodo(id: string, button?: HTMLButtonElement) {
     message: "这条待办会从当前清单和历史记录中永久移除。",
     detail: todo.title,
     detailLabel: "待删除待办",
-    consequences: ["相关客户或商机不会被删除", "待办内容与执行记录无法恢复"],
+    consequences: ["相关客户与单据不会被删除", "待办内容与执行记录无法恢复"],
     confirmLabel: "永久删除",
     tone: "danger"
   });
@@ -7644,7 +7644,7 @@ function renderCustomerBulkBar(customers: Customer[]) {
   toolbar.innerHTML = `
     <label class="customer-select-all"><input type="checkbox" data-select-all-customers ${allSelected ? "checked" : ""}>全选</label>
     <span class="filter">已选 ${selectedCount} 个客户</span>
-    <span class="filter">国家：全部</span><span class="filter">商机阶段：全部</span><span class="filter">最近跟进：30 天</span>
+    <span class="filter">国家：全部</span><span class="filter">最近跟进：30 天</span>
     <button class="btn danger" data-bulk-delete-customers ${selectedCount ? "" : "disabled"}>批量删除</button>
     <button class="btn">批量导出</button>
   `;
@@ -7706,7 +7706,7 @@ function renderCustomerMapRegion(region: CustomerMapRegion | null, customers: Cu
         <dl>
           <div><dt>客户总数</dt><dd>${customers.length}</dd></div>
           <div><dt>成交客户</dt><dd>${metrics.won}</dd></div>
-          <div><dt>在手商机</dt><dd>${money(metrics.pipeline)}</dd></div>
+          <div><dt>在谈金额</dt><dd>${money(metrics.pipeline)}</dd></div>
         </dl>
         <div class="customer-map-market-list">
           ${markets.map(([country, count]) => `<button type="button" data-map-market-country="${escapeHtml(country)}"><span>${escapeHtml(country)}</span><b>${count}</b></button>`).join("")}
@@ -9353,12 +9353,10 @@ function renderCustomerDetailPage(customer?: Customer) {
   }
   state.selectedCustomerId = current.id;
   const grade = customerGradeValue(current);
-  const deals = customerRelatedDeals(current);
   const activities = current.activities || [];
   const contacts = customerContactDetails(current);
   // 号码能拼出网页版直链才算「可联系」；只填了位数不够的号码同样按未维护处理。
   const whatsappHref = whatsAppEntryHref(contacts.whatsapp);
-  const activeDeals = deals.filter((deal) => !deal.archivedAt && !["成交", "丢单"].includes(deal.stage));
   box.innerHTML = `
     <header class="customer-page-header">
       <div class="customer-page-identity">
@@ -9373,8 +9371,8 @@ function renderCustomerDetailPage(customer?: Customer) {
 
     <section class="customer-page-summary" aria-label="客户摘要">
       <div><span>客户分级</span><b>${grade} · ${customerGradeLabel(grade)}</b><small>人工维护的业务优先级</small></div>
-      <div class="${current.hasWonDeal ? "is-positive" : ""}"><span>成交历史</span><b>${current.hasWonDeal ? customerWonLabel(current) : "尚未成交"}</b><small>${current.lastWonAt ? `最近 ${escapeHtml(formatDateTime(current.lastWonAt))}` : current.hasWonDeal ? "由导入状态确认" : "商机成交后自动转入"}</small></div>
-      <div><span>活跃商机</span><b>${activeDeals.length} 个</b><small>在手金额 ${money(current.pipelineAmount || 0)}</small></div>
+      <div class="${current.hasWonDeal ? "is-positive" : ""}"><span>成交历史</span><b>${current.hasWonDeal ? customerWonLabel(current) : "尚未成交"}</b><small>${current.lastWonAt ? `最近 ${escapeHtml(formatDateTime(current.lastWonAt))}` : current.hasWonDeal ? "由导入状态确认" : "成交后自动转入"}</small></div>
+      <div><span>在谈金额</span><b>${money(current.pipelineAmount || 0)}</b><small>按在手报价与单据统计</small></div>
       <div><span>健康度</span><b>${current.health}%</b><small>人工评分，低于 60 进入风险提醒</small></div>
       <div><span>跟进记录</span><b>${activities.length} 条</b><small>${current.lastActivityAt ? `最近 ${escapeHtml(formatDateTime(current.lastActivityAt))}` : "暂无跟进"}</small></div>
     </section>
@@ -9415,14 +9413,13 @@ function renderCustomerDetailPage(customer?: Customer) {
         </div>
       </section>
 
-      <!-- ECORECRM 已去掉商机模块：客户详情不再展示「相关商机」 -->
       <section class="customer-page-section full customer-communication-section" id="customerCommunicationInsights">
         <div class="customer-page-section-head"><div><h2>WhatsApp 客户洞察</h2><p>实时会话、客户特点、风险与下一动作</p></div><span class="communication-sync-status"><i></i>正在同步</span></div>
         <div class="communication-insight-loading"><span class="loading-dot"></span><b>正在读取即刻沟通客户画像</b><small>只读同步，不会发送任何消息</small></div>
       </section>
 
       <section class="customer-page-section full customer-page-journey">
-        <div class="customer-page-section-head"><div><h2>客户旅程</h2><p>建档、沟通、商机到成交的触点时间轴，WhatsApp 自动同步的跟进同样上墙</p></div></div>
+        <div class="customer-page-section-head"><div><h2>客户旅程</h2><p>建档、沟通到成交的触点时间轴，WhatsApp 自动同步的跟进同样上墙</p></div></div>
         <div id="customerPageJourneyTimeline"><div style="padding:12px;text-align:center;color:var(--muted);font-size:12px;">加载中...</div></div>
       </section>
 
@@ -10030,7 +10027,6 @@ function renderCustomerDrawer(customer?: Customer) {
         ${(customer.activities || []).length ? (customer.activities || []).map((activity) => `<div class="timeline-item"><b>${escapeHtml(customerActivityLabel(activity.type))}</b><span>${escapeHtml(activity.content)}</span><small>${escapeHtml(activity.operatorName || "未知操作人")} · ${escapeHtml(formatDateTime(activity.createdAt))}${activity.nextReminder ? ` · 下次：${escapeHtml(activity.nextReminder)}` : ""}</small></div>`).join("") : `<div class="timeline-item"><b>暂无跟进记录</b></div>`}
       </div>
     </details>
-    <!-- ECORECRM 已去掉商机与订单履约：抽屉不再展示相关商机进展与订单 -->
   `;
   if (customerClockTimer) window.clearInterval(customerClockTimer);
   renderCustomerWorldClock(customer);
@@ -10294,9 +10290,9 @@ function bindJourneyTooltipGlobals() {
  * 描边图标用 currentColor 取色，颜色完全由节点语义决定，粗细也统一。
  *
  * 表要覆盖两类 type：客户跟进（customerActivityLabel 的 6 种）与
- * 商机事件（dealEventLabel 的 12 种）。**任一遗漏都会静默退化成同一个图标** ——
+ * 成交事件（dealEventLabel 的 12 种）。**任一遗漏都会静默退化成同一个图标** ——
  * 此前 updated / stage / follow_up / payment / document / archived 六种就没登记，
- * 商机时间轴上一眼全是「备注」图标。
+ * 时间轴上一眼全是「备注」图标。
  */
 const JOURNEY_GLYPHS: Record<string, string> = {
   users: '<path d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20"/><circle cx="9.5" cy="7.5" r="3.5"/><path d="M21 20v-1.5a4 4 0 0 0-3-3.87"/><path d="M15.5 4.1a3.5 3.5 0 0 1 0 7"/>',
@@ -10691,7 +10687,7 @@ async function refreshDealsData(_render = true) {
 
 function dealEventLabel(type: string) {
   const labels: Record<string, string> = {
-    created: "创建商机",
+    created: "创建档案",
     updated: "关键信息更新",
     stage: "阶段变化",
     follow_up: "跟进记录",
@@ -10896,8 +10892,9 @@ function reminderTaskBucket(todo: Todo) {
 }
 
 function renderReminderTasks(list: HTMLElement) {
+  // 这里不再只挑 reminderRuleId 的待办：批量生成的跟进待办、手动新增的待办同样是
+  // 「待办」，只按提醒规则过滤会让它们在任何界面都看不到（顶栏计数却算进去）。
   const tasks = state.todos
-    .filter((todo) => todo.reminderRuleId)
     .filter((todo) => state.reminderFilter === "pending" ? !todo.done : reminderTaskBucket(todo) === state.reminderFilter)
     .sort((left, right) => (reminderDueDate(left)?.getTime() || Number.MAX_SAFE_INTEGER) - (reminderDueDate(right)?.getTime() || Number.MAX_SAFE_INTEGER));
   list.innerHTML = tasks.length ? tasks.map((todo) => {
@@ -10908,7 +10905,7 @@ function renderReminderTasks(list: HTMLElement) {
     return `<article class="task reminder-task-card" data-reminder-task-id="${escapeHtml(todo.id)}" style="--accent: var(--${bucket === "overdue" ? "rose" : bucket === "done" ? "green" : "brand"})">
       <i class="task-line"></i>
       <div>
-        <div class="reminder-task-heading"><div><h3><button data-open-reminder-customer>${escapeHtml(customer?.company || todo.related)}</button></h3><p>${deal ? `${escapeHtml(deal.title)} · ` : ""}${escapeHtml(todo.title)}</p></div>${status}</div>
+        <div class="reminder-task-heading"><div><h3>${customer ? `<button data-open-reminder-customer>${escapeHtml(customer.company)}</button>` : `<span>${escapeHtml(todo.related || "通用待办")}</span>`}</h3><p>${deal ? `${escapeHtml(deal.title)} · ` : ""}${escapeHtml(todo.title)}</p></div>${status}</div>
         <div class="reminder-run-summary">计划 ${escapeHtml(todo.dueAt)}${todo.snoozeReason ? `｜延期原因：${escapeHtml(todo.snoozeReason)}` : ""}${todo.completionResult ? `｜处理结果：${escapeHtml(todo.completionResult)}` : ""}</div>
       </div>
       <div class="reminder-task-actions">
@@ -11006,7 +11003,7 @@ function reminderRuleTypeText(ruleType = "quote_no_reply") {
     sample_feedback: "样品阶段待确认",
     inactive_customer: "长期未产生客户活动",
     high_value_revisit: "高价值复访",
-    custom_due: "商机下一动作到期"
+    custom_due: "下一动作到期"
   };
   return map[ruleType] || "自定义规则";
 }
@@ -11811,7 +11808,7 @@ function openReminderModal(reminder?: Reminder) {
     .sort((left, right) => left.company.localeCompare(right.company, "zh-CN"));
   openModal(reminder ? "编辑提醒规则" : "设置提醒规则", `
     <div class="form-grid">
-      <div class="form-field full"><label>规则模板</label><select id="reminderRuleTypeInput"><option value="quote_no_reply" ${type === "quote_no_reply" ? "selected" : ""}>已报价阶段停滞</option><option value="sample_feedback" ${type === "sample_feedback" ? "selected" : ""}>进入样品阶段后待确认</option><option value="inactive_customer" ${type === "inactive_customer" ? "selected" : ""}>长期未产生客户活动</option><option value="high_value_revisit" ${type === "high_value_revisit" ? "selected" : ""}>高价值客户复访</option><option value="custom_due" ${type === "custom_due" ? "selected" : ""}>商机下一动作到期</option></select></div>
+      <div class="form-field full"><label>规则模板</label><select id="reminderRuleTypeInput"><option value="quote_no_reply" ${type === "quote_no_reply" ? "selected" : ""}>已报价阶段停滞</option><option value="sample_feedback" ${type === "sample_feedback" ? "selected" : ""}>进入样品阶段后待确认</option><option value="inactive_customer" ${type === "inactive_customer" ? "selected" : ""}>长期未产生客户活动</option><option value="high_value_revisit" ${type === "high_value_revisit" ? "selected" : ""}>高价值客户复访</option><option value="custom_due" ${type === "custom_due" ? "selected" : ""}>下一动作到期</option></select></div>
       <div class="form-field full"><label>提醒名称</label><input id="reminderTitleInput" data-auto-title="${reminder ? "false" : "true"}" value="${escapeHtml(reminder?.title || "报价阶段停滞提醒")}"></div>
       <div class="form-field"><label>适用阶段</label><select id="reminderStageInput">${["已报价", "样品", "谈判", "询盘", "已联系", "成交", "丢单"].map((item) => `<option ${item === stage ? "selected" : ""}>${item}</option>`).join("")}</select></div>
       <div class="form-field"><label>触发间隔</label><div style="display:flex;gap:6px"><input id="reminderDaysInput" type="number" min="0" max="365" value="${days}" style="flex:1;min-width:0"><select id="reminderTimeUnitInput" style="width:82px;flex:0 0 auto"><option value="minute" ${unit === "minute" ? "selected" : ""}>分钟</option><option value="day" ${unit === "day" ? "selected" : ""}>天</option><option value="hour" ${unit === "hour" ? "selected" : ""}>小时</option><option value="week" ${unit === "week" ? "selected" : ""}>周</option></select></div></div>
@@ -11883,7 +11880,7 @@ function reminderRulePreset(type: string) {
     return { title: "高价值客户复访", days: "7" };
   }
   if (type === "custom_due") {
-    return { title: "商机下一动作到期提醒" };
+    return { title: "下一动作到期提醒" };
   }
   return { title: "报价阶段停滞提醒", stage: "已报价", days: "3" };
 }
@@ -12944,7 +12941,6 @@ function importDocumentFieldValue(id: string) {
 function importDocumentDraftFromReview(analysis: TradeDocumentImportAnalysis): TradeDocumentImportDraft {
   const draft = structuredClone(analysis.extractedDocument);
   draft.customerId = importDocumentFieldValue("tradeImportCustomer");
-  draft.dealId = importDocumentFieldValue("tradeImportDeal");
   const mapping: Array<[keyof TradeDocumentImportDraft, string]> = [
     ["type", "tradeImportType"], ["title", "tradeImportTitle"], ["number", "tradeImportNumber"], ["issueDate", "tradeImportIssueDate"], ["buyer", "tradeImportBuyer"], ["buyerAddress", "tradeImportBuyerAddress"], ["buyerContact", "tradeImportBuyerContact"], ["seller", "tradeImportSeller"], ["sellerAddress", "tradeImportSellerAddress"], ["currency", "tradeImportCurrency"], ["incoterm", "tradeImportIncoterm"], ["paymentTerm", "tradeImportPayment"], ["shippingMethod", "tradeImportShipping"], ["portLoading", "tradeImportPortLoading"], ["portDischarge", "tradeImportPortDischarge"], ["validityDate", "tradeImportValidity"], ["bankInfo", "tradeImportBank"], ["notes", "tradeImportNotes"]
   ];
@@ -13033,8 +13029,6 @@ function renderTradeDocumentImportReview(analysis: TradeDocumentImportAnalysis) 
     : `<p>没有逐字段证据，建议按原文件逐项核对。</p>`;
   const typeOptions = ["PI", "CI", "PO", "PL", "CONTRACT", "QUOTATION", "COO", "SHIPPING", "CUSTOMS"].map((type) => `<option value="${type}" ${draft.type === type ? "selected" : ""}>${type} · ${documentTypeLabel(type)}</option>`).join("");
   const customerOptions = `<option value="">暂不关联客户</option>${state.customers.map((customer) => `<option value="${escapeHtml(customer.id)}" ${customer.id === draft.customerId ? "selected" : ""}>${escapeHtml(customerDocumentName(customer))}</option>`).join("")}`;
-  const availableDeals = state.deals.filter((deal) => !draft.customerId || deal.customerId === draft.customerId);
-  const dealOptions = `<option value="">暂不关联商机</option>${availableDeals.map((deal) => `<option value="${escapeHtml(deal.id)}" ${deal.id === draft.dealId ? "selected" : ""}>${escapeHtml(deal.title)} · ${escapeHtml(deal.stage)}</option>`).join("")}`;
   const recognitionLabel = analysis.recognitionTemplate ? `${analysis.recognitionTemplate.name} V${analysis.recognitionTemplate.version}` : "通用识别";
   const suggestedTemplateName = `${draft.seller || draft.buyer || analysis.sourceFileName.replace(/\.[^.]+$/u, "")} ${documentTypeLabel(draft.type)}`.trim().slice(0, 120);
   openModal("导入分析 · 审核后生成单据", `<div class="trade-document-import-shell">
@@ -13044,17 +13038,12 @@ function renderTradeDocumentImportReview(analysis: TradeDocumentImportAnalysis) 
       <section class="trade-document-import-review"><div class="trade-document-import-review-head"><div><h3>确认导入内容</h3><p style="margin:4px 0 0;color:var(--muted);font-size:10px;">修改后确认，将创建一份草稿单据；不会自动审批或覆盖原单据。</p></div><button class="btn" id="tradeImportOpenSourceButton" type="button">打开原文件</button></div>
         <div class="trade-recognition-template-bar"><div><span>本次规则</span><b id="tradeRecognitionTemplateState">${escapeHtml(recognitionLabel)}</b><small>${analysis.recognitionTemplate ? `匹配度 ${tradeDocumentImportPercent(analysis.recognitionTemplate.matchScore)}，历史单据不会重新识别` : "未命中模板，继续使用现有通用识别"}</small></div><label><span>模板名称</span><input id="tradeRecognitionTemplateName" value="${escapeHtml(analysis.recognitionTemplate?.name || suggestedTemplateName)}" maxlength="120"></label><button class="btn" type="button" id="tradeRecognitionTemplateSave">${analysis.recognitionTemplate ? "更新模板" : "保存为模板"}</button><button class="btn" type="button" id="tradeRecognitionTemplateLibraryButton">模板库</button></div>
         <div class="trade-recognition-template-library" id="tradeRecognitionTemplateLibrary" hidden></div>
-        <div class="trade-document-import-form"><label class="wide"><span>关联客户</span><select id="tradeImportCustomer">${customerOptions}</select></label><label class="wide"><span>关联商机</span><select id="tradeImportDeal">${dealOptions}</select></label><label><span>单据类型</span><select id="tradeImportType">${typeOptions}</select></label>${field("tradeImportTitle", "单据标题", draft.title, "text", "wide")}${field("tradeImportNumber", "单据编号", draft.number)}${field("tradeImportIssueDate", "签发日期", draft.issueDate, "date")}${field("tradeImportBuyer", "买方公司", draft.buyer)}${field("tradeImportBuyerContact", "买方联系人", draft.buyerContact)}${field("tradeImportSeller", "卖方公司", draft.seller)}${field("tradeImportCurrency", "币种", draft.currency)}${field("tradeImportIncoterm", "贸易条款", draft.incoterm)}${field("tradeImportShipping", "运输方式", draft.shippingMethod)}${field("tradeImportPortLoading", "装运港", draft.portLoading)}${field("tradeImportPortDischarge", "目的港", draft.portDischarge)}${field("tradeImportValidity", "有效期", draft.validityDate, "date")}${textarea("tradeImportBuyerAddress", "买方地址", draft.buyerAddress, "wide")}${textarea("tradeImportSellerAddress", "卖方地址", draft.sellerAddress, "wide")}${textarea("tradeImportPayment", "付款条款", draft.paymentTerm, "wide")}${textarea("tradeImportBank", "银行信息", draft.bankInfo, "wide")}${textarea("tradeImportNotes", "备注", draft.notes, "full")}</div>
+        <div class="trade-document-import-form"><label class="wide"><span>关联客户</span><select id="tradeImportCustomer">${customerOptions}</select></label><label><span>单据类型</span><select id="tradeImportType">${typeOptions}</select></label>${field("tradeImportTitle", "单据标题", draft.title, "text", "wide")}${field("tradeImportNumber", "单据编号", draft.number)}${field("tradeImportIssueDate", "签发日期", draft.issueDate, "date")}${field("tradeImportBuyer", "买方公司", draft.buyer)}${field("tradeImportBuyerContact", "买方联系人", draft.buyerContact)}${field("tradeImportSeller", "卖方公司", draft.seller)}${field("tradeImportCurrency", "币种", draft.currency)}${field("tradeImportIncoterm", "贸易条款", draft.incoterm)}${field("tradeImportShipping", "运输方式", draft.shippingMethod)}${field("tradeImportPortLoading", "装运港", draft.portLoading)}${field("tradeImportPortDischarge", "目的港", draft.portDischarge)}${field("tradeImportValidity", "有效期", draft.validityDate, "date")}${textarea("tradeImportBuyerAddress", "买方地址", draft.buyerAddress, "wide")}${textarea("tradeImportSellerAddress", "卖方地址", draft.sellerAddress, "wide")}${textarea("tradeImportPayment", "付款条款", draft.paymentTerm, "wide")}${textarea("tradeImportBank", "银行信息", draft.bankInfo, "wide")}${textarea("tradeImportNotes", "备注", draft.notes, "full")}</div>
         <div class="trade-document-import-items-head"><h3>商品明细</h3><button class="btn" type="button" id="tradeImportAddItem">增加明细</button></div><div class="trade-document-import-items" id="tradeImportItems">${draft.items.map(renderTradeDocumentImportItem).join("")}</div><div class="trade-document-import-total"><span>明细计算合计</span><b id="tradeImportTotal">${formatDocumentMoney(draft.items.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.unitPrice || 0), 0), draft.currency)}</b>${analysis.declaredTotal === undefined ? "" : `<span>原单合计 ${formatDocumentMoney(analysis.declaredTotal, draft.currency)}</span>`}</div>
       </section>
     </div>
   </div>`, `<button class="btn" data-modal-close>取消</button><button class="btn primary" id="tradeImportConfirmButton">确认并生成草稿单据</button>`, { closeOnBackdrop: false });
   qs<HTMLElement>("#appModal .modal")?.classList.add("trade-document-import-modal");
-  qs<HTMLSelectElement>("#tradeImportCustomer")?.addEventListener("change", (event) => {
-    const customerId = (event.currentTarget as HTMLSelectElement).value;
-    const dealSelect = qs<HTMLSelectElement>("#tradeImportDeal");
-    if (dealSelect) dealSelect.innerHTML = `<option value="">暂不关联商机</option>${state.deals.filter((deal) => !customerId || deal.customerId === customerId).map((deal) => `<option value="${escapeHtml(deal.id)}">${escapeHtml(deal.title)} · ${escapeHtml(deal.stage)}</option>`).join("")}`;
-  });
   const total = () => {
     const items = qsa<HTMLElement>("[data-trade-import-item]");
     const amount = items.reduce((sum, row) => sum + (Number(qs<HTMLInputElement>("[data-import-field='quantity']", row)?.value || 0) || 0) * (Number(qs<HTMLInputElement>("[data-import-field='unitPrice']", row)?.value || 0) || 0), 0);
@@ -13280,7 +13269,7 @@ function openDocumentConversion() {
     toast("当前单据没有可转换的类型", "error");
     return;
   }
-  openModal("由当前单据生成", `<div class="document-convert-modal"><p>将复制客户、商机、条款和商品明细，生成一份独立草稿。原单据不会被修改。</p><div class="document-convert-options">${targets.map((type) => `<button class="document-convert-option" type="button" data-document-convert-type="${type}"><b>${type}</b><span>${documentTypeLabel(type)}</span></button>`).join("")}</div></div>`, `<button class="btn" data-modal-close>取消</button>`);
+  openModal("由当前单据生成", `<div class="document-convert-modal"><p>将复制客户、条款和商品明细，生成一份独立草稿。原单据不会被修改。</p><div class="document-convert-options">${targets.map((type) => `<button class="document-convert-option" type="button" data-document-convert-type="${type}"><b>${type}</b><span>${documentTypeLabel(type)}</span></button>`).join("")}</div></div>`, `<button class="btn" data-modal-close>取消</button>`);
   qsa<HTMLButtonElement>("[data-document-convert-type]").forEach((button) => button.addEventListener("click", async () => {
     const targetType = button.dataset.documentConvertType || "";
     button.disabled = true;
@@ -13507,16 +13496,10 @@ async function saveDocumentDefaults() {
 
 function populateDocumentHistoryFilters() {
   const customer = qs<HTMLSelectElement>("#documentHistoryCustomer");
-  const deal = qs<HTMLSelectElement>("#documentHistoryDeal");
   if (customer) {
     const current = customer.value;
     customer.innerHTML = `<option value="">全部客户</option>${state.customers.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.company)}</option>`).join("")}`;
     customer.value = current;
-  }
-  if (deal) {
-    const current = deal.value;
-    deal.innerHTML = `<option value="">全部商机</option>${state.deals.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.title)}</option>`).join("")}`;
-    deal.value = current;
   }
 }
 
@@ -13527,7 +13510,6 @@ function documentHistoryParams() {
     ["type", qs<HTMLSelectElement>("#documentHistoryType")?.value || ""],
     ["status", qs<HTMLSelectElement>("#documentHistoryStatus")?.value || ""],
     ["customerId", qs<HTMLSelectElement>("#documentHistoryCustomer")?.value || ""],
-    ["dealId", qs<HTMLSelectElement>("#documentHistoryDeal")?.value || ""],
     ["from", qs<HTMLInputElement>("#documentHistoryFrom")?.value || ""],
     ["to", qs<HTMLInputElement>("#documentHistoryTo")?.value || ""]
   ];
@@ -13564,9 +13546,8 @@ function renderDocumentHistory(documents: TradeDocument[]) {
   if (!rows) return;
   rows.innerHTML = documents.length ? documents.map((document) => {
     const customer = state.customers.find((item) => item.id === document.customerId);
-    const deal = state.deals.find((item) => item.id === document.dealId);
     const amountText = ["PL", "COO", "SHIPPING", "CUSTOMS"].includes(document.type) ? "-" : formatDocumentMoney(documentTotal(document), document.currency);
-    return `<tr><td><div class="document-history-title"><b>${escapeHtml(document.title)}</b><span>${escapeHtml(document.number)} · v${document.revision || 1}</span>${document.derivedFromDocumentId ? `<small>由 ${escapeHtml(document.derivedFromType || "源单据")} 转换</small>` : ""}</div></td><td><div class="document-history-title"><b>${escapeHtml(customer?.company || document.buyer || "未关联客户")}</b><span>${escapeHtml(deal?.title || "未关联商机")}</span></div></td><td>${escapeHtml(documentTypeLabel(document.type))}</td><td>${escapeHtml(amountText)}</td><td>${badge(documentStatusText(document.status), document.status === "approved" || document.status === "exported" ? "green" : document.status === "rejected" ? "red" : document.status === "pending_approval" ? "amber" : "blue")}</td><td>${escapeHtml(document.issueDate || "-")}</td><td>${escapeHtml(formatDateTime(document.updatedAt))}</td><td><button class="btn" type="button" data-document-history-open="${escapeHtml(document.id)}">打开</button></td></tr>`;
+    return `<tr><td><div class="document-history-title"><b>${escapeHtml(document.title)}</b><span>${escapeHtml(document.number)} · v${document.revision || 1}</span>${document.derivedFromDocumentId ? `<small>由 ${escapeHtml(document.derivedFromType || "源单据")} 转换</small>` : ""}</div></td><td><div class="document-history-title"><b>${escapeHtml(customer?.company || document.buyer || "未关联客户")}</b><span>${escapeHtml(customer?.country || "—")}</span></div></td><td>${escapeHtml(documentTypeLabel(document.type))}</td><td>${escapeHtml(amountText)}</td><td>${badge(documentStatusText(document.status), document.status === "approved" || document.status === "exported" ? "green" : document.status === "rejected" ? "red" : document.status === "pending_approval" ? "amber" : "blue")}</td><td>${escapeHtml(document.issueDate || "-")}</td><td>${escapeHtml(formatDateTime(document.updatedAt))}</td><td><button class="btn" type="button" data-document-history-open="${escapeHtml(document.id)}">打开</button></td></tr>`;
   }).join("") : `<tr><td colspan="8" class="empty-cell">没有符合条件的历史单据</td></tr>`;
   qsa<HTMLButtonElement>("[data-document-history-open]", rows).forEach((button) => button.addEventListener("click", () => {
     const document = documents.find((item) => item.id === button.dataset.documentHistoryOpen);
@@ -13580,7 +13561,7 @@ function renderDocumentHistory(documents: TradeDocument[]) {
 
 function resetDocumentHistoryFilters() {
   ["documentHistoryKeyword", "documentHistoryFrom", "documentHistoryTo"].forEach((id) => { const input = qs<HTMLInputElement>(`#${id}`); if (input) input.value = ""; });
-  ["documentHistoryType", "documentHistoryStatus", "documentHistoryCustomer", "documentHistoryDeal"].forEach((id) => { const select = qs<HTMLSelectElement>(`#${id}`); if (select) select.value = ""; });
+  ["documentHistoryType", "documentHistoryStatus", "documentHistoryCustomer"].forEach((id) => { const select = qs<HTMLSelectElement>(`#${id}`); if (select) select.value = ""; });
   state.documentHistoryPage = 1;
   void loadDocumentHistory();
 }
@@ -13613,15 +13594,11 @@ function quoteHistoryDealLabel(deal: Deal) {
 function quoteHistoryParams() {
   const params = new URLSearchParams({ page: String(state.quoteHistoryPage), pageSize: "20", mode: state.quoteHistoryMode });
   const customerText = qs<HTMLInputElement>("#quoteHistoryCustomer")?.value.trim() || "";
-  const dealText = qs<HTMLInputElement>("#quoteHistoryDeal")?.value.trim() || "";
   const customer = state.customers.find((item) => quoteHistoryCustomerLabel(item) === customerText || item.company === customerText);
-  const deal = quoteHistoryDeals().find((item) => quoteHistoryDealLabel(item) === dealText || item.title === dealText);
   const fields: Array<[string, string]> = [
     ["q", qs<HTMLInputElement>("#quoteHistoryKeyword")?.value.trim() || ""],
     ["customerId", customer?.id || ""],
     ["customerSearch", customer ? "" : customerText],
-    ["dealId", deal?.id || ""],
-    ["dealSearch", deal ? "" : dealText],
     ["country", qs<HTMLInputElement>("#quoteHistoryCountry")?.value.trim() || ""],
     ["product", qs<HTMLInputElement>("#quoteHistoryProduct")?.value.trim() || ""],
     ["documentType", qs<HTMLSelectElement>("#quoteHistoryDocumentType")?.value || ""],
@@ -13698,7 +13675,7 @@ function openQuoteProductAnalysisDetail(row: QuoteProductAnalysisRow) {
       <strong>${escapeHtml(formatDocumentMoney(row.minUnitPrice, row.currency))} - ${escapeHtml(formatDocumentMoney(row.maxUnitPrice, row.currency))}</strong>
     </div>
     <div class="quote-history-change-list"><div><i></i><span>平均单价：${escapeHtml(formatDocumentMoney(row.averageUnitPrice, row.currency))} · 最近单价：${escapeHtml(formatDocumentMoney(row.latestUnitPrice, row.currency))}</span></div><div><i></i><span>报价范围按 ${escapeHtml(row.country)} / ${escapeHtml(row.currency)} 单独统计，未混合不同国家或币种。</span></div></div>
-    <div class="table-wrap quote-history-detail-table"><table><thead><tr><th>报价时间</th><th>客户 / 商机</th><th>单据</th><th>数量</th><th>单价</th><th>小计</th><th></th></tr></thead><tbody>${records.length ? records.map((record) => {
+    <div class="table-wrap quote-history-detail-table"><table><thead><tr><th>报价时间</th><th>客户 / 项目</th><th>单据</th><th>数量</th><th>单价</th><th>小计</th><th></th></tr></thead><tbody>${records.length ? records.map((record) => {
       const item = record.items.find(itemMatches);
       if (!item) return "";
       return `<tr><td>${escapeHtml(formatDateTime(record.quotedAt))}</td><td><div class="document-history-title"><b>${escapeHtml(record.customerName)}</b><span>${escapeHtml(record.dealTitle)}</span></div></td><td>${escapeHtml(record.documentNumber)}</td><td>${item.quantity} ${escapeHtml(item.unit)}</td><td>${escapeHtml(formatDocumentMoney(item.unitPrice, record.currency))}</td><td>${escapeHtml(formatDocumentMoney(item.lineTotal, record.currency))}</td><td><button class="btn" type="button" data-product-analysis-record="${escapeHtml(record.id)}">查看</button></td></tr>`;
@@ -13752,7 +13729,7 @@ function renderQuoteHistory(result: QuoteHistoryResponse) {
   const prev = qs<HTMLButtonElement>("#quoteHistoryPrevButton");
   const next = qs<HTMLButtonElement>("#quoteHistoryNextButton");
   const totals = Object.entries(result.summary.totals).map(([currency, amount]) => formatDocumentMoney(amount, currency)).join(" · ");
-  if (summary) summary.innerHTML = `<b>${result.summary.recordCount}</b> 次报价 · ${result.summary.customerCount} 个客户 · ${result.summary.dealCount} 个商机 · ${result.summary.productCount} 个产品${totals ? `<span>历史报价累计（含版本）${escapeHtml(totals)}</span>` : ""}`;
+  if (summary) summary.innerHTML = `<b>${result.summary.recordCount}</b> 次报价 · ${result.summary.customerCount} 个客户 · ${result.summary.productCount} 个产品${totals ? `<span>历史报价累计（含版本）${escapeHtml(totals)}</span>` : ""}`;
   if (page) page.textContent = `第 ${state.quoteHistoryPage} / ${state.quoteHistoryPageCount} 页`;
   if (prev) prev.disabled = state.quoteHistoryPage <= 1;
   if (next) next.disabled = state.quoteHistoryPage >= state.quoteHistoryPageCount;
@@ -13803,7 +13780,7 @@ function renderQuoteProductAnalysis(analysis: QuoteHistoryResponse["productAnaly
 }
 
 function resetQuoteHistoryFilters() {
-  ["quoteHistoryKeyword", "quoteHistoryProduct", "quoteHistoryFrom", "quoteHistoryTo", "quoteHistoryCustomer", "quoteHistoryDeal", "quoteHistoryCountry"].forEach((id) => { const input = qs<HTMLInputElement>(`#${id}`); if (input) input.value = ""; });
+  ["quoteHistoryKeyword", "quoteHistoryProduct", "quoteHistoryFrom", "quoteHistoryTo", "quoteHistoryCustomer", "quoteHistoryCountry"].forEach((id) => { const input = qs<HTMLInputElement>(`#${id}`); if (input) input.value = ""; });
   ["quoteHistoryDocumentType", "quoteHistoryCurrency"].forEach((id) => { const select = qs<HTMLSelectElement>(`#${id}`); if (select) select.value = ""; });
   state.quoteHistoryFocusId = "";
   state.quoteHistoryPage = 1;
@@ -13941,16 +13918,10 @@ function applyMatchedSellerToEditor(customer?: Customer, deal?: Deal, type = cur
 
 function renderDocumentWorkflow(document: TradeDocument) {
   const customerSelect = qs<HTMLSelectElement>("#docCustomerInput");
-  const dealSelect = qs<HTMLSelectElement>("#docDealInput");
   const sellerSelect = qs<HTMLSelectElement>("#docSellerProfileInput");
   if (customerSelect) {
     customerSelect.innerHTML = `<option value="">未关联客户</option>${state.customers.map((customer) => `<option value="${escapeHtml(customer.id)}">${escapeHtml(customer.company)}${customer.country ? ` · ${escapeHtml(customer.country)}` : ""}</option>`).join("")}`;
     customerSelect.value = document.customerId || "";
-  }
-  if (dealSelect) {
-    const visibleDeals = state.deals.filter((deal) => !document.customerId || deal.customerId === document.customerId);
-    dealSelect.innerHTML = `<option value="">未关联商机</option>${visibleDeals.map((deal) => `<option value="${escapeHtml(deal.id)}">${escapeHtml(deal.title)} · ${escapeHtml(deal.stage)}</option>`).join("")}`;
-    dealSelect.value = document.dealId || "";
   }
   if (sellerSelect) {
     const selected = state.documentAssets.letterheads.find((item) => item.id === document.letterheadId);
@@ -14260,7 +14231,7 @@ function collectDocumentDraft(): TradeDocument {
   return {
     id: existing?.id || state.selectedDocumentId || "__new__",
     customerId: qs<HTMLSelectElement>("#docCustomerInput")?.value || existing?.customerId || "",
-    dealId: qs<HTMLSelectElement>("#docDealInput")?.value || existing?.dealId || "",
+    dealId: existing?.dealId || "",
     revision: existing?.revision || 1,
     derivedFromDocumentId: existing?.derivedFromDocumentId,
     derivedFromType: existing?.derivedFromType,
@@ -14366,7 +14337,7 @@ function documentDraftHasChanges(draft: TradeDocument, source: TradeDocument) {
 
 async function saveLockedDocumentDraftAsRevision(source: TradeDocument, draft: TradeDocument) {
   if (draft.customerId !== source.customerId || draft.dealId !== source.dealId) {
-    throw new Error("已审批或已导出的单据不能更换客户或商机，请先恢复原关联后再导出");
+    throw new Error("已审批或已导出的单据不能更换客户，请先恢复原关联后再导出");
   }
   const revisionResult = await api<{ document: TradeDocument }>(`/api/trade-documents/${source.id}/revision`, {
     method: "POST",
@@ -14393,7 +14364,7 @@ async function saveLockedDocumentDraftAsRevision(source: TradeDocument, draft: T
   if (saved.dealSync?.deal) {
     state.deals = state.deals.map((deal) => deal.id === saved.dealSync!.deal.id ? saved.dealSync!.deal : deal);
     await refreshDealsData(false);
-    toast(`新版本已保存，商机已同步 ${saved.dealSync.deal.items?.length || 0} 项产品及 ${formatDocumentMoney(saved.dealSync.deal.amount, saved.dealSync.deal.currency)}`);
+    toast("新版本已保存");
   }
   renderTradeDocuments(state.tradeDocuments);
   return saved.document;
@@ -14434,7 +14405,57 @@ function docTypeTitle(document: TradeDocument): string {
   return docLabel(document, map[document.type] || "proformaDesc");
 }
 
+// 单据纸面按 A4 排版（794px）设计，但预览栏可能比这窄：
+// 直接让它设 `max-width:100%` 会被压成 428px，地址列断成每行三四个字母、金额列被切掉。
+// 这里按「等比缩放」处理，纸面比例不变，导出 PDF 仍然是 794px 原始宽度。
+const DOC_PREVIEW_DESIGN_WIDTH = 794;
+// 主题层给 .doc-paper 加了 `margin: 14px !important`（深底上留白），外边距也会被 zoom 一起放大，
+// 所以算可用宽度时分子必须是 794 + 28，否则每次都会溢出 28*zoom。
+const DOC_PREVIEW_EDGE = 28;
+// 只做防呆下限（预览栏被挤到几十像素时别算出离谱的比例），不设「可读性下限」：
+// 下限一旦高于实际可用比例，纸面就会被裁掉右边，比字小更难受；手机端可双指放大。
+const DOC_PREVIEW_MIN_ZOOM = 0.28;
+
+function fitDocumentPreview(): void {
+  const host = qs<HTMLElement>("#documentPreview");
+  if (!host) return;
+  const shell = host.closest<HTMLElement>(".doc-preview-shell");
+  if (!shell) return;
+  // clientWidth 已排除垂直滚动条与边框，只需再扣掉左右 padding
+  const shellStyle = getComputedStyle(shell);
+  const padding = (parseFloat(shellStyle.paddingLeft) || 0) + (parseFloat(shellStyle.paddingRight) || 0);
+  const available = shell.clientWidth - padding;
+  // 视图隐藏时（display:none）这里会是 0，等 ResizeObserver 下次回调再算
+  if (available <= 0) return;
+  const raw = available / (DOC_PREVIEW_DESIGN_WIDTH + DOC_PREVIEW_EDGE);
+  const zoom = raw >= 1 ? 1 : Math.max(DOC_PREVIEW_MIN_ZOOM, Math.round(raw * 1000) / 1000);
+  host.style.zoom = zoom === 1 ? "" : String(zoom);
+}
+
+let docPreviewFitInstalled = false;
+function installDocumentPreviewFit(): void {
+  if (docPreviewFitInstalled) return;
+  const shell = qs<HTMLElement>("#documentPreview")?.closest<HTMLElement>(".doc-preview-shell");
+  // 只在预览栏本身存在时才认为安装完成，否则下次调用还能再装一次
+  if (!shell) return;
+  docPreviewFitInstalled = true;
+  // 关键：单据视图初始是 display:none，渲染那一刻 clientWidth 为 0，适配会直接跳过；
+  // 视图切换成可见、或侧栏折叠/窗口 resize 导致预览栏变宽，都靠 ResizeObserver 再补一次。
+  // .doc-preview-shell 是 index.html 里的静态节点，不随视图切换被替换，观察器不会失效。
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(() => requestAnimationFrame(() => fitDocumentPreview())).observe(shell);
+  }
+  window.addEventListener("resize", () => requestAnimationFrame(() => fitDocumentPreview()));
+}
+
 function renderDocumentPreview(document: TradeDocument) {
+  renderDocumentPreviewContent(document);
+  // 预览内容刚换过，等一帧再按当前栏宽重新适配缩放。
+  // 不能用 MutationObserver：视图切换会整体替换 #documentPreview 节点，观察器随之失效。
+  requestAnimationFrame(() => fitDocumentPreview());
+}
+
+function renderDocumentPreviewContent(document: TradeDocument) {
   // 一行式 Logo 调节器跟预览同源：预览画哪套值，这里就显示哪套（放在早返回之前保证每种模板都同步）
   syncDocumentLogoInline(document);
   const preview = qs<HTMLElement>("#documentPreview");
@@ -15368,41 +15389,7 @@ function renderDocThemeSwatches(activeTheme?: string) {
 function applyDataSource(source: string) {
   if (source === "manual") return;
   const draft = collectDocumentDraft();
-  if (source === "deal") {
-    const dealId = qs<HTMLSelectElement>("#docDealInput")?.value;
-    const deal = state.deals.find((d) => d.id === dealId);
-    if (!deal) { toast("请先选择关联商机", "error"); return; }
-    const customer = state.customers.find((c) => c.id === deal.customerId);
-    if (customer) {
-      const vals: Record<string, string> = {
-        docBuyerInput: customerDocumentName(customer),
-        docBuyerAddressInput: customer.billingAddress?.trim() || "",
-        docBuyerContactInput: customer.documentContact?.trim() || customer.contact,
-        docIncotermInput: customer.defaultIncoterm?.trim() || "DAP",
-        docPaymentInput: customer.defaultPaymentTerm?.trim() || "T/T 100% in advance",
-        docPortDischargeInput: customer.defaultPortDischarge?.trim() || ""
-      };
-      Object.entries(vals).forEach(([id, v]) => { const el = qs<HTMLInputElement | HTMLSelectElement>(`#${id}`); if (el) el.value = v; });
-    }
-    if (deal.currency) { const c = qs<HTMLSelectElement>("#docCurrencyInput"); if (c) c.value = deal.currency; }
-    applyMatchedSellerToEditor(customer, deal);
-    // 从商机关联的产品填充行项目
-    const dealProducts = (state as any).dealProducts?.filter((dp: any) => dp.dealId === deal.id) || [];
-    if (dealProducts.length) {
-      draft.items = dealProducts.map((dp: any, i: number) => {
-        const product = (state as any).products?.find((p: any) => p.id === dp.productId);
-        return {
-          id: `item_${Date.now()}_${i}`, productId: product?.id || dp.productId || "", product: product?.name || dp.productName || "",
-          model: product?.model || dp.model || "", hsCode: product?.hsCode || "",
-          quantity: dp.quantity || 1, unit: dp.unit || product?.unit || "PCS",
-          unitPrice: dp.unitPrice || product?.unitPrice || 0,
-          originCountry: product?.originCountry || "China",
-          weightKg: product?.weightKg || 0, packageCount: product?.packageCount || 0
-        };
-      });
-    }
-    toast("已从商机填充单据信息");
-  } else if (source === "customer") {
+  if (source === "customer") {
     const customerId = qs<HTMLSelectElement>("#docCustomerInput")?.value;
     const customer = state.customers.find((c) => c.id === customerId);
     if (!customer) { toast("请先选择关联客户", "error"); return; }
@@ -15455,9 +15442,7 @@ async function saveTradeDocument() {
     state.deals = state.deals.map((deal) => deal.id === result.dealSync!.deal.id ? result.dealSync!.deal : deal);
     if (!state.deals.some((deal) => deal.id === result.dealSync!.deal.id)) state.deals.unshift(result.dealSync.deal);
     await refreshDealsData(false);
-    toast(result.dealSync.changed
-      ? `单据已保存，商机已同步 ${result.dealSync.deal.items?.length || 0} 项产品及 ${formatDocumentMoney(result.dealSync.deal.amount, result.dealSync.deal.currency)}`
-      : "单据已保存，报价内容未变化，无需重复记录");
+    toast(result.dealSync.changed ? "单据已保存，报价历史已同步" : "单据已保存，报价内容未变化，无需重复记录");
   } else {
     toast("单据配置已保存到数据库");
   }
@@ -15610,6 +15595,8 @@ async function downloadDocumentPdf(preview: HTMLElement, fileName: string) {
     const capture = preview.cloneNode(true) as HTMLElement;
     capture.removeAttribute("id");
     Object.assign(capture.style, {
+      // 屏幕上的预览可能为了适配窄栏做过 zoom，导出必须回到 100%
+      zoom: "1",
       width: `${captureWidth}px`,
       maxWidth: "none",
       height: "auto",
@@ -15740,7 +15727,7 @@ async function parseCustomerImportFile(file: File): Promise<CustomerImportRow[]>
       contact: String(rowValue(row, ["联系人", "联系人姓名", "contact", "Contact"]) || "待维护").trim(),
       whatsapp,
       stage: String(rowValue(row, ["阶段", "客户阶段", "stage", "Stage"]) || "询盘").trim(),
-      amount: parseNumberCell(rowValue(row, ["预计金额", "金额", "商机金额", "amount", "Amount"])),
+      amount: parseNumberCell(rowValue(row, ["预计金额", "金额", "成交金额", "amount", "Amount"])),
       health: Math.max(0, Math.min(100, Math.round(parseNumberCell(rowValue(row, ["健康度", "评分", "health", "Health"]), 70)))),
       source: String(rowValue(row, ["客户来源", "来源", "获客渠道", "来源渠道", "Customer Source", "source", "Source"]) || "批量导入").trim(),
       lifecycleStatus,
@@ -16694,10 +16681,10 @@ const accessControlUiModules: AccessControlUiModule[] = [
   {
     id: "deal-document",
     group: "成交交付",
-    name: "商机与单据",
-    summary: "商机推进、报价单、PI、CI 和报价历史。",
-    views: ["pipeline", "documents"],
-    permissionCodes: ["deal.read", "deal.create", "deal.update", "deal.quote.create", "document.read", "document.manage"],
+    name: "单据与报价",
+    summary: "报价单、PI、CI 与报价历史。",
+    views: ["documents"],
+    permissionCodes: ["document.read", "document.manage"],
     edition: "业务界面"
   },
   {
@@ -16839,6 +16826,12 @@ async function loadAccessControl(teamId = "") {
     queryParams.set("page", page === "overview" ? "members" : page);
     const query = `?${queryParams.toString()}`;
     accessControlOverview = await api<AccessControlOverview>(`/api/access-control/overview${query}`);
+    // 权限目录里还留着旧模块名，展示层统一改写（权限码与授权数据不动）。
+    accessControlOverview.permissions = accessControlOverview.permissions.map((permission) => ({
+      ...permission,
+      name: ecoreDisplayName(permission.name),
+      module: ecoreDisplayName(permission.module)
+    }));
     if (activeAccessControlPage() === "audit" && accessControlOverview.company) {
       const auditQuery = new URLSearchParams({ limit: "100" });
       if (state.iamCapabilities?.source === "platform") auditQuery.set("tenantId", accessControlOverview.company.id);
@@ -17362,13 +17355,12 @@ const accessControlScopeShort: Record<AccessControlScope, string> = {
   platform: "台"
 };
 
-// 精简版只保留客户、商机、单据、订单、供应商、协作、权限、系统这几块业务。
+// 精简版只保留客户、单据、订单、供应商、协作、权限、系统这几块业务。
 // 「界面开通」那张模块表还带着 Agent / 培训 / 审批等已下线模块，直接拿来画矩阵会
 // 出现整列空白，所以这里按保留的业务域重新分列，列名就是管理员嘴里的叫法。
 const accessControlVizModuleGroups: Array<{ id: string; name: string; summary: string; permissionModules: string[] }> = [
   { id: "workspace", name: "工作台", summary: "经营概览、待办与快捷入口", permissionModules: ["工作台"] },
   { id: "customer", name: "客户", summary: "客户、线索与客户公池", permissionModules: ["客户", "线索"] },
-  { id: "deal", name: "商机", summary: "商机推进与归档", permissionModules: ["商机"] },
   { id: "document", name: "单据", summary: "单据生成、审批与导出", permissionModules: ["单据"] },
   { id: "order", name: "订单", summary: "订单履约与发货", permissionModules: ["订单", "发货"] },
   { id: "supplier", name: "供应商", summary: "供应商档案与考察", permissionModules: ["供应商"] },
@@ -18757,7 +18749,7 @@ async function searchDeals(keyword: string) {
     );
     const deals = data.deals || [];
     if (!deals.length) {
-      results.innerHTML = `<div class="deal-result"><small>未找到成交商机</small></div>`;
+      results.innerHTML = `<div class="deal-result"><small>未找到成交记录</small></div>`;
       results.hidden = false;
       return;
     }
@@ -18893,7 +18885,7 @@ async function saveShipment() {
   const get = (sel: string) => (qs<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(sel)?.value || "").trim();
   const dealId = qs<HTMLInputElement>("#shipmentDealId")?.value || "";
   const dealSearchValue = qs<HTMLInputElement>("#shipmentDealSearch")?.value || "";
-  // 只有真正选中了成交商机，才将搜索框内容作为商机标题；否则清空，避免搜索过程中的临时文本被保存
+  // 只有真正选中了成交记录，才将搜索框内容作为标题；否则清空，避免搜索过程中的临时文本被保存
   const dealTitle = dealId ? dealSearchValue : "";
   const customerName = qs<HTMLInputElement>("#shipmentCustomerName")?.value || "";
   const payload = {
@@ -19492,7 +19484,7 @@ function openTodoModal(prefill = "", editing?: Todo) {
       <div class="form-field"><label>类型</label><select id="todoTypeInput"><option value="other">其它</option><option value="customer">客户跟进</option><option value="knowledge">资料维护</option><option value="exam">在线考试</option><option value="ocr">OCR 线索</option></select></div>
       <div class="form-field"><label>优先级</label><select id="todoPriorityInput"><option value="normal">普通</option><option value="medium">中优先级</option><option value="high">高优先级</option></select></div>
       <div class="form-field"><label>目标完成时间</label><input id="todoDueInput" value="${escapeHtml(editing?.dueAt || "")}" placeholder="例如：2026-06-27 18:00"></div>
-      <div class="form-field"><label>关联对象</label><input id="todoRelatedInput" value="${escapeHtml(editing?.related || "")}" placeholder="可选：客户、商机、资料或考试名称"></div>
+      <div class="form-field"><label>关联对象</label><input id="todoRelatedInput" value="${escapeHtml(editing?.related || "")}" placeholder="可选：客户、单据、资料或考试名称"></div>
     </div>
   `, `<button class="btn" data-modal-close>取消</button><button class="btn primary" id="saveTodoButton">${editing ? "保存修改" : "保存待办"}</button>`);
   qs<HTMLSelectElement>("#todoTypeInput")!.value = editing?.type || "other";
@@ -19534,6 +19526,8 @@ async function saveTodo(id?: string) {
     state.todos.unshift(result.todo);
   }
   renderTodos(state.todos);
+  // 跟进提醒页是待办的唯一列表：新建 / 编辑后必须重画，否则要等下一次整页刷新才看得到。
+  if (qs("#reminders")) renderReminders(state.reminders);
   updateTodoChips(state.todos);
   void refreshDashboardOnly();
   closeModal();
@@ -19621,7 +19615,7 @@ function openCustomerModal(customer?: Customer) {
   openModal(editing ? "编辑客户" : "新增客户", `
     <!-- ECORECRM 已去掉「从资料自动填表（本机 CLI）」：新增客户只保留手动填写 -->
     <div class="form-grid">
-      <div class="form-field full"><label>客户简称</label><input id="customerCompanyInput" placeholder="例如：Nordic Tools" value="${escapeHtml(customer?.company || "")}"><small class="form-hint" id="customerCompanyHint">工作台、商机和跟进中使用的短名称</small></div>
+      <div class="form-field full"><label>客户简称</label><input id="customerCompanyInput" placeholder="例如：Nordic Tools" value="${escapeHtml(customer?.company || "")}"><small class="form-hint" id="customerCompanyHint">工作台、单据和跟进中使用的短名称</small></div>
       <div class="form-field"><label>联系人</label><input id="customerContactInput" value="${escapeHtml(customer?.contact || "")}"></div>
       <div class="form-field"><label>国家</label><input id="customerCountryInput" value="${escapeHtml(customer?.country || "")}"></div>
       <div class="form-field full"><label>公司全名（单据 / 资料）</label><input id="customerCompanyFullNameInput" maxlength="200" value="${escapeHtml(customerDocumentName(customer || { company: "" } as Customer))}" placeholder="例如：Nordic Tools International Trading Co., Ltd."><small class="form-hint">报价、合同、发票、装箱单、报关资料优先使用此名称</small></div>
@@ -19653,7 +19647,7 @@ function openCustomerModal(customer?: Customer) {
 function resetCustomerCompanyHint() {
   const hint = qs<HTMLElement>("#customerCompanyHint");
   if (hint) {
-    hint.textContent = "工作台、商机和跟进中使用的短名称";
+    hint.textContent = "工作台、单据和跟进中使用的短名称";
     hint.classList.remove("is-error");
   }
   const input = qs<HTMLInputElement>("#customerCompanyInput");
@@ -19688,6 +19682,14 @@ async function saveCustomer() {
   }
   const saveButton = qs<HTMLButtonElement>("#saveCustomerButton");
   const editingId = saveButton?.dataset.editingId || "";
+  // 邮箱是后续发信与客户去重的依据：`<input type="email">` 在自定义按钮提交时不会触发
+  // 原生校验，格式错的地址会静默入库（not-an-email 也能存），所以在保存前显式拦一次。
+  const emailInput = qs<HTMLInputElement>("#customerEmailInput")?.value.trim() || "";
+  if (emailInput && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailInput)) {
+    toast("邮箱格式不正确，例如 sales@example.com", "error");
+    qs<HTMLInputElement>("#customerEmailInput")?.focus();
+    return;
+  }
   const whatsappInput = qs<HTMLInputElement>("#customerWhatsappInput")?.value.trim() || "";
   const whatsapp = whatsappInput ? normalizeWhatsAppPhone(whatsappInput) : "";
   if (whatsappInput && !whatsapp) {
@@ -19704,7 +19706,7 @@ async function saveCustomer() {
     wechat: qs<HTMLInputElement>("#customerWechatInput")?.value.trim() || "",
     source: qs<HTMLInputElement>("#customerSourceInput")?.value.trim() || (editingId ? "" : "手动新增"),
     phone: qs<HTMLInputElement>("#customerPhoneInput")?.value.trim() || "",
-    email: qs<HTMLInputElement>("#customerEmailInput")?.value.trim() || "",
+    email: emailInput,
     contactRemark: qs<HTMLTextAreaElement>("#customerContactRemarkInput")?.value.trim() || "",
     website: qs<HTMLInputElement>("#customerWebsiteInput")?.value.trim() || "",
     otherNotes: qs<HTMLTextAreaElement>("#customerOtherNotesInput")?.value.trim() || "",
@@ -19769,7 +19771,7 @@ async function bulkDeleteCustomers() {
     title: `批量删除 ${ids.length} 个客户`,
     message: "客户及其关联业务数据将被永久删除。",
     detail: `${names.slice(0, 6).join("、")}${names.length > 6 ? `等 ${ids.length} 个` : ""}`,
-    consequences: ["客户资料和跟进记录会被删除", "关联商机和待办会同步清理", "此操作无法撤销"],
+    consequences: ["客户资料和跟进记录会被删除", "关联单据和待办会同步清理", "此操作无法撤销"],
     confirmLabel: `删除 ${ids.length} 个客户`,
     verificationText: String(ids.length)
   })) return;
@@ -20196,6 +20198,9 @@ function installEvents() {
   });
   // 顶栏「待办」：固定在站内信左边，点一下直达跟进提醒（精简版不设独立待办中心）
   qs<HTMLButtonElement>("#topTodoPill")?.addEventListener("click", () => activateNavView("reminders"));
+  // 精简版没有独立的待办中心，跟进提醒页就是唯一的待办入口：给它一个手动新增的出口，
+  // 否则待办只能由「批量生成」或提醒规则产生，用户既建不了也删不掉。
+  qs<HTMLButtonElement>("#newTodoButton")?.addEventListener("click", () => openTodoModal());
   qs<HTMLButtonElement>("#batchPriorityButton")?.addEventListener("click", (event) => void batchProcessPriorityTasks(event.currentTarget as HTMLButtonElement));
   qsa<HTMLButtonElement>("#customers .page-head .btn.primary").forEach((button) => {
     if (button.textContent?.includes("新增客户")) button.addEventListener("click", () => openCustomerModal());
@@ -20454,7 +20459,7 @@ function installEvents() {
     if (event.key !== "Enter") return;
     const nextView = resolveTopbarSearchView(topSearchField.value);
     if (!nextView) {
-      toast("没有匹配到模块，可搜索：客户、商机、考试、资料、报表、备忘", "error");
+      toast("没有匹配到模块，可搜索：客户、单据、考试、资料、报表、备忘", "error");
       return;
     }
     topSearchField.value = "";
@@ -20476,6 +20481,7 @@ function installEvents() {
   qs<HTMLButtonElement>("#documentDefaultsManageAssets")?.addEventListener("click", () => openDocumentAssetManager(state.documentAssets));
   qs<HTMLButtonElement>("#documentSellerProfilesManage")?.addEventListener("click", () => openDocumentAssetManager(state.documentAssets));
   bindDocumentLogoInline();
+  installDocumentPreviewFit();
   qs<HTMLButtonElement>("#documentHistoryViewButton")?.addEventListener("click", () => setDocumentWorkspaceMode("history"));
   qs<HTMLButtonElement>("#documentHistoryBackButton")?.addEventListener("click", () => setDocumentWorkspaceMode("studio"));
   qs<HTMLButtonElement>("#quoteHistoryViewButton")?.addEventListener("click", () => { state.quoteHistoryFocusId = ""; setQuoteHistoryMode("records", false); setDocumentWorkspaceMode("quote-history"); });
@@ -20493,7 +20499,7 @@ function installEvents() {
   qs<HTMLButtonElement>("#quoteHistoryResetButton")?.addEventListener("click", resetQuoteHistoryFilters);
   qs<HTMLButtonElement>("#quoteHistoryPrevButton")?.addEventListener("click", () => { state.quoteHistoryPage = Math.max(1, state.quoteHistoryPage - 1); void loadQuoteHistory(); });
   qs<HTMLButtonElement>("#quoteHistoryNextButton")?.addEventListener("click", () => { state.quoteHistoryPage = Math.min(state.quoteHistoryPageCount, state.quoteHistoryPage + 1); void loadQuoteHistory(); });
-  qsa<HTMLInputElement>("#quoteHistoryKeyword, #quoteHistoryProduct, #quoteHistoryCustomer, #quoteHistoryDeal, #quoteHistoryCountry").forEach((input) => input.addEventListener("keydown", (event) => { if (event.key === "Enter") { state.quoteHistoryFocusId = ""; state.quoteHistoryPage = 1; void loadQuoteHistory(); } }));
+  qsa<HTMLInputElement>("#quoteHistoryKeyword, #quoteHistoryProduct, #quoteHistoryCustomer, #quoteHistoryCountry").forEach((input) => input.addEventListener("keydown", (event) => { if (event.key === "Enter") { state.quoteHistoryFocusId = ""; state.quoteHistoryPage = 1; void loadQuoteHistory(); } }));
   qs<HTMLButtonElement>("#saveDocumentButton")?.addEventListener("click", () => void saveTradeDocument());
   qs<HTMLButtonElement>("#advancedExcelButton")?.addEventListener("click", () => void openAdvancedExcelPanel());
   qs<HTMLButtonElement>("#exportDocumentPdfButton")?.addEventListener("click", () => void exportTradeDocumentPdf());
@@ -20558,28 +20564,11 @@ function installEvents() {
   qs<HTMLButtonElement>("#documentDeleteButton")?.addEventListener("click", (event) => void deleteActiveTradeDocument(event.currentTarget as HTMLButtonElement));
   qs<HTMLSelectElement>("#docCustomerInput")?.addEventListener("change", (event) => {
     const customerId = (event.currentTarget as HTMLSelectElement).value;
-    const dealSelect = qs<HTMLSelectElement>("#docDealInput");
-    if (dealSelect) {
-      const deals = state.deals.filter((deal) => !customerId || deal.customerId === customerId);
-      dealSelect.innerHTML = `<option value="">未关联商机</option>${deals.map((deal) => `<option value="${escapeHtml(deal.id)}">${escapeHtml(deal.title)} · ${escapeHtml(deal.stage)}</option>`).join("")}`;
-      dealSelect.value = "";
-    }
     applyDocumentCustomerDefaults(customerId);
-  });
-  qs<HTMLSelectElement>("#docDealInput")?.addEventListener("change", (event) => {
-    const dealId = (event.currentTarget as HTMLSelectElement).value;
-    const deal = state.deals.find((item) => item.id === dealId);
-    if (!deal) return;
-    const customerSelect = qs<HTMLSelectElement>("#docCustomerInput");
-    if (customerSelect) customerSelect.value = deal.customerId || "";
-    const currency = qs<HTMLSelectElement>("#docCurrencyInput");
-    if (currency && deal.currency) currency.value = deal.currency;
-    applyDocumentCustomerDefaults(deal.customerId || "", deal);
   });
   qs<HTMLSelectElement>("#docCurrencyInput")?.addEventListener("change", () => {
     const customer = state.customers.find((item) => item.id === qs<HTMLSelectElement>("#docCustomerInput")?.value);
-    const deal = state.deals.find((item) => item.id === qs<HTMLSelectElement>("#docDealInput")?.value);
-    applyMatchedSellerToEditor(customer, deal);
+    applyMatchedSellerToEditor(customer);
   });
   qs<HTMLButtonElement>("#addDocumentItemButton")?.addEventListener("click", addDocumentItem);
   qs<HTMLButtonElement>("#refreshDocumentPreviewButton")?.addEventListener("click", () => renderDocumentPreview(collectDocumentDraft()));
@@ -20588,8 +20577,7 @@ function installEvents() {
       const newType = (button.dataset.docType || "PI") as "PI" | "CI" | "PO" | "CUSTOMS" | "PL" | "CONTRACT" | "QUOTATION" | "COO" | "SHIPPING";
       setDocumentType(newType);
       const customer = state.customers.find((item) => item.id === qs<HTMLSelectElement>("#docCustomerInput")?.value);
-      const deal = state.deals.find((item) => item.id === qs<HTMLSelectElement>("#docDealInput")?.value);
-      applyMatchedSellerToEditor(customer, deal, newType);
+      applyMatchedSellerToEditor(customer, undefined, newType);
       const title = qs<HTMLInputElement>("#docTitleInput");
       const number = qs<HTMLInputElement>("#docNumberInput");
       if (title && (!title.value || title.value.includes("新建"))) {

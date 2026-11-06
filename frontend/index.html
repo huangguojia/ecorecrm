@@ -3042,7 +3042,9 @@
 
     .doc-studio {
       display: grid;
-      grid-template-columns: minmax(580px, 1.04fr) minmax(520px, .96fr);
+      /* 预览栏按 A4 纸面给足宽度：太窄时纸面缩放比例过低，字会糊成一片。
+         两侧仍可各自收缩，窄屏由 fitDocumentPreview() 统一做等比缩放。 */
+      grid-template-columns: minmax(560px, 1fr) minmax(600px, 1fr);
       gap: 14px;
       align-items: start;
     }
@@ -3872,8 +3874,9 @@
       border: 0;
       border-radius: 0;
       box-shadow: 0 16px 36px rgba(33,45,62,.12);
-      color: #cccccc;
-      background: #131313;
+      /* 纸面统一是白纸（主题层强制），这里原本按深色纸面写的 #ccc / #131313 压在白底上几乎看不见 */
+      color: #5b6663;
+      background: #ffffff;
       font-family: Arial, Helvetica, sans-serif;
       font-size: 13px;
     }
@@ -3888,10 +3891,10 @@
     .longtec-pi-parties h3 { margin: 0 0 8px; font-size: 22px; font-weight: 400; }
     .longtec-pi-parties b { display: block; margin-bottom: 22px; font-size: 16px; font-weight: 400; line-height: 1.35; }
     .longtec-pi-parties p { margin: 0 0 18px; font-size: 14px; line-height: 1.55; white-space: pre-line; }
-    .longtec-pi-table { width: 100%; table-layout: fixed; margin: 0 0 26px !important; border-collapse: collapse; color: #cccccc; font-size: 13px; }
+    .longtec-pi-table { width: 100%; table-layout: fixed; margin: 0 0 26px !important; border-collapse: collapse; color: #2b3a36; font-size: 13px; }
     .longtec-pi-table th, .longtec-pi-table td { border: 1px solid var(--longtec-accent, #111) !important; padding: 9px 10px !important; vertical-align: middle; line-height: 1.35; }
     .longtec-pi-table th { color: var(--longtec-accent, #111) !important; background: var(--longtec-light, #c9f8f8) !important; text-align: center; font-size: 13px; }
-    .longtec-pi-table td { background: #131313; }
+    .longtec-pi-table td { background: #ffffff; }
     .longtec-pi-table th:nth-child(1), .longtec-pi-table td:nth-child(1) { width: 23%; }
     .longtec-pi-table th:nth-child(2), .longtec-pi-table td:nth-child(2) { width: 29%; }
     .longtec-pi-table th:nth-child(3), .longtec-pi-table td:nth-child(3) { width: 16%; }
@@ -3938,8 +3941,9 @@
       padding: 54px 37px 60px;
       border: 0;
       border-radius: 0;
-      color: #cccccc;
-      background: #131313;
+      /* 白纸上的次级文字：原来继承 #ccc（白底 1.6:1），改成中灰后约 5.4:1 */
+      color: #5b6663;
+      background: #ffffff;
       font-family: Arial, "Songti SC", "STSong", SimSun, sans-serif;
       font-size: 12px;
       box-shadow: 0 16px 36px rgba(33,45,62,.12);
@@ -4051,8 +4055,8 @@
       padding: 38px 42px 46px;
       border: 0;
       border-radius: 0;
-      color: #cccccc;
-      background: #131313;
+      color: #5b6663;
+      background: #ffffff;
       font-family: Arial, Helvetica, "Helvetica Neue", sans-serif;
       font-size: 12px;
       box-shadow: 0 16px 36px rgba(33,45,62,.12);
@@ -11081,7 +11085,7 @@
       line-height: 1.3;
     }
 
-    /* 订单行是 button：沿用商机行的观感，必须清掉 UA 字体/对齐 */
+    /* 订单行是 button：沿用列表行的观感，必须清掉 UA 字体/对齐 */
     .customer-order-row {
       width: 100%;
       font: inherit;
@@ -20112,15 +20116,10 @@
       }
     }
 
+    /* 1180px 以下不再把侧栏压成 78px 图标条：分组里的二级入口没有图标，
+       一旦隐藏整块 nav-section，客户 / 供应商 / 权限 / 设置就彻底没有入口。
+       侧栏保持带文字的完整形态，到 760px 以下再整体切成顶部横向导航条。 */
     @media (max-width: 1180px) {
-      .shell { grid-template-columns: 78px minmax(0, 1fr); }
-      .brand { justify-content: center; padding: 6px 0 14px; }
-      .brand div:last-child,
-      .nav span,
-      .nav em,
-      .nav-section,
-      .nav-footer { display: none; }
-      .nav button { grid-template-columns: 1fr; justify-items: center; padding: 0; }
       .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .dashboard-grid,
       .command-center,
@@ -20758,8 +20757,11 @@
               grid-template-columns: 220px minmax(0, 1fr) 250px;
             }
 
+            /* 1181px 以上保持「编辑 + 预览」左右并排。编辑区保底 500px（内部两列字段还要排得下），
+               剩下的都给预览：纸面由 fitDocumentPreview() 等比缩放，缩小时整张纸一起缩，
+               不会只压窄列宽把地址列挤成三四字母一行。 */
             .doc-studio {
-              grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
+              grid-template-columns: minmax(500px, .8fr) minmax(0, 1.2fr);
             }
 
             .task-run-workspace {
@@ -20871,10 +20873,8 @@
               gap: 9px;
             }
 
-            .doc-studio {
-              grid-template-columns: minmax(0, 1fr) minmax(0, .88fr);
-              gap: 10px;
-            }
+            /* 这一段（1181~1365px）不再单独调栅格：沿用上面的 500px + 剩余给预览，
+               缩放是等比的，只是整体变小，不会像以前那样只压列宽导致断词。 */
 
             .task-run-workspace {
               grid-template-columns: minmax(0, 1.12fr) minmax(260px, .88fr);
@@ -23680,7 +23680,6 @@ body.platform-mode .workspace-tabs { display:none !important; }
             <kbd class="command-esc" aria-hidden="true">esc</kbd>
             <datalist id="topSearchHints">
               <option value="客户"></option>
-              <option value="商机"></option>
               <option value="单据"></option>
               <option value="供应商"></option>
               <option value="订单"></option>
@@ -24229,7 +24228,7 @@ body.platform-mode .workspace-tabs { display:none !important; }
           .customer-picker-row b { color: #8fb1a6; font-size: 12px; }
           .customer-picker-row small { color: #7b8985; font-size: 10px; }
 
-          /* 商机生成报关资料工作台 */
+          /* 单据生成报关资料工作台 */
           .modal.customs-workspace-modal { width: min(1180px, calc(100vw - 32px)); }
           .customs-workspace { display: grid; gap: 14px; min-width: 0; }
           .customs-workspace-head { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 2px 2px 12px; border-bottom: 1px solid var(--line); }
@@ -24961,7 +24960,7 @@ body.platform-mode .workspace-tabs { display:none !important; }
         <div class="view" id="reminders">
           <div class="page-head">
             <div><h1>跟进提醒</h1></div>
-            <button class="btn primary">设置提醒规则</button>
+            <div class="head-actions"><button class="btn" id="newTodoButton" type="button">新增待办</button><button class="btn primary">设置提醒规则</button></div>
           </div>
           <div class="panel section">
             <div class="reminder-workspace-tabs" role="tablist" aria-label="跟进提醒视图">
@@ -25014,7 +25013,6 @@ body.platform-mode .workspace-tabs { display:none !important; }
               <div class="doc-workflow-bar">
                 <div class="doc-workflow-links">
                   <label><span>关联客户</span><select id="docCustomerInput"></select></label>
-                  <label style="display:none"><span>关联商机</span><select id="docDealInput"></select></label>
                   <label><span>数据源</span><select id="docDataSourceInput"><option value="manual">手动输入</option><option value="customer">从客户填充</option><option value="product">从产品库填充</option></select></label>
                   <span class="doc-status-badge" id="docStatusBadge">草稿</span>
                 </div>
@@ -25119,7 +25117,6 @@ body.platform-mode .workspace-tabs { display:none !important; }
               <label><span>类型</span><select id="documentHistoryType"><option value="">全部类型</option><option value="PI">PI</option><option value="PO">PO</option></select></label>
               <label><span>状态</span><select id="documentHistoryStatus"><option value="">全部状态</option><option value="draft">草稿</option><option value="ready">已配置</option><option value="pending_approval">待审批</option><option value="approved">已审批</option><option value="rejected">已驳回</option><option value="exported">已导出</option></select></label>
               <label><span>客户</span><select id="documentHistoryCustomer"><option value="">全部客户</option></select></label>
-              <label style="display:none"><span>商机</span><select id="documentHistoryDeal"><option value="">全部客户</option></select></label>
               <label><span>开始日期</span><input id="documentHistoryFrom" type="date"></label>
               <label><span>结束日期</span><input id="documentHistoryTo" type="date"></label>
               <button class="btn primary" id="documentHistorySearchButton">查询</button>
@@ -25139,7 +25136,6 @@ body.platform-mode .workspace-tabs { display:none !important; }
             <div class="panel document-history-filters quote-history-filters">
               <label class="document-history-search"><span>关键词</span><input id="quoteHistoryKeyword" placeholder="客户、订单、单据号或操作人"></label>
               <label><span>客户</span><input id="quoteHistoryCustomer" list="quoteHistoryCustomerOptions" autocomplete="off" placeholder="输入客户名称"><datalist id="quoteHistoryCustomerOptions"></datalist></label>
-              <label><span>商机 / 订单</span><input id="quoteHistoryDeal" list="quoteHistoryDealOptions" autocomplete="off" placeholder="输入商机或订单"><datalist id="quoteHistoryDealOptions"></datalist></label>
               <label><span>国家</span><input id="quoteHistoryCountry" list="quoteHistoryCountryOptions" autocomplete="off" placeholder="输入国家"><datalist id="quoteHistoryCountryOptions"></datalist></label>
               <label><span id="quoteHistoryProductLabel">产品 / 型号</span><input id="quoteHistoryProduct" placeholder="产品或型号"></label>
               <label><span>单据类型</span><select id="quoteHistoryDocumentType"><option value="">全部类型</option><option value="QUOTATION">报价单</option><option value="PI">PI</option></select></label>
@@ -26585,16 +26581,8 @@ body.platform-mode .workspace-tabs { display:none !important; }
                   <option value="exception">异常</option>
                 </select>
               </label>
-              <label class="form-field full">
-                <span>关联已成交商机</span>
-                <div class="deal-picker">
-                  <input type="text" id="shipmentDealSearch" placeholder="搜索成交商机（标题 / 产品 / 客户）" autocomplete="off">
-                  <input type="hidden" id="shipmentDealId">
-                  <input type="hidden" id="shipmentCustomerName">
-                  <div class="deal-results" id="shipmentDealResults" hidden></div>
-                </div>
-                <small id="shipmentDealHint" class="field-hint">未选择</small>
-              </label>
+              <input type="hidden" id="shipmentDealId">
+              <input type="hidden" id="shipmentCustomerName">
               <label class="form-field">
                 <span>目的国家 / 地区</span>
                 <input type="text" id="shipmentDestinationCountry" placeholder="可从运输单或客户资料自动带入" maxlength="120">
@@ -26748,7 +26736,6 @@ body.platform-mode .workspace-tabs { display:none !important; }
       "prospect-list": "搜客清单",
       customers: "客户",
       whatsapp: "即刻沟通",
-      pipeline: "商机",
       reminders: "跟进提醒",
       "plan-growth": "计划任务",
       documents: "单据平台",
@@ -26979,7 +26966,7 @@ body.platform-mode .workspace-tabs { display:none !important; }
             而 <input> 反而继承到 body 的 16px。
             → 同一个弹窗里：输入框 16px、下拉框 13.33px、标签 12px。
          2) **文字撑满输入框**。框高普遍只有 32px，16px 的字占去 50%
-            （`文字高 / 框高 = 0.50`），「新增商机」整个弹窗 54 个控件
+            （`文字高 / 框高 = 0.50`），「新增单据」整个弹窗 54 个控件
             全部是 0.50；产品维护 / 发货跟踪的搜索框是 16px 挤在 27px 里
             （0.59），设置页公司资料与 OCR 配置更小到 10px 挤在 32px 里。
          3) **框高与圆角各写各的**。框高出现 27 种（17 / 18 / 19 / 24.5 /
@@ -28991,6 +28978,7 @@ h1, h2, h3, h4, strong, b { color: inherit; }
 .ec-ticker .dashboard-ticker-segment b,
 .ec-ticker .dashboard-ticker-value { color: #cfcfd5; font-size: 11.5px; font-weight: 500; font-family: var(--font-sans); }
 .ec-ticker .dashboard-ticker-segment em { color: #6d6d73; font-size: 10.5px; font-style: normal; }
+.ec-ticker .dashboard-ticker-segment b.dashboard-ticker-sep { color: #55555c; font-weight: 400; }
 .ec-ticker .dashboard-rate-empty { color: #7d7d84; font-size: 11px; }
 
 /* 主栅格 */
@@ -29339,11 +29327,14 @@ tr.selected td * { color: inherit; }
 .doc-paper {
   background: #ffffff !important;
   border-radius: 10px !important;
-  margin: 14px !important;
+  /* 上下留 14px，左右居中：预览栏比 A4 宽时纸面居中而不是贴左，右侧不再空出一大块 */
+  margin: 14px auto !important;
   overflow: hidden;
   box-shadow: 0 18px 50px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .06) !important;
 }
-.doc-preview-shell { background: #0d0d0d !important; }
+/* 预览栏底色与其他面板同色（#111111）：之前写死 #0d0d0d，比全站任何面板都黑，
+   用户看到右边一大块纯黑以为是坏了；白纸浮在上面也更自然。 */
+.doc-preview-shell { background: #111111 !important; }
 
 /* 单据纸张内表头：继承行色，避免深灰字压在强调色底上 */
 .doc-paper .doc-items-table:not(.doc-items-table) thead th { color: inherit; }
@@ -29447,7 +29438,7 @@ hr, .divider { border-color: var(--line) !important; }
 .leaflet-control-attribution,
 .leaflet-control-attribution a { color: var(--muted) !important; background: rgba(12, 12, 12, .78) !important; }
 
-/* ⑤ 指标条令牌 --ht-* 是浅色主题留下的（--ht-value:#131c2e），商机 KPI 的
+/* ⑤ 指标条令牌 --ht-* 是浅色主题留下的（--ht-value:#131c2e），KPI 条的
        数字 124,000 与标签几乎看不见。 */
 :root {
   --ht-label: var(--muted);
@@ -29634,6 +29625,67 @@ hr, .divider { border-color: var(--line) !important; }
 .sidebar .nav button.nav-secondary-button[hidden],
 .sidebar .nav details.nav-section[hidden],
 .sidebar .nav [hidden] { display: none !important; }
+
+/* 手机端：皮肤里 `.nav { display:flex !important; flex-direction:column }` 是给桌面侧栏写的，
+   特异性与 !important 都高于 @media (max-width:760px) 里的横向规则，结果 760px 以下导航
+   仍然竖排、把整个首屏占满（侧栏高 687px），内容被推到折叠线以下。
+   这里在皮肤之后、用同样的 !important 把导航压回一行横向滑动条。 */
+@media (max-width: 760px) {
+  .sidebar {
+    height: auto !important;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  /* 手机上 logo 与公司信息块纯装饰，却吃掉 150px 首屏；首屏只保留导航条 */
+  .sidebar .brand,
+  .sidebar .nav-footer { display: none !important; }
+  .nav {
+    flex: 0 0 auto;
+    flex-direction: row !important;
+    align-items: flex-start;
+    width: max-content;
+    overflow: visible;
+  }
+  .nav-primary { flex-direction: row !important; }
+  /* 每个分组变成「标题在上、子项横向一排」的小列，整条导航横向滑动；
+     保持 details 的展开/收起语义，默认收起的分组不会白占高度。 */
+  .nav .nav-section {
+    display: flex !important;
+    flex-direction: column;
+    flex: 0 0 auto;
+    margin: 0 4px 0 0;
+  }
+  .nav .nav-section-title { display: flex !important; }
+  .nav .nav-secondary-grid {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap;
+    gap: 4px;
+    margin: 2px 0 0 !important;
+    padding-left: 0 !important;
+    border-left: 0 !important;
+    animation: none;
+  }
+  .nav button.nav-secondary-button {
+    width: auto !important;
+    min-width: 0 !important;
+    padding: 0 9px !important;
+    white-space: nowrap;
+  }
+  /* 客户/供应商页头操作区：<=760 的规则给了按钮 min-width:96px 且不换行，
+     390px 手机上整行宽 448px，整页被拖出一条横向滚动。改成可换行、按比例收缩。 */
+  #customers .customer-head-actions,
+  #suppliers .customer-head-actions { flex-wrap: wrap; }
+  #customers .customer-head-actions > .btn,
+  #suppliers .customer-head-actions > .btn {
+    min-width: 0 !important;
+    flex: 1 1 120px;
+  }
+  /* 顶栏在手机上允许换行，按钮文字不许竖排折行（新增客户 → 新/增/客/户） */
+  .top-actions { flex-wrap: wrap; row-gap: 6px; }
+  .top-actions .btn span { white-space: nowrap; }
+}
   </style>
   <script type="module" src="/src/prototype-api.ts"></script>
 </body>
