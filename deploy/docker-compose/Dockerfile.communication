@@ -7,6 +7,13 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
+# 首次安装会执行 communication-migrate（node dist-server/server/scripts/migrate.js）。
+# 精简版没有 WhatsApp 数据要迁移，放一个空操作脚本让安装流程可以走完；
+# WORKDIR 未设置，所以 compose 里的相对路径落在根目录。
+RUN mkdir -p /dist-server/server/scripts \
+    && echo 'console.log("ecorecrm-communication-stub: no schema to migrate");' \
+       > /dist-server/server/scripts/migrate.js
+
 USER node
 EXPOSE 3100
 CMD ["node", "-e", "require('http').createServer((q,s)=>{s.statusCode=200;s.setHeader('content-type','text/plain');s.end('ecorecrm-communication-stub')}).listen(3100)"]
