@@ -3090,7 +3090,9 @@
     .doc-list-card.active {
       transform: translateY(-1px);
       border-color: rgba(15,118,110,.28);
-      background: var(--surface);
+      /* hover 必须比基础态(#161616)更亮才有「抬升」感；
+         之前用 var(--surface)=#111111，悬浮反而比底色更黑，卡片像被吸进面板里 */
+      background: #1d1d20;
       box-shadow: 0 4px 12px rgba(27,39,68,.06);
     }
 
