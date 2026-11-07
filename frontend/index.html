@@ -21588,9 +21588,11 @@
             .prospect-radar-stage *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
           }
         </style>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Sora:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- 字体自托管：fonts.googleapis.com 在大陆不可达，外链会拖慢首屏；
+       woff2 位于 public/fonts/（latin 子集，Fraunces/Sora 为可变字体，Plex Mono 按权重三份） -->
+  <link rel="preload" href="/fonts/sora.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/fraunces.woff2" as="font" type="font/woff2" crossorigin>
+  <link href="/fonts/fonts.css" rel="stylesheet">
 <style id="redesign-styles">
 .pc-head, .sh-head {
   display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap;
@@ -29682,9 +29684,14 @@ hr, .divider { border-color: var(--line) !important; }
     min-width: 0 !important;
     flex: 1 1 120px;
   }
-  /* 顶栏在手机上允许换行，按钮文字不许竖排折行（新增客户 → 新/增/客/户） */
-  .top-actions { flex-wrap: wrap; row-gap: 6px; }
+  /* 顶栏在手机上收成一行：待办 / 新增 / 铃铛 / 头像 / 退出 同排，
+     用户名与角色文字在窄屏上隐藏（头像即入口，个人主页仍可点）；
+     esc 角标是桌面快捷键提示，手机上没有意义 */
+  .top-actions { flex-wrap: nowrap; row-gap: 0; justify-content: flex-start; gap: 8px; }
   .top-actions .btn span { white-space: nowrap; }
+  .top-actions .user-menu { margin-left: auto; }
+  .top-actions .user-identity { display: none !important; }
+  .topbar .command-esc { display: none !important; }
 }
   </style>
   <script type="module" src="/src/prototype-api.ts"></script>

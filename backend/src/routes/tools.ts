@@ -1104,7 +1104,7 @@ export function registerToolsRoutes(app: Express) {
       level: z.enum(["info", "success", "warning", "error"]).default("info"),
       category: z.enum(["auth", "product", "shipment", "system"]).default("system"),
       action: z.string().max(60).default(""),
-      message: z.string().max(800).default(""),
+      message: z.string().min(1, "日志内容不能为空").max(800),
       actorId: z.string().max(64).default(""),
       actorName: z.string().max(120).default(""),
       meta: z.record(z.unknown()).default({}),

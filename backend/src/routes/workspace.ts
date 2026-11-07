@@ -1457,6 +1457,11 @@ export function registerWorkspaceRoutes(app: Express) {
   });
 
   app.post("/api/reminders", requireAuth, asyncRoute(async (req, res) => {
+    // 空 body 走 zod 默认值会凭空造出一条「报价未回复」规则，先拦掉
+    if (!req.body || typeof req.body !== "object" || Object.keys(req.body).length === 0) {
+      res.status(400).json({ message: "提醒规则至少要填写标题或规则类型" });
+      return;
+    }
     const schema = z.object({
       title: z.string().min(1).optional(),
       rule: z.string().min(1).optional(),
