@@ -14106,6 +14106,23 @@ function currentDocumentType(): "PI" | "CI" | "PO" | "CUSTOMS" | "PL" | "CONTRAC
   return docType || "PI";
 }
 
+// PI / PO 的切换入口有两处：单据页内的类型 tab、侧栏的 PI / PO 导航按钮。
+// 两处必须走同一套逻辑：切 tab、按类型重配卖方档案、新建态的标题/编号跟随类型。
+function switchDocumentType(newType: "PI" | "CI" | "PO" | "CUSTOMS" | "PL" | "CONTRACT" | "QUOTATION" | "COO" | "SHIPPING") {
+  if (currentDocumentType() === newType) return;
+  setDocumentType(newType);
+  const customer = state.customers.find((item) => item.id === qs<HTMLSelectElement>("#docCustomerInput")?.value);
+  applyMatchedSellerToEditor(customer, undefined, newType);
+  const title = qs<HTMLInputElement>("#docTitleInput");
+  const number = qs<HTMLInputElement>("#docNumberInput");
+  if (title && (!title.value || title.value.includes("新建"))) {
+    const dd = defaultTradeDocument(newType);
+    title.value = dd.title;
+    if (number && (!number.value || number.value.includes("-"))) number.value = dd.number;
+  }
+  renderDocumentPreview(collectDocumentDraft());
+}
+
 function renderDocumentItems(items: TradeDocumentItem[]) {
   const box = qs<HTMLElement>("#documentItemsEditor");
   if (!box) return;
@@ -20333,6 +20350,10 @@ function installEvents() {
         state.supplierStatusFilter = (button.dataset.supplierStatus || "all") as AppState["supplierStatusFilter"];
         state.supplierPage = 1;
       }
+      if (button.dataset.view === "documents" && button.dataset.docType) {
+        // 侧栏 PI / PO 是同一个单据视图的两个入口：进来之前先把类型 tab 切到位
+        switchDocumentType(button.dataset.docType as "PI" | "PO");
+      }
       activateNavView(button.dataset.view || "dashboard");
     });
   });
@@ -20574,18 +20595,7 @@ function installEvents() {
   qs<HTMLButtonElement>("#refreshDocumentPreviewButton")?.addEventListener("click", () => renderDocumentPreview(collectDocumentDraft()));
   qsa<HTMLButtonElement>("#documentTypeTabs button").forEach((button) => {
     button.addEventListener("click", () => {
-      const newType = (button.dataset.docType || "PI") as "PI" | "CI" | "PO" | "CUSTOMS" | "PL" | "CONTRACT" | "QUOTATION" | "COO" | "SHIPPING";
-      setDocumentType(newType);
-      const customer = state.customers.find((item) => item.id === qs<HTMLSelectElement>("#docCustomerInput")?.value);
-      applyMatchedSellerToEditor(customer, undefined, newType);
-      const title = qs<HTMLInputElement>("#docTitleInput");
-      const number = qs<HTMLInputElement>("#docNumberInput");
-      if (title && (!title.value || title.value.includes("新建"))) {
-        const dd = defaultTradeDocument(newType);
-        title.value = dd.title;
-        if (number && (!number.value || number.value.includes("-"))) number.value = dd.number;
-      }
-      renderDocumentPreview(collectDocumentDraft());
+      switchDocumentType((button.dataset.docType || "PI") as "PI" | "CI" | "PO" | "CUSTOMS" | "PL" | "CONTRACT" | "QUOTATION" | "COO" | "SHIPPING");
     });
   });
   // 语言切换 - 实时更新预览
@@ -21496,7 +21506,9 @@ function activateNavView(view: string, after?: () => void) {
     const supplierStatus = button.dataset.supplierStatus;
     const active = button.dataset.view === view
       && (view !== "customers" || customerOutcome === state.customerOutcomeFilter)
-      && (view !== "suppliers" || (supplierStatus || "all") === state.supplierStatusFilter);
+      && (view !== "suppliers" || (supplierStatus || "all") === state.supplierStatusFilter)
+      // PI / PO 两个导航共用 documents 视图，高亮必须跟类型 tab 走，不能两个一起亮
+      && (view !== "documents" || (button.dataset.docType || "") === currentDocumentType());
     button.classList.toggle("active", active);
   });
   // 自动发信 / 发信明细 / 邮箱设置 都归到「邮件中心」这一节下了（侧栏没有各自的入口），
