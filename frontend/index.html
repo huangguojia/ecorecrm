@@ -7,6 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0a0a'/%3E%3Ctext x='32' y='44' font-family='Helvetica,Arial,sans-serif' font-size='34' font-weight='700' fill='%23ffffff' text-anchor='middle'%3EE%3C/text%3E%3C/svg%3E" />
   <title>ECORE GLOBAL · 外贸客户关系管理</title>
+  <link rel="icon" type="image/png" href="/assets/ecore-favicon.png">
   <style>
     :root {
       --bg: #080808;
@@ -23546,9 +23547,8 @@ body.platform-mode .workspace-tabs { display:none !important; }
   <section class="login-screen" aria-label="登录">
     <div class="login-visual">
       <div class="login-brand" aria-label="ECORE GLOBAL">
-        <div class="login-brand-mark" aria-hidden="true"></div>
+        <img class="login-brand-logo" src="/assets/ecore-logo-white.png" alt="ECORE GLOBAL">
         <div>
-          <strong>ECORE GLOBAL</strong>
           <span>Customer Relationship System</span>
         </div>
       </div>
@@ -23587,7 +23587,7 @@ body.platform-mode .workspace-tabs { display:none !important; }
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-type">
-          <strong>ECORE</strong>
+          <img class="brand-logo-img" src="/assets/ecore-logo-white.png" alt="ECORE">
           <span>GLOBAL</span>
         </div>
       </div>
@@ -29694,6 +29694,21 @@ hr, .divider { border-color: var(--line) !important; }
   .top-actions .user-menu { margin-left: auto; }
   .top-actions .user-identity { display: none !important; }
   .topbar .command-esc { display: none !important; }
+}
+
+/* ---------- 品牌 LOGO（ECORE 字标图，2026-11） ---------- */
+/* 侧栏：白色字标替换原来的 strong 文字，高度对齐原 19px 字号的视觉高度 */
+.brand-type .brand-logo-img {
+  display: block;
+  height: 20px;
+  width: auto;
+}
+/* 登录页左栏（品牌色底）：白色字标，替换原来的装饰方块 + 文字 */
+.login-brand .login-brand-logo {
+  display: block;
+  height: 22px;
+  width: auto;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .18));
 }
   </style>
   <script type="module" src="/src/prototype-api.ts"></script>
