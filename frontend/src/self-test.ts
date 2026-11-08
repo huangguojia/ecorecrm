@@ -151,6 +151,14 @@ assert.match(apiLayer, /#documentHistoryDeleteSelectedButton/u, "历史单据必
 assert.match(prototype, /id="documentHistoryDeleteSelectedButton"/u, "历史单据工具条必须渲染批量删除按钮");
 assert.match(prototype, /<th class="document-history-select-head">/u, "历史单据表头必须提供全选列");
 assert.equal(prototype.includes('colspan="8" class="empty-cell">正在加载历史单据'), false, "历史单据表头已扩到 9 列，空态 colspan 必须同步");
+// 卖方公司与单据资产面板：新增/编辑入口必须真的绑上事件，否则弹窗里点按钮毫无反应
+assert.match(apiLayer, /#documentAssetAddLetterhead"\)\?\.addEventListener\("click", \(\) => openLetterhead\(\)\)/u, "「新增卖方公司」必须绑定 openLetterhead");
+assert.match(apiLayer, /#documentAssetAddStamp"\)\?\.addEventListener\("click", \(\) => openStamp\(\)\)/u, "「新增印章」必须绑定 openStamp");
+assert.match(apiLayer, /#documentAssetAddSignature"\)\?\.addEventListener\("click", \(\) => openSignature\(\)\)/u, "「新增签名」必须绑定 openSignature");
+assert.match(apiLayer, /"\[data-edit-letterhead\]", modalRoot/u, "卖方公司卡片「编辑」必须绑定到对应记录");
+assert.match(apiLayer, /请填写公司英文全称/u, "缺少公司英文全称要在前端拦下（后端 name/companyName 必填）");
+assert.match(apiLayer, /请选择透明 PNG 印章图片/u, "印章未选图片要在前端拦下（后端 imageUrl 必填）");
+assert.match(apiLayer, /请选择签名图片/u, "签名未选图片要在前端拦下（后端 imageUrl 必填）");
 
 for (const token of ["--bg: #080808;", "--surface: #111111;", "--line: #242424;"]) {
   assert.ok(prototype.includes(token), `ecore 主题令牌 ${token} 不得丢失`);

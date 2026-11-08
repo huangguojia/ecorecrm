@@ -12675,12 +12675,17 @@ function openDocumentAssetManager(assets: DocumentAssetsResponse) {
     qs<HTMLElement>("#appModal .modal")?.classList.add("document-asset-editor-modal");
     qs<HTMLButtonElement>("#saveDocumentLetterhead")?.addEventListener("click", async (event) => {
       const button = event.currentTarget as HTMLButtonElement;
+      // 后端 name / companyName 都是必填（单据抬头必须有英文全称），先在前端拦下来
+      const name = qs<HTMLInputElement>("#assetLetterheadName")?.value.trim() || "";
+      const companyName = qs<HTMLInputElement>("#assetLetterheadCompany")?.value.trim() || "";
+      if (!name) { toast("请填写档案名称", "error"); qs<HTMLInputElement>("#assetLetterheadName")?.focus(); return; }
+      if (!companyName) { toast("请填写公司英文全称，单据抬头会用到", "error"); qs<HTMLInputElement>("#assetLetterheadCompany")?.focus(); return; }
       setButtonPending(button, true, "保存卖方公司", "保存中");
       try {
         const file = qs<HTMLInputElement>("#assetLetterheadLogo")?.files?.[0];
         const logoUrl = file ? (await uploadDocumentImage(file, "letterhead-logo")).imageUrl : qs<HTMLInputElement>("#assetLetterheadLogoUrl")?.value || "";
         await api("/api/document-assets/letterheads", { method: "POST", body: JSON.stringify({
-          id: asset?.id, name: qs<HTMLInputElement>("#assetLetterheadName")?.value.trim(), companyName: qs<HTMLInputElement>("#assetLetterheadCompany")?.value.trim(),
+          id: asset?.id, name, companyName,
           address: qs<HTMLTextAreaElement>("#assetLetterheadAddress")?.value.trim(), contact: qs<HTMLInputElement>("#assetLetterheadContact")?.value.trim(), taxNo: qs<HTMLInputElement>("#assetLetterheadTaxNo")?.value.trim(), phone: qs<HTMLInputElement>("#assetLetterheadPhone")?.value.trim(), email: qs<HTMLInputElement>("#assetLetterheadEmail")?.value.trim(), website: qs<HTMLInputElement>("#assetLetterheadWebsite")?.value.trim(), bankInfo: qs<HTMLTextAreaElement>("#assetLetterheadBank")?.value.trim(), logoUrl, ...readDocumentLetterheadLogoPlacements("assetLetterhead"),
           matchCountries: sellerRuleList(qs<HTMLInputElement>("#assetLetterheadCountries")?.value || ""), matchCurrencies: sellerRuleList(qs<HTMLInputElement>("#assetLetterheadCurrencies")?.value || "", true), matchDocumentTypes: qsa<HTMLInputElement>("[data-seller-document-type]:checked").map((input) => input.dataset.sellerDocumentType).filter((type): type is TradeDocument["type"] => Boolean(type)), matchPriority: Number(qs<HTMLInputElement>("#assetLetterheadPriority")?.value || 0), stampId: qs<HTMLSelectElement>("#assetLetterheadStamp")?.value || "", signatureId: qs<HTMLSelectElement>("#assetLetterheadSignature")?.value || "",
           isDefault: Boolean(qs<HTMLInputElement>("#assetLetterheadDefault")?.checked), enabled: Boolean(qs<HTMLInputElement>("#assetLetterheadEnabled")?.checked)
@@ -12695,11 +12700,15 @@ function openDocumentAssetManager(assets: DocumentAssetsResponse) {
     qs<HTMLElement>("#appModal .modal")?.classList.add("document-asset-editor-modal");
     qs<HTMLButtonElement>("#saveDocumentStamp")?.addEventListener("click", async (event) => {
       const button = event.currentTarget as HTMLButtonElement;
+      // 后端 name / imageUrl 必填，先在前端拦下来，避免只看到「参数格式错误」
+      const name = qs<HTMLInputElement>("#assetStampName")?.value.trim() || "";
+      const pickedFile = qs<HTMLInputElement>("#assetStampImage")?.files?.[0];
+      if (!name) { toast("请填写印章名称", "error"); qs<HTMLInputElement>("#assetStampName")?.focus(); return; }
+      if (!pickedFile && !qs<HTMLInputElement>("#assetStampImageUrl")?.value) { toast("请选择透明 PNG 印章图片", "error"); return; }
       setButtonPending(button, true, "保存印章", "保存中");
       try {
-        const file = qs<HTMLInputElement>("#assetStampImage")?.files?.[0];
-        const imageUrl = file ? (await uploadDocumentImage(file, "stamp")).imageUrl : qs<HTMLInputElement>("#assetStampImageUrl")?.value || "";
-        await api("/api/document-assets/stamps", { method: "POST", body: JSON.stringify({ id: asset?.id, name: qs<HTMLInputElement>("#assetStampName")?.value.trim(), imageUrl, placement: readDocumentAssetPlacement("assetStamp"), isDefault: Boolean(qs<HTMLInputElement>("#assetStampDefault")?.checked), enabled: Boolean(qs<HTMLInputElement>("#assetStampEnabled")?.checked) }) });
+        const imageUrl = pickedFile ? (await uploadDocumentImage(pickedFile, "stamp")).imageUrl : qs<HTMLInputElement>("#assetStampImageUrl")?.value || "";
+        await api("/api/document-assets/stamps", { method: "POST", body: JSON.stringify({ id: asset?.id, name, imageUrl, placement: readDocumentAssetPlacement("assetStamp"), isDefault: Boolean(qs<HTMLInputElement>("#assetStampDefault")?.checked), enabled: Boolean(qs<HTMLInputElement>("#assetStampEnabled")?.checked) }) });
         await refresh();
       } catch (error) { toast(error instanceof Error ? error.message : "印章保存失败", "error"); setButtonPending(button, false, "保存印章", "保存中"); }
     });
@@ -12709,15 +12718,37 @@ function openDocumentAssetManager(assets: DocumentAssetsResponse) {
     openModal(asset ? "编辑签名" : "新增签名", `<div class="form-grid document-asset-form"><div class="form-field"><label>资产名称</label><input id="assetSignatureName" value="${escapeHtml(asset?.name || "")}" placeholder="如：销售总监英文签名"></div><div class="form-field"><label>签署人</label><input id="assetSignatureSigner" value="${escapeHtml(asset?.signerName || "")}"></div><div class="form-field"><label>职务</label><input id="assetSignatureTitle" value="${escapeHtml(asset?.signerTitle || "")}"></div><div class="form-field"><label>透明 PNG / JPEG</label><input id="assetSignatureImage" type="file" accept="image/png,image/jpeg"><input id="assetSignatureImageUrl" type="hidden" value="${escapeHtml(asset?.imageUrl || "")}"></div><label class="check-row"><input id="assetSignatureDefault" type="checkbox" ${asset?.isDefault ? "checked" : ""}>设为默认签名</label><label class="check-row"><input id="assetSignatureEnabled" type="checkbox" ${asset?.enabled === false ? "" : "checked"}>启用</label></div>`, `<button class="btn" data-modal-close>取消</button><button class="btn primary" id="saveDocumentSignature">保存签名</button>`);
     qs<HTMLButtonElement>("#saveDocumentSignature")?.addEventListener("click", async (event) => {
       const button = event.currentTarget as HTMLButtonElement;
+      // 后端 name / imageUrl 必填，先在前端拦下来
+      const name = qs<HTMLInputElement>("#assetSignatureName")?.value.trim() || "";
+      const pickedFile = qs<HTMLInputElement>("#assetSignatureImage")?.files?.[0];
+      if (!name) { toast("请填写资产名称", "error"); qs<HTMLInputElement>("#assetSignatureName")?.focus(); return; }
+      if (!pickedFile && !qs<HTMLInputElement>("#assetSignatureImageUrl")?.value) { toast("请选择签名图片（透明 PNG 或 JPEG）", "error"); return; }
       setButtonPending(button, true, "保存签名", "保存中");
       try {
-        const file = qs<HTMLInputElement>("#assetSignatureImage")?.files?.[0];
-        const imageUrl = file ? (await uploadDocumentImage(file, "signature")).imageUrl : qs<HTMLInputElement>("#assetSignatureImageUrl")?.value || "";
-        await api("/api/document-assets/signatures", { method: "POST", body: JSON.stringify({ id: asset?.id, name: qs<HTMLInputElement>("#assetSignatureName")?.value.trim(), signerName: qs<HTMLInputElement>("#assetSignatureSigner")?.value.trim(), signerTitle: qs<HTMLInputElement>("#assetSignatureTitle")?.value.trim(), imageUrl, isDefault: Boolean(qs<HTMLInputElement>("#assetSignatureDefault")?.checked), enabled: Boolean(qs<HTMLInputElement>("#assetSignatureEnabled")?.checked) }) });
+        const imageUrl = pickedFile ? (await uploadDocumentImage(pickedFile, "signature")).imageUrl : qs<HTMLInputElement>("#assetSignatureImageUrl")?.value || "";
+        await api("/api/document-assets/signatures", { method: "POST", body: JSON.stringify({ id: asset?.id, name, signerName: qs<HTMLInputElement>("#assetSignatureSigner")?.value.trim(), signerTitle: qs<HTMLInputElement>("#assetSignatureTitle")?.value.trim(), imageUrl, isDefault: Boolean(qs<HTMLInputElement>("#assetSignatureDefault")?.checked), enabled: Boolean(qs<HTMLInputElement>("#assetSignatureEnabled")?.checked) }) });
         await refresh();
       } catch (error) { toast(error instanceof Error ? error.message : "签名保存失败", "error"); setButtonPending(button, false, "保存签名", "保存中"); }
     });
   };
+  // 面板交互绑定：三个「新增」入口 + 每张卡片的「编辑」
+  // 这些处理函数早已定义，但一直没有绑到按钮上，导致弹窗内点任何操作都没反应
+  qs<HTMLButtonElement>("#documentAssetAddLetterhead")?.addEventListener("click", () => openLetterhead());
+  qs<HTMLButtonElement>("#documentAssetAddStamp")?.addEventListener("click", () => openStamp());
+  qs<HTMLButtonElement>("#documentAssetAddSignature")?.addEventListener("click", () => openSignature());
+  const modalRoot = qs<HTMLElement>("#appModal") || document.body;
+  qsa<HTMLButtonElement>("[data-edit-letterhead]", modalRoot).forEach((button) => button.addEventListener("click", () => {
+    const asset = assets.letterheads.find((item) => item.id === button.dataset.editLetterhead);
+    if (asset) openLetterhead(asset);
+  }));
+  qsa<HTMLButtonElement>("[data-edit-stamp]", modalRoot).forEach((button) => button.addEventListener("click", () => {
+    const asset = assets.stamps.find((item) => item.id === button.dataset.editStamp);
+    if (asset) openStamp(asset);
+  }));
+  qsa<HTMLButtonElement>("[data-edit-signature]", modalRoot).forEach((button) => button.addEventListener("click", () => {
+    const asset = assets.signatures.find((item) => item.id === button.dataset.editSignature);
+    if (asset) openSignature(asset);
+  }));
 }
 
 async function openAdvancedExcelPanel() {
