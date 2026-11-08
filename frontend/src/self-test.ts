@@ -141,7 +141,16 @@ assert.match(docTypeTabs, /data-doc-type="PI"/u, "单据页签必须保留 PI");
 assert.match(docTypeTabs, /data-doc-type="PO"/u, "单据页签必须保留 PO");
 assert.doesNotMatch(docTypeTabs, /data-doc-type="(?:CI|PL|CUSTOMS|CONTRACT|QUOTATION|COO|SHIPPING)"/u, "单据页签不得再提供已收窄掉的单据类型");
 assert.match(apiLayer, /const ECORE_TEMPLATE_STYLE = "custom-b"/u, "单据模板只保留定制 B 版式（界面名为默认模版）");
-assert.match(apiLayer, /if \(!ECORE_DOC_TYPES\.includes\(document\.type\)\) \{/u, "非 PI/PO 单据必须被删除守卫拦住");
+assert.match(apiLayer, /const invalid = targets\.find\(\(document\) => !ECORE_DOC_TYPES\.includes\(document\.type\)\);/u, "非 PI/PO 单据必须被删除守卫拦住");
+// 历史单据必须能查能删：列表每行给「打开 + 删除」，批量删除要二次确认并输入份数
+assert.match(apiLayer, /async function deleteTradeDocuments\(documents: TradeDocument\[\], button\?: HTMLButtonElement\)/u, "删除必须收敛到共用的 deleteTradeDocuments");
+assert.match(apiLayer, /verificationText: single \? undefined : String\(targets\.length\)/u, "批量删除必须要求输入份数确认");
+assert.match(apiLayer, /data-document-history-delete="\$\{escapeHtml\(document\.id\)\}"/u, "历史单据每行必须有删除按钮");
+assert.match(apiLayer, /documentHistorySelection = new Set<string>\(\);\s*renderDocumentHistory/u, "每次查询历史单据都必须清空勾选，避免删到不可见单据");
+assert.match(apiLayer, /#documentHistoryDeleteSelectedButton/u, "历史单据必须提供批量删除入口");
+assert.match(prototype, /id="documentHistoryDeleteSelectedButton"/u, "历史单据工具条必须渲染批量删除按钮");
+assert.match(prototype, /<th class="document-history-select-head">/u, "历史单据表头必须提供全选列");
+assert.equal(prototype.includes('colspan="8" class="empty-cell">正在加载历史单据'), false, "历史单据表头已扩到 9 列，空态 colspan 必须同步");
 
 for (const token of ["--bg: #080808;", "--surface: #111111;", "--line: #242424;"]) {
   assert.ok(prototype.includes(token), `ecore 主题令牌 ${token} 不得丢失`);

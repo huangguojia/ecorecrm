@@ -3186,7 +3186,7 @@
     .document-default-preview-assets img { width: 62px; height: 38px; object-fit: contain; }
     .document-default-preview-assets img[data-signature] { width: 90px; height: 34px; }
     .document-history-workspace, .quote-history-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
-    .document-history-head, .document-history-summary, .document-history-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .document-history-head, .document-history-summary, .document-history-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
     .document-history-head { padding: 14px 16px; border: 1px solid var(--line-soft); border-radius: 8px; background: var(--surface); }
     .document-history-head h2 { margin: 0; font-size: 18px; }
     .document-history-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
@@ -3200,7 +3200,18 @@
     .document-history-title b { color: var(--ink); overflow-wrap: anywhere; }
     .document-history-title span, .document-history-title small { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
     .document-history-results { padding: 12px; }
+    .document-history-results .table-wrap { overflow-x: auto; }
+    .document-history-results table { min-width: 880px; }
     .document-history-pagination { justify-content: center; padding-top: 12px; }
+    .document-history-bulk { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    #documentHistorySelectionText { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .document-history-select-head { width: 34px; }
+    .document-history-actions-head { width: 132px; text-align: right; }
+    .document-history-select { width: 34px; }
+    .document-history-select input { width: 15px; height: 15px; accent-color: var(--brand); cursor: pointer; }
+    .document-history-actions { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
+    .document-history-actions .btn { min-height: 28px; padding: 4px 10px; font-size: 12px; }
+    #documentHistoryRows tr.is-selected > td { background: rgba(255, 255, 255, .04); }
     #quoteHistoryWorkspace { min-width: 0; }
     .quote-history-filters { width: 100%; min-width: 0; box-sizing: border-box; grid-template-columns: minmax(210px, 1.5fr) repeat(7, minmax(100px, 1fr)) auto auto; }
     .quote-history-summary b { color: var(--brand); font-size: 16px; }
@@ -20208,6 +20219,17 @@
       .document-history-head .btn { width: 100%; min-height: 40px; }
       .document-history-filters { grid-template-columns: 1fr; }
       .document-history-search { grid-column: auto; }
+      /* 窄屏收掉客户/类型/金额/日期列，保证「选择 + 单据 + 状态 + 操作」一屏可见，不用横向拖才能删 */
+      .document-history-results table { min-width: 0; }
+      .document-history-results th:nth-child(3), .document-history-results td:nth-child(3),
+      .document-history-results th:nth-child(4), .document-history-results td:nth-child(4),
+      .document-history-results th:nth-child(5), .document-history-results td:nth-child(5),
+      .document-history-results th:nth-child(7), .document-history-results td:nth-child(7),
+      .document-history-results th:nth-child(8), .document-history-results td:nth-child(8) { display: none; }
+      .document-history-results th:nth-child(2), .document-history-results td:nth-child(2) { width: 56%; }
+      .document-history-actions-head { width: auto; }
+      .document-history-actions { gap: 6px; }
+      .document-history-actions .btn { min-height: 30px; padding: 4px 9px; white-space: nowrap; }
       .document-defaults-grid { grid-template-columns: 1fr; }
       .document-defaults-grid label.wide, .document-defaults-grid label.full { grid-column: auto; }
       .document-history-filters > .btn { min-height: 40px; }
@@ -25131,8 +25153,14 @@ body.platform-mode .workspace-tabs { display:none !important; }
               <button class="btn" id="documentHistoryResetButton">重置</button>
             </div>
             <div class="panel document-history-results">
-              <div class="document-history-summary"><span id="documentHistorySummary">正在加载</span></div>
-              <div class="table-wrap"><table><thead><tr><th>单据</th><th>客户</th><th>类型</th><th>金额</th><th>状态</th><th>签发日期</th><th>更新时间</th><th></th></tr></thead><tbody id="documentHistoryRows"><tr><td colspan="8" class="empty-cell">正在加载历史单据</td></tr></tbody></table></div>
+              <div class="document-history-summary">
+                <span id="documentHistorySummary">正在加载</span>
+                <div class="document-history-bulk">
+                  <span id="documentHistorySelectionText" hidden></span>
+                  <button class="btn danger" id="documentHistoryDeleteSelectedButton" type="button" hidden>删除所选</button>
+                </div>
+              </div>
+              <div class="table-wrap"><table><thead><tr><th class="document-history-select-head"><input type="checkbox" id="documentHistorySelectAll" aria-label="全选本页单据"></th><th>单据</th><th>客户</th><th>类型</th><th>金额</th><th>状态</th><th>签发日期</th><th>更新时间</th><th class="document-history-actions-head">操作</th></tr></thead><tbody id="documentHistoryRows"><tr><td colspan="9" class="empty-cell">正在加载历史单据</td></tr></tbody></table></div>
               <div class="document-history-pagination"><button class="btn" id="documentHistoryPrevButton">上一页</button><span id="documentHistoryPageText">第 1 页</span><button class="btn" id="documentHistoryNextButton">下一页</button></div>
             </div>
           </section>

@@ -13196,6 +13196,77 @@ function openTradeDocumentOcr() {
   });
 }
 
+/** 删除 PI / PO 单据（工作台与历史单据共用：二次确认 → 逐份删除 → 同步刷新列表与仪表盘） */
+async function deleteTradeDocuments(documents: TradeDocument[], button?: HTMLButtonElement): Promise<boolean> {
+  const targets = documents.filter((document) => Boolean(document.id) && document.id !== "__new__");
+  if (!targets.length) {
+    toast("没有可删除的单据", "error");
+    return false;
+  }
+  const invalid = targets.find((document) => !ECORE_DOC_TYPES.includes(document.type));
+  if (invalid) {
+    toast("只支持删除 PI / PO 单据", "error");
+    return false;
+  }
+  const single = targets.length === 1;
+  const detail = single
+    ? `${targets[0].number} · ${targets[0].buyer || targets[0].title}`
+    : `${targets.slice(0, 3).map((item) => item.number).join("、")}${targets.length > 3 ? ` 等 ${targets.length} 份` : ""}`;
+  const confirmed = await confirmAction({
+    title: single ? `删除 ${targets[0].type}` : `删除 ${targets.length} 份单据`,
+    message: single ? "删除后无法恢复，请确认这份单据不再需要。" : "删除后无法恢复，请确认这些单据都不再需要。",
+    detail,
+    detailLabel: single ? "将删除" : `将删除 ${targets.length} 份`,
+    consequences: [
+      "单据及其审批、发送与修改记录一并删除",
+      "历史单据列表与仪表盘的成交额 / 在谈金额 / 销售排行会同步更新"
+    ],
+    confirmLabel: single ? "删除单据" : "批量删除",
+    tone: "danger",
+    verificationText: single ? undefined : String(targets.length)
+  });
+  if (!confirmed) return false;
+
+  try {
+    if (button) button.disabled = true;
+    const deleted: string[] = [];
+    const failed: string[] = [];
+    for (const document of targets) {
+      try {
+        await api<{ ok: boolean }>(`/api/trade-documents/${encodeURIComponent(document.id)}`, { method: "DELETE" });
+        deleted.push(document.id);
+      } catch (error) {
+        failed.push(`${document.number}：${error instanceof Error ? error.message : "删除失败"}`);
+      }
+    }
+    if (deleted.length) {
+      const removed = new Set(deleted);
+      state.tradeDocuments = state.tradeDocuments.filter((item) => !removed.has(item.id));
+      if (!state.tradeDocuments.some((item) => item.id === state.selectedDocumentId)) {
+        state.selectedDocumentId = state.tradeDocuments[0]?.id || null;
+      }
+      renderTradeDocuments(state.tradeDocuments);
+      markEcoreDashboardStale();
+      void renderEcoreDashboard(true);
+      const historyWorkspace = qs<HTMLElement>("#documentHistoryWorkspace");
+      if (historyWorkspace && !historyWorkspace.hidden) void loadDocumentHistory();
+    }
+    if (failed.length) {
+      toast(`已删除 ${deleted.length} 份，${failed.length} 份失败：${failed[0]}`, "error");
+    } else if (single) {
+      toast(`已删除 ${targets[0].type} ${targets[0].number}`);
+    } else {
+      toast(`已删除 ${deleted.length} 份单据`);
+    }
+    return deleted.length > 0;
+  } catch (error) {
+    toast(error instanceof Error ? error.message : "单据删除失败", "error");
+    return false;
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
 /** 删除当前 PI / PO（ECORECRM：两类单据都可删除，删除前二次确认） */
 async function deleteActiveTradeDocument(button?: HTMLButtonElement) {
   const document = activeTradeDocument();
@@ -13203,32 +13274,7 @@ async function deleteActiveTradeDocument(button?: HTMLButtonElement) {
     toast("这份单据还没有保存，无需删除", "error");
     return;
   }
-  if (!ECORE_DOC_TYPES.includes(document.type)) {
-    toast("只支持删除 PI / PO 单据", "error");
-    return;
-  }
-  if (!await confirmAction({
-    title: `删除 ${document.type}`,
-    message: "删除后无法恢复，请确认这份单据不再需要。",
-    detail: `${document.number} · ${document.buyer || document.title}`,
-    detailLabel: "将删除",
-    consequences: ["单据及其审批、发送与修改记录一并删除", "仪表盘的成交额 / 在谈金额 / 销售排行会随之更新"],
-    confirmLabel: "删除单据",
-    tone: "danger"
-  })) return;
-  try {
-    if (button) button.disabled = true;
-    await api<{ ok: boolean }>(`/api/trade-documents/${encodeURIComponent(document.id)}`, { method: "DELETE" });
-    state.tradeDocuments = state.tradeDocuments.filter((item) => item.id !== document.id);
-    state.selectedDocumentId = state.tradeDocuments[0]?.id || null;
-    renderTradeDocuments(state.tradeDocuments);
-    void renderEcoreDashboard(true);
-    toast(`已删除 ${document.type} ${document.number}`);
-  } catch (error) {
-    toast(error instanceof Error ? error.message : "单据删除失败", "error");
-  } finally {
-    if (button) button.disabled = false;
-  }
+  await deleteTradeDocuments([document], button);
 }
 
 function openDocumentConversion() {
@@ -13490,9 +13536,35 @@ function documentHistoryParams() {
   return params;
 }
 
+/** 历史单据当前页的勾选状态：每次重新查询都清空，避免删到别的页的不可见单据 */
+let documentHistorySelection = new Set<string>();
+let documentHistoryPageDocuments: TradeDocument[] = [];
+
+function updateDocumentHistorySelectionUI() {
+  const count = documentHistorySelection.size;
+  const text = qs<HTMLElement>("#documentHistorySelectionText");
+  if (text) {
+    text.hidden = count === 0;
+    text.textContent = `已选 ${count} 份`;
+  }
+  const bulkButton = qs<HTMLButtonElement>("#documentHistoryDeleteSelectedButton");
+  if (bulkButton) bulkButton.hidden = count === 0;
+  const selectAll = qs<HTMLInputElement>("#documentHistorySelectAll");
+  if (selectAll) {
+    const boxes = qsa<HTMLInputElement>("[data-document-history-check]");
+    const checked = boxes.filter((box) => box.checked).length;
+    selectAll.disabled = boxes.length === 0;
+    selectAll.checked = boxes.length > 0 && checked === boxes.length;
+    selectAll.indeterminate = checked > 0 && checked < boxes.length;
+  }
+  qsa<HTMLElement>("[data-document-history-row]").forEach((row) => {
+    row.classList.toggle("is-selected", documentHistorySelection.has(row.dataset.documentHistoryRow || ""));
+  });
+}
+
 async function loadDocumentHistory() {
   const rows = qs<HTMLElement>("#documentHistoryRows");
-  if (rows) rows.innerHTML = `<tr><td colspan="8" class="empty-cell">正在查询历史单据</td></tr>`;
+  if (rows) rows.innerHTML = `<tr><td colspan="9" class="empty-cell">正在查询历史单据</td></tr>`;
   try {
     const result = await api<TradeDocumentHistoryResponse>(`/api/trade-documents/history?${documentHistoryParams().toString()}`);
     // ECORECRM 单据平台只保留 PI / PO
@@ -13500,9 +13572,10 @@ async function loadDocumentHistory() {
     state.documentHistoryPage = result.page;
     state.documentHistoryPageCount = result.pageCount;
     state.documentHistoryTotal = result.total;
+    documentHistorySelection = new Set<string>();
     renderDocumentHistory(result.documents);
   } catch (error) {
-    if (rows) rows.innerHTML = `<tr><td colspan="8" class="empty-cell">${escapeHtml(error instanceof Error ? error.message : "历史单据加载失败")}</td></tr>`;
+    if (rows) rows.innerHTML = `<tr><td colspan="9" class="empty-cell">${escapeHtml(error instanceof Error ? error.message : "历史单据加载失败")}</td></tr>`;
   }
 }
 
@@ -13512,6 +13585,7 @@ function renderDocumentHistory(documents: TradeDocument[]) {
   const page = qs<HTMLElement>("#documentHistoryPageText");
   const prev = qs<HTMLButtonElement>("#documentHistoryPrevButton");
   const next = qs<HTMLButtonElement>("#documentHistoryNextButton");
+  documentHistoryPageDocuments = documents;
   if (summary) summary.textContent = `共 ${state.documentHistoryTotal} 份历史单据`;
   if (page) page.textContent = `第 ${state.documentHistoryPage} / ${state.documentHistoryPageCount} 页`;
   if (prev) prev.disabled = state.documentHistoryPage <= 1;
@@ -13520,8 +13594,9 @@ function renderDocumentHistory(documents: TradeDocument[]) {
   rows.innerHTML = documents.length ? documents.map((document) => {
     const customer = state.customers.find((item) => item.id === document.customerId);
     const amountText = ["PL", "COO", "SHIPPING", "CUSTOMS"].includes(document.type) ? "-" : formatDocumentMoney(documentTotal(document), document.currency);
-    return `<tr><td><div class="document-history-title"><b>${escapeHtml(document.title)}</b><span>${escapeHtml(document.number)} · v${document.revision || 1}</span>${document.derivedFromDocumentId ? `<small>由 ${escapeHtml(document.derivedFromType || "源单据")} 转换</small>` : ""}</div></td><td><div class="document-history-title"><b>${escapeHtml(customer?.company || document.buyer || "未关联客户")}</b><span>${escapeHtml(customer?.country || "—")}</span></div></td><td>${escapeHtml(documentTypeLabel(document.type))}</td><td>${escapeHtml(amountText)}</td><td>${badge(documentStatusText(document.status), document.status === "approved" || document.status === "exported" ? "green" : document.status === "rejected" ? "red" : document.status === "pending_approval" ? "amber" : "blue")}</td><td>${escapeHtml(document.issueDate || "-")}</td><td>${escapeHtml(formatDateTime(document.updatedAt))}</td><td><button class="btn" type="button" data-document-history-open="${escapeHtml(document.id)}">打开</button></td></tr>`;
-  }).join("") : `<tr><td colspan="8" class="empty-cell">没有符合条件的历史单据</td></tr>`;
+    const selected = documentHistorySelection.has(document.id);
+    return `<tr data-document-history-row="${escapeHtml(document.id)}"${selected ? ' class="is-selected"' : ""}><td class="document-history-select"><input type="checkbox" data-document-history-check="${escapeHtml(document.id)}"${selected ? " checked" : ""} aria-label="选择 ${escapeHtml(document.number)}"></td><td><div class="document-history-title"><b>${escapeHtml(document.title)}</b><span>${escapeHtml(document.number)} · v${document.revision || 1}</span>${document.derivedFromDocumentId ? `<small>由 ${escapeHtml(document.derivedFromType || "源单据")} 转换</small>` : ""}</div></td><td><div class="document-history-title"><b>${escapeHtml(customer?.company || document.buyer || "未关联客户")}</b><span>${escapeHtml(customer?.country || "—")}</span></div></td><td>${escapeHtml(documentTypeLabel(document.type))}</td><td>${escapeHtml(amountText)}</td><td>${badge(documentStatusText(document.status), document.status === "approved" || document.status === "exported" ? "green" : document.status === "rejected" ? "red" : document.status === "pending_approval" ? "amber" : "blue")}</td><td>${escapeHtml(document.issueDate || "-")}</td><td>${escapeHtml(formatDateTime(document.updatedAt))}</td><td><div class="document-history-actions"><button class="btn" type="button" data-document-history-open="${escapeHtml(document.id)}">打开</button><button class="btn danger" type="button" data-document-history-delete="${escapeHtml(document.id)}">删除</button></div></td></tr>`;
+  }).join("") : `<tr><td colspan="9" class="empty-cell">没有符合条件的历史单据</td></tr>`;
   qsa<HTMLButtonElement>("[data-document-history-open]", rows).forEach((button) => button.addEventListener("click", () => {
     const document = documents.find((item) => item.id === button.dataset.documentHistoryOpen);
     if (!document) return;
@@ -13530,6 +13605,19 @@ function renderDocumentHistory(documents: TradeDocument[]) {
     setDocumentWorkspaceMode("studio");
     renderTradeDocuments(state.tradeDocuments);
   }));
+  qsa<HTMLButtonElement>("[data-document-history-delete]", rows).forEach((button) => button.addEventListener("click", () => {
+    const document = documents.find((item) => item.id === button.dataset.documentHistoryDelete);
+    if (!document) return;
+    void deleteTradeDocuments([document], button);
+  }));
+  qsa<HTMLInputElement>("[data-document-history-check]", rows).forEach((box) => box.addEventListener("change", () => {
+    const id = box.dataset.documentHistoryCheck || "";
+    if (!id) return;
+    if (box.checked) documentHistorySelection.add(id);
+    else documentHistorySelection.delete(id);
+    updateDocumentHistorySelectionUI();
+  }));
+  updateDocumentHistorySelectionUI();
 }
 
 function resetDocumentHistoryFilters() {
@@ -20489,6 +20577,17 @@ function installEvents() {
   qs<HTMLButtonElement>("#documentHistoryPrevButton")?.addEventListener("click", () => { state.documentHistoryPage = Math.max(1, state.documentHistoryPage - 1); void loadDocumentHistory(); });
   qs<HTMLButtonElement>("#documentHistoryNextButton")?.addEventListener("click", () => { state.documentHistoryPage = Math.min(state.documentHistoryPageCount, state.documentHistoryPage + 1); void loadDocumentHistory(); });
   qs<HTMLInputElement>("#documentHistoryKeyword")?.addEventListener("keydown", (event) => { if (event.key === "Enter") { state.documentHistoryPage = 1; void loadDocumentHistory(); } });
+  qs<HTMLInputElement>("#documentHistorySelectAll")?.addEventListener("change", (event) => {
+    const checked = (event.currentTarget as HTMLInputElement).checked;
+    documentHistorySelection = new Set(checked ? documentHistoryPageDocuments.map((document) => document.id) : []);
+    qsa<HTMLInputElement>("[data-document-history-check]").forEach((box) => { box.checked = checked; });
+    updateDocumentHistorySelectionUI();
+  });
+  qs<HTMLButtonElement>("#documentHistoryDeleteSelectedButton")?.addEventListener("click", (event) => {
+    const targets = documentHistoryPageDocuments.filter((document) => documentHistorySelection.has(document.id));
+    if (!targets.length) return;
+    void deleteTradeDocuments(targets, event.currentTarget as HTMLButtonElement);
+  });
   qs<HTMLButtonElement>("#quoteHistorySearchButton")?.addEventListener("click", () => { state.quoteHistoryFocusId = ""; state.quoteHistoryPage = 1; void loadQuoteHistory(); });
   qs<HTMLButtonElement>("#quoteHistoryResetButton")?.addEventListener("click", resetQuoteHistoryFilters);
   qs<HTMLButtonElement>("#quoteHistoryPrevButton")?.addEventListener("click", () => { state.quoteHistoryPage = Math.max(1, state.quoteHistoryPage - 1); void loadQuoteHistory(); });
