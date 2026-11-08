@@ -20555,8 +20555,6 @@ function installEvents() {
     focusTopSearch();
   });
   qs<HTMLButtonElement>("#newDocumentButton")?.addEventListener("click", openNewDocument);
-  qs<HTMLButtonElement>("#documentImportButton")?.addEventListener("click", openTradeDocumentImport);
-  qs<HTMLButtonElement>("#documentOcrButton")?.addEventListener("click", openTradeDocumentOcr);
   qs<HTMLButtonElement>("#documentDefaultsViewButton")?.addEventListener("click", () => setDocumentWorkspaceMode("defaults"));
   qs<HTMLButtonElement>("#documentDefaultsBackButton")?.addEventListener("click", () => setDocumentWorkspaceMode("studio"));
   qs<HTMLButtonElement>("#documentDefaultsSaveButton")?.addEventListener("click", () => void saveDocumentDefaults());
@@ -20594,61 +20592,7 @@ function installEvents() {
   qs<HTMLButtonElement>("#quoteHistoryNextButton")?.addEventListener("click", () => { state.quoteHistoryPage = Math.min(state.quoteHistoryPageCount, state.quoteHistoryPage + 1); void loadQuoteHistory(); });
   qsa<HTMLInputElement>("#quoteHistoryKeyword, #quoteHistoryProduct, #quoteHistoryCustomer, #quoteHistoryCountry").forEach((input) => input.addEventListener("keydown", (event) => { if (event.key === "Enter") { state.quoteHistoryFocusId = ""; state.quoteHistoryPage = 1; void loadQuoteHistory(); } }));
   qs<HTMLButtonElement>("#saveDocumentButton")?.addEventListener("click", () => void saveTradeDocument());
-  qs<HTMLButtonElement>("#advancedExcelButton")?.addEventListener("click", () => void openAdvancedExcelPanel());
   qs<HTMLButtonElement>("#exportDocumentPdfButton")?.addEventListener("click", () => void exportTradeDocumentPdf());
-
-  const planetBtn = qs<HTMLButtonElement>("#planetViewButton");
-  if (planetBtn && !planetBtn.dataset.planetBound) {
-    planetBtn.dataset.planetBound = "1";
-    let planetHandle: { unmount: () => void } | null = null;
-    let planetMode = false;
-    function exitPlanet() {
-      planetMode = false;
-      const studio = qs<HTMLElement>("#documentStudioWorkspace");
-      const history = qs<HTMLElement>("#documentHistoryWorkspace");
-      const planetView = qs<HTMLElement>("#planet-view");
-      if (studio) studio.hidden = false;
-      if (history) history.hidden = true;
-      if (planetView) planetView.hidden = true;
-      planetBtn!.textContent = "星球视图";
-      if (planetHandle) { planetHandle.unmount(); planetHandle = null; }
-    }
-    qs<HTMLButtonElement>("#planetCloseButton")?.addEventListener("click", exitPlanet);
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && planetMode) exitPlanet();
-    });
-    planetBtn.addEventListener("click", () => {
-      const studio = qs<HTMLElement>("#documentStudioWorkspace");
-      const history = qs<HTMLElement>("#documentHistoryWorkspace");
-      const planetView = qs<HTMLElement>("#planet-view");
-      if (!studio || !planetView) return;
-      if (!planetMode) {
-        if (history) history.hidden = true;
-        studio.hidden = true;
-        planetView.hidden = false;
-        planetMode = true;
-        planetBtn!.textContent = "返回列表";
-        void import("./planet").then((mod) => {
-          if (!planetMode || planetView.hidden) return;
-          planetHandle = mod.mountPlanet(planetView, {
-            customers: state.customers,
-            documents: state.tradeDocuments,
-            onSelectDocument: (docId: string) => {
-              exitPlanet();
-              state.selectedDocumentId = docId;
-              renderTradeDocuments(state.tradeDocuments);
-              qs<HTMLElement>(`[data-document-id="${CSS.escape(docId)}"]`)?.scrollIntoView({ block: "center" });
-            }
-          });
-        }).catch(() => {
-          exitPlanet();
-          toast("星球视图加载失败，请稍后重试", "error");
-        });
-      } else {
-        exitPlanet();
-      }
-    });
-  }
   qs<HTMLButtonElement>("#documentSubmitApprovalButton")?.addEventListener("click", () => void submitDocumentApproval());
   qs<HTMLButtonElement>("#documentApproveButton")?.addEventListener("click", () => void approveActiveDocument());
   qs<HTMLButtonElement>("#documentRejectButton")?.addEventListener("click", () => void rejectActiveDocument());
