@@ -9341,6 +9341,15 @@ function isContactDockRowAction(target: EventTarget | null) {
   return Boolean(node?.closest("button, a, input, select, label, textarea"));
 }
 
+/** 客户全景头像的短标识：中文取首字，西文取前两个词的首字母 */
+function customerAvatarText(company: string) {
+  const text = (company || "").trim();
+  if (!text) return "?";
+  if (/[\u3400-\u9fff]/u.test(text)) return text.slice(0, 1);
+  const words = text.split(/[\s\-_.]+/u).filter(Boolean);
+  return (words.length > 1 ? `${words[0][0]}${words[1][0]}` : text.slice(0, 2)).toUpperCase();
+}
+
 function renderCustomerDetailPage(customer?: Customer) {
   const box = qs<HTMLElement>("#customerDetailPage");
   if (!box) return;
@@ -9353,6 +9362,13 @@ function renderCustomerDetailPage(customer?: Customer) {
   }
   state.selectedCustomerId = current.id;
   const grade = customerGradeValue(current);
+  const healthScore = Math.max(0, Math.min(100, Number(current.health) || 0));
+  const healthTone = healthScore >= 70 ? "is-good" : healthScore >= 40 ? "is-warn" : "is-bad";
+  // 字段统一渲染：空值给一个安静的破折号，而不是让「待维护」重复十几遍糊满整页
+  const field = (label: string, value?: string) =>
+    `<div class="cp-field"><dt>${label}</dt><dd${value ? "" : ` class="is-empty"`}>${value ? escapeHtml(value) : "—"}</dd></div>`;
+  const contactRow = (label: string, value?: string, emptyText = "未维护") =>
+    `<div class="cp-contact-row"><span>${label}</span><b${value ? "" : ` class="is-empty"`}>${value ? escapeHtml(value) : emptyText}</b></div>`;
   const activities = current.activities || [];
   const contacts = customerContactDetails(current);
   // 号码能拼出网页版直链才算「可联系」；只填了位数不够的号码同样按未维护处理。
@@ -9361,55 +9377,95 @@ function renderCustomerDetailPage(customer?: Customer) {
     <header class="customer-page-header">
       <div class="customer-page-identity">
         <button class="customer-page-back" type="button" data-customer-page-back title="返回客户列表" aria-label="返回客户列表"><svg viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></button>
+        <div class="cp-avatar" aria-hidden="true">${escapeHtml(customerAvatarText(current.company))}</div>
         <div class="customer-page-copy">
           <div class="customer-page-title"><h1>${escapeHtml(current.company)}</h1>${customerGradeHtml(current)}${badge(current.hasWonDeal ? "成交客户" : "未成交", current.hasWonDeal ? "green" : "gray")}</div>
-          <p>${escapeHtml(current.country)} · ${escapeHtml(current.contact)} · 负责人 ${escapeHtml(current.ownerName || "未分配")}</p>
+          <ul class="cp-meta">
+            <li>${escapeHtml(current.country || "国家待补充")}</li>
+            <li>${escapeHtml(current.contact || "联系人待补充")}</li>
+            <li>负责人 ${escapeHtml(current.ownerName || "未分配")}</li>
+          </ul>
         </div>
       </div>
-      <div class="customer-page-actions"><button class="btn" type="button" data-customer-page-edit>编辑客户</button><button class="btn" type="button" data-customer-page-follow>新增跟进</button><button class="btn" type="button" data-customer-page-release>放入公池</button></div>
+      <div class="customer-page-actions"><button class="btn primary" type="button" data-customer-page-follow>新增跟进</button><button class="btn" type="button" data-customer-page-edit>编辑客户</button><button class="btn" type="button" data-customer-page-release>放入公池</button></div>
     </header>
 
     <section class="customer-page-summary" aria-label="客户摘要">
-      <div><span>客户分级</span><b>${grade} · ${customerGradeLabel(grade)}</b><small>人工维护的业务优先级</small></div>
-      <div class="${current.hasWonDeal ? "is-positive" : ""}"><span>成交历史</span><b>${current.hasWonDeal ? customerWonLabel(current) : "尚未成交"}</b><small>${current.lastWonAt ? `最近 ${escapeHtml(formatDateTime(current.lastWonAt))}` : current.hasWonDeal ? "由导入状态确认" : "成交后自动转入"}</small></div>
-      <div><span>在谈金额</span><b>${money(current.pipelineAmount || 0)}</b><small>按在手报价与单据统计</small></div>
-      <div><span>健康度</span><b>${current.health}%</b><small>人工评分，低于 60 进入风险提醒</small></div>
-      <div><span>跟进记录</span><b>${activities.length} 条</b><small>${current.lastActivityAt ? `最近 ${escapeHtml(formatDateTime(current.lastActivityAt))}` : "暂无跟进"}</small></div>
+      <div class="cp-kpi">
+        <span>客户分级</span>
+        <b>${grade}<em>级 · ${customerGradeLabel(grade)}</em></b>
+        <small>人工维护的业务优先级</small>
+      </div>
+      <div class="cp-kpi${current.hasWonDeal ? " is-positive" : ""}">
+        <span>成交历史</span>
+        <b>${current.hasWonDeal ? customerWonLabel(current) : "尚未成交"}</b>
+        <small>${current.lastWonAt ? `最近 ${escapeHtml(formatDateTime(current.lastWonAt))}` : current.hasWonDeal ? "由导入状态确认" : "成交后自动转入"}</small>
+      </div>
+      <div class="cp-kpi">
+        <span>在谈金额</span>
+        <b>${money(current.pipelineAmount || 0)}</b>
+        <small>按在手报价与单据统计</small>
+      </div>
+      <div class="cp-kpi cp-kpi-health ${healthTone}">
+        <span>健康度</span>
+        <b>${healthScore}<em>%</em></b>
+        <div class="cp-bar" role="img" aria-label="健康度 ${healthScore}%"><i style="width:${healthScore}%"></i></div>
+        <small>低于 60 进入风险提醒</small>
+      </div>
+      <div class="cp-kpi">
+        <span>跟进记录</span>
+        <b>${activities.length}<em>条</em></b>
+        <small>${current.lastActivityAt ? `最近 ${escapeHtml(formatDateTime(current.lastActivityAt))}` : "暂无跟进"}</small>
+      </div>
     </section>
 
     <div class="customer-page-grid">
-      <section class="customer-page-section">
+      <section class="customer-page-section cp-profile">
         <div class="customer-page-section-head"><div><h2>客户信息</h2><p>主档、单据与交易基础资料</p></div><button class="btn" type="button" data-customer-page-edit>维护</button></div>
-        <div class="customer-profile-grid">
-          <div class="customer-profile-field"><span>公司名称</span><b>${escapeHtml(current.company)}</b></div>
-          <div class="customer-profile-field"><span>国家 / 地区</span><b>${escapeHtml(current.country)}</b></div>
-          <div class="customer-profile-field"><span>客户来源</span><b>${escapeHtml(current.source || "未登记")}</b></div>
-          <div class="customer-profile-field"><span>主联系人</span><b>${escapeHtml(current.contact)}</b></div>
-          <div class="customer-profile-field"><span>WhatsApp</span><b>${escapeHtml(contacts.whatsapp || "待维护")}</b></div>
-          <div class="customer-profile-field"><span>单据联系人</span><b>${escapeHtml(current.documentContact || "待维护")}</b></div>
-          <div class="customer-profile-field"><span>公司全名</span><b>${escapeHtml(customerDocumentName(current))}</b></div>
-          <div class="customer-profile-field"><span>账单地址</span><b>${escapeHtml(current.billingAddress || "待维护")}</b></div>
-          <div class="customer-profile-field"><span>贸易 / 付款条款</span><b>${escapeHtml(current.defaultIncoterm || "待维护")} · ${escapeHtml(current.defaultPaymentTerm || "待维护")}</b></div>
-          <div class="customer-profile-field"><span>默认目的港</span><b>${escapeHtml(current.defaultPortDischarge || "待维护")}</b></div>
-          <div class="customer-profile-field full"><span>其它说明</span><b>${escapeHtml(current.otherNotes || "待维护")}</b></div>
+        <div class="cp-profile-body">
+          <div class="cp-group">
+            <h3>基础资料</h3>
+            <dl class="cp-fields">
+              ${field("公司名称", current.company)}
+              ${field("公司全名", customerDocumentName(current))}
+              ${field("国家 / 地区", current.country)}
+              ${field("客户来源", current.source)}
+              ${field("主联系人", current.contact)}
+              ${field("单据联系人", current.documentContact)}
+              ${field("WhatsApp", contacts.whatsapp)}
+            </dl>
+          </div>
+          <div class="cp-group">
+            <h3>交易默认</h3>
+            <dl class="cp-fields">
+              ${field("贸易条款", current.defaultIncoterm)}
+              ${field("付款条款", current.defaultPaymentTerm)}
+              ${field("默认目的港", current.defaultPortDischarge)}
+              ${field("账单地址", current.billingAddress)}
+            </dl>
+            <div class="cp-note">
+              <span>其它说明</span>
+              <p>${escapeHtml(current.otherNotes || "暂无补充说明")}</p>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section class="customer-page-section">
-        <div class="customer-page-section-head"><div><h2>联系中心</h2><p>直接联系方式与通讯工具接入点</p></div>${badge("企业微信待接入", "gray")}</div>
-        <div class="customer-contact-list">
-          <div class="customer-contact-row"><span>联系人</span><b>${escapeHtml(current.contact)}</b><small>主联系人</small></div>
-          <div class="customer-contact-row"><span>邮箱</span><b>${escapeHtml(contacts.email || "未维护")}</b><small>${contacts.email ? "可直接发邮件" : "待补充"}</small></div>
-          <div class="customer-contact-row"><span>电话</span><b>${escapeHtml(contacts.phone || "未维护")}</b><small>${contacts.phone ? "可直接拨号" : "待补充"}</small></div>
-          <div class="customer-contact-row"><span>WhatsApp</span><b>${contacts.whatsapp && whatsAppWebLink(contacts.whatsapp) ? `<a class="wa-web-link" href="${whatsAppWebLink(contacts.whatsapp)}" target="_blank" rel="noopener noreferrer">${escapeHtml(contacts.whatsapp)}</a>` : escapeHtml(contacts.whatsapp || "未维护")}</b><small>${contacts.whatsapp ? "点击直接打开 WhatsApp 网页版" : "待补充"}</small></div>
-          <div class="customer-contact-row"><span>微信</span><b>${escapeHtml(contacts.wechat || "未维护")}</b><small>${contacts.wechat ? "点击下方按钮复制" : "待补充"}</small></div>
-          <div class="customer-contact-row"><span>其它渠道</span><b>${escapeHtml(current.contactRemark || "未维护")}</b><small>${current.contactRemark ? "已登记备注" : "可补充 LinkedIn / 微信等"}</small></div>
-        </div>
-        <div class="customer-contact-actions">
-          <button class="customer-contact-action ${contacts.email ? "is-ready" : "is-empty"}" type="button" data-customer-contact="email">${customerContactIcon("email")}<span>邮件${contacts.email ? "" : " · 待维护"}</span></button>
-          <button class="customer-contact-action ${contacts.phone ? "is-ready" : "is-empty"}" type="button" data-customer-contact="phone">${customerContactIcon("phone")}<span>电话${contacts.phone ? "" : " · 待维护"}</span></button>
-          <button class="customer-contact-action ${whatsappHref ? "is-ready" : "is-empty"}" type="button" data-customer-contact="whatsapp" ${whatsAppEntryAttrs(contacts.whatsapp)}>${customerContactIcon("whatsapp")}<span>WhatsApp · ${whatsappHref ? "直接沟通" : "未维护"}</span></button>
-          <button class="customer-contact-action ${contacts.wechat ? "is-ready" : "is-empty"}" type="button" data-customer-contact="wechat">${customerContactIcon("wechat")}<span>微信 · ${contacts.wechat ? "点击复制" : "未维护"}</span></button>
+      <section class="customer-page-section cp-contact">
+        <div class="customer-page-section-head"><div><h2>联系中心</h2><p>直接联系方式与沟通入口</p></div></div>
+        <div class="cp-contact-body">
+          <div class="cp-contact-list">
+            ${contactRow("联系人", current.contact, "未登记")}
+            ${contactRow("电话", contacts.phone)}
+            <div class="cp-contact-row"><span>WhatsApp</span><b${contacts.whatsapp ? "" : ` class="is-empty"`}>${contacts.whatsapp && whatsAppWebLink(contacts.whatsapp) ? `<a class="wa-web-link" href="${whatsAppWebLink(contacts.whatsapp)}" target="_blank" rel="noopener noreferrer">${escapeHtml(contacts.whatsapp)}</a>` : escapeHtml(contacts.whatsapp || "未维护")}</b></div>
+            ${contactRow("微信", contacts.wechat)}
+            ${contactRow("其它渠道", current.contactRemark)}
+          </div>
+          <div class="customer-contact-actions">
+            <button class="customer-contact-action ${contacts.phone ? "is-ready" : "is-empty"}" type="button" data-customer-contact="phone">${customerContactIcon("phone")}<span>电话</span></button>
+            <button class="customer-contact-action ${whatsappHref ? "is-ready" : "is-empty"}" type="button" data-customer-contact="whatsapp" ${whatsAppEntryAttrs(contacts.whatsapp)}>${customerContactIcon("whatsapp")}<span>WhatsApp</span></button>
+            <button class="customer-contact-action ${contacts.wechat ? "is-ready" : "is-empty"}" type="button" data-customer-contact="wechat">${customerContactIcon("wechat")}<span>微信</span></button>
+          </div>
         </div>
       </section>
 
@@ -9423,13 +9479,8 @@ function renderCustomerDetailPage(customer?: Customer) {
         <div id="customerPageJourneyTimeline"><div style="padding:12px;text-align:center;color:var(--muted);font-size:12px;">加载中...</div></div>
       </section>
 
-      <section class="customer-page-section full" id="customerDevEmailHistory">
-        <div class="customer-page-section-head"><div><h2>开发信历史</h2><p>发出去的每一封开发信与客户的反馈记录</p></div><button class="btn" type="button" data-cust-email-journey>查看完整过程</button></div>
-        <div class="communication-insight-loading"><span class="loading-dot"></span><b>正在读取开发信历史</b><small>发送、打开、回复与退信记录都会归档在这里</small></div>
-      </section>
-
       <section class="customer-page-section full">
-        <div class="customer-page-section-head"><div><h2>跟进记录</h2><p>电话、邮件、会议与社媒沟通的连续时间线</p></div><button class="btn primary" type="button" data-customer-page-follow>新增跟进</button></div>
+        <div class="customer-page-section-head"><div><h2>跟进记录</h2><p>电话、会议与社媒沟通的连续时间线</p></div><button class="btn primary" type="button" data-customer-page-follow>新增跟进</button></div>
         <div class="customer-page-followups">${activities.length ? activities.map((activity) => `
           <article class="customer-page-followup">
             <time>${escapeHtml(formatDateTime(activity.createdAt))}</time>
@@ -9447,95 +9498,17 @@ function renderCustomerDetailPage(customer?: Customer) {
   });
   qs<HTMLButtonElement>("[data-customer-page-release]", box)?.addEventListener("click", () => openCustomerReleaseModal(current));
   qs<HTMLButtonElement>("[data-customer-page-research]", box)?.addEventListener("click", () => openBackgroundResearch("customer", current.id, current.company, "customer-detail"));
-  qs<HTMLButtonElement>("[data-customer-page-email]", box)?.addEventListener("click", () => openDevelopmentEmail("customer", current.id, current.company, "customer-detail", customerContactDetails(current).whatsapp));
   qs<HTMLButtonElement>("[data-customer-page-journey]", box)?.addEventListener("click", () =>
     void openOutreachCustomerJourney("customer", current.id, current.company, "customer-detail"));
   qsa<HTMLButtonElement>("[data-customer-page-follow]", box).forEach((button) => button.addEventListener("click", () => addFollowRecord(current)));
   qsa<HTMLButtonElement>("[data-activity-transcript]", box).forEach((button) => button.addEventListener("click", () =>
     void openWhatsappTranscriptModal(button.dataset.activityTranscript || "", button.dataset.activityName || "客户")));
   qs<HTMLButtonElement>("[data-customer-page-pipeline]", box)?.addEventListener("click", () => activateNavView("pipeline"));
-  qsa<HTMLButtonElement>("[data-cust-email-journey]", box).forEach((button) => button.addEventListener("click", () =>
-    void openOutreachCustomerJourney("customer", current.id, current.company, "customer-detail")));
   qsa<HTMLButtonElement>("[data-customer-contact]", box).forEach((button) => {
     button.addEventListener("click", () => launchCustomerContact(current, button.dataset.customerContact as "email" | "phone" | "whatsapp" | "wechat"));
   });
   void loadCustomerCommunicationInsights(current);
-  void loadCustomerDevEmailHistory(current);
   renderCustomerJourney(current, qs<HTMLElement>("#customerPageJourneyTimeline", box));
-}
-
-/** 客户详情页内嵌「开发信历史」：复用 outreach-journey 档案接口，按客户聚合已发邮件 */
-async function loadCustomerDevEmailHistory(customer: Customer) {
-  const box = qs<HTMLElement>("#customerDevEmailHistory");
-  if (!box || state.selectedCustomerId !== customer.id) return;
-  try {
-    const view = await api<OutreachJourneyView>(
-      `/api/outreach-journey?entityType=customer&entityId=${encodeURIComponent(customer.id)}`
-    );
-    if (state.selectedCustomerId !== customer.id || !box.isConnected) return;
-    renderCustomerDevEmailHistory(box, customer, view);
-  } catch (error) {
-    if (state.selectedCustomerId !== customer.id || !box.isConnected) return;
-    const message = error instanceof Error ? error.message : "开发信历史加载失败";
-    box.innerHTML = `
-      <div class="customer-page-section-head"><div><h2>开发信历史</h2><p>发出去的每一封开发信与客户的反馈记录</p></div><button class="btn" type="button" data-cust-email-journey>查看完整过程</button></div>
-      <div class="communication-insight-empty compact"><b>暂无法读取开发信历史</b><span>${escapeHtml(message)}</span></div>`;
-    qs<HTMLButtonElement>("[data-cust-email-journey]", box)?.addEventListener("click", () =>
-      void openOutreachCustomerJourney("customer", customer.id, customer.company, "customer-detail"));
-  }
-}
-
-function renderCustomerDevEmailHistory(box: HTMLElement, customer: Customer, view: OutreachJourneyView) {
-  const stats = view.stats;
-  const stage = view.stage;
-  const tone = outreachBadgeTone(stage.tone);
-  const emails = view.emails.slice().reverse();
-  const emailsHtml = emails.map((email) => {
-    const flags = [
-      email.dispatchStatus === "sent" ? badge("已投递", "green") : email.dispatchStatus === "pending" ? badge("投递中", "amber") : badge("结果待确认", "red"),
-      email.openCount ? badge(`打开 ${email.openCount}`, "blue") : "",
-      email.clickCount ? badge(`点击 ${email.clickCount}`, "blue") : "",
-      email.repliedAt ? badge("已回复", "green") : "",
-      email.bouncedAt ? badge("已退信", "red") : ""
-    ].filter(Boolean).join("");
-    return `<article class="cust-email-row">
-      <time>${escapeHtml(formatDateTime(email.sentAt))}</time>
-      <div class="cust-email-main">
-        <b>第 ${email.index} 封 · ${escapeHtml(email.subject || "（无主题）")}</b>
-        <small>收件人 ${escapeHtml(email.recipient || "未记录")} · ${escapeHtml(email.sourceLabel || "手动发送")}${email.batchName ? ` · 批次 ${escapeHtml(email.batchName)}` : ""}</small>
-        ${email.dispatchError ? `<small style="color:#b33d35">投递异常：${escapeHtml(email.dispatchError)}</small>` : ""}
-        ${email.body ? `<details><summary>查看完整正文</summary><pre>${escapeHtml(email.body)}</pre></details>` : email.bodyPreview ? `<small>${escapeHtml(email.bodyPreview)}</small>` : ""}
-      </div>
-      <div class="cust-email-flags">${flags}</div>
-    </article>`;
-  }).join("");
-  const replies = view.replies.slice().reverse();
-  const repliesHtml = replies.length ? `<div class="cust-email-replies">${replies.map((reply) => {
-    const isBounce = reply.eventType === "bounce" || reply.classification === "bounced";
-    const isNegative = reply.classification === "rejected" || reply.classification === "unsubscribed";
-    return `<div class="cust-email-reply${isBounce || isNegative ? " is-bad" : ""}">
-      <b>${escapeHtml(isBounce ? "退信" : reply.classificationLabel || "客户回复")} · ${escapeHtml(formatDateTime(reply.occurredAt))}</b>
-      <p>${escapeHtml(reply.content || reply.subject || "（无正文）")}</p>
-    </div>`;
-  }).join("")}</div>` : "";
-  const bodyHtml = emails.length
-    ? emailsHtml + repliesHtml
-    : `<div class="communication-insight-empty compact"><b>还没有给这家客户发过开发信</b><span>发出第一封后，发送、打开、回复与退信记录都会自动归档在这里。</span><button class="btn primary" type="button" data-cust-email-write>写开发信</button></div>`;
-  box.innerHTML = `
-    <div class="customer-page-section-head"><div><h2>开发信历史</h2><p>${escapeHtml(stats.outboundCount ? `已发 ${stats.outboundCount} 封 · 最近 ${stats.lastSentAt ? formatDateTime(stats.lastSentAt) : "—"}` : "发出去的每一封开发信与客户的反馈记录")}</p></div><button class="btn" type="button" data-cust-email-journey>查看完整过程</button></div>
-    <div class="cust-email-summary">
-      <span><small>已发送</small><b>${stats.outboundCount} 封</b></span>
-      <span><small>回复</small><b class="${stats.replyCount ? "is-good" : ""}">${stats.replyCount} 条</b></span>
-      <span><small>打开</small><b>${stats.openCount} 次</b></span>
-      <span><small>点击</small><b>${stats.clickCount} 次</b></span>
-      <span><small>退信</small><b class="${stats.bounceCount ? "is-bad" : ""}">${stats.bounceCount} 封</b></span>
-      <span class="cust-email-stage">${badge(stage.label, tone)}<small>${escapeHtml(stage.nextStepLabel || stage.description || "")}</small></span>
-    </div>
-    ${bodyHtml}`;
-  qs<HTMLButtonElement>("[data-cust-email-journey]", box)?.addEventListener("click", () =>
-    void openOutreachCustomerJourney("customer", customer.id, customer.company, "customer-detail"));
-  qs<HTMLButtonElement>("[data-cust-email-write]", box)?.addEventListener("click", () =>
-    openDevelopmentEmail("customer", customer.id, customer.company, "customer-detail"));
 }
 
 function communicationLevelLabel(value: "high" | "medium" | "low") {

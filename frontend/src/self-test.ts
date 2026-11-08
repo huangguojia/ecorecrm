@@ -381,7 +381,7 @@ assert.match(apiLayer, /id="customerSourceInput"/, "客户新增编辑表单必�
 assert.match(apiLayer, /客户来源: customer\.source/, "客户导出必须包含客户来源");
 assert.match(apiLayer, /\["客户来源", "来源", "获客渠道"/, "客户导入必须识别客户来源列及常用别名");
 assert.match(prototype, /<th>客户来源<\/th>/u, "客户列表必须使用客户来源替换健康度列");
-assert.match(apiLayer, /<span>客户来源<\/span><b>\$\{escapeHtml\(current\.source/, "客户全景必须展示客户来源");
+assert.match(apiLayer, /field\("客户来源", current\.source\)/, "客户全景必须展示客户来源");
 assert.match(apiLayer, /<span>客户来源<\/span><b>\$\{escapeHtml\(customer\.source/, "客户侧边详情必须展示客户来源");
 assert.match(apiLayer, /customerFullNameInput|customerCompanyFullNameInput/, "客户表单必须支持公司全名");
 assert.match(apiLayer, /客户ID: customer\.id/, "客户导出必须包含稳定客户 ID");
