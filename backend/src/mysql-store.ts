@@ -156,37 +156,38 @@ async function acquireProductionInstanceLock(
   const connection = await pool.getConnection();
   const lockName = `goodjob_crm_backend_${processRole}_single_instance`;
   const [rows] = await connection.query(
-    "SELECT GET_LOCK(?, 0) AS acquired, CONNECTION_ID() AS connection_id",
+    "SELECT GET_LOCK(?, 0) AS acquired",
     [lockName]
   );
-  const result = (rows as Array<{ acquired: number; connection_id: number }>)[0];
+  const result = (rows as Array<{ acquired: number }>)[0];
   if (Number(result?.acquired || 0) !== 1) {
     connection.release();
     throw new Error(
       `同一数据库已有 GoodJob CRM ${processRole} 实例运行，拒绝重复启动`
     );
   }
-  const ownerConnectionId = Number(result.connection_id);
+  // GET_LOCK 的锁跟着这条连接走：连接活着 = 锁还握在本进程手里，连接断开
+  // MySQL 会自动释放锁。所以探活用 COM_PING 就够了，不必再发 SQL 去问
+  // 「锁还在不在」—— 原来每 15 秒一条 `SELECT IS_USED_LOCK()`，纯空闲时
+  // 整个后端唯一的自动 SQL 就是它。单次 ping 失败先不退出：网络抖一下不该
+  // 让后端自杀重启（重启还要把整库重读一遍），连续两次（约 1 分钟）才算真断了。
+  let failedPings = 0;
   const timer = setInterval(async () => {
     try {
-      const [checkRows] = await connection.query(
-        "SELECT IS_USED_LOCK(?) AS owner_id, CONNECTION_ID() AS connection_id",
-        [lockName]
+      await connection.ping();
+      failedPings = 0;
+    } catch (error) {
+      failedPings += 1;
+      console.error(
+        `GoodJob CRM 单实例数据库锁连接异常（第 ${failedPings}/2 次）`,
+        error instanceof Error ? error.message : String(error)
       );
-      const check = (checkRows as Array<{
-        owner_id: number | null;
-        connection_id: number;
-      }>)[0];
-      if (Number(check?.owner_id) !== ownerConnectionId
-        || Number(check?.connection_id) !== ownerConnectionId) {
-        console.error("GoodJob CRM 单实例数据库锁已丢失，进程即将退出");
+      if (failedPings >= 2) {
+        console.error("GoodJob CRM 单实例数据库锁连接已断开，进程即将退出");
         process.exit(1);
       }
-    } catch {
-      console.error("GoodJob CRM 无法验证单实例数据库锁，进程即将退出");
-      process.exit(1);
     }
-  }, 15000);
+  }, 30_000);
   timer.unref();
   let released = false;
   return async () => {
@@ -221,15 +222,60 @@ export function createSerializedTaskQueue() {
   };
 }
 
-function persistenceSnapshot(store: CrmStore): CrmStore {
+/**
+ * 重载守卫：允许调用方声明「这么新的数据就够用」。
+ *
+ * readBarrier(maxAgeMs) 里 maxAgeMs 省略 = 每次都真读；给了窗口且上次成功重载
+ * 距今不足窗口，就直接复用上一次的结果，不再重读 30 张表。失败不刷新时间戳，
+ * 下一次调用必然重试。
+ */
+export function createReloadGuard(
+  reload: () => Promise<void>,
+  now: () => number = Date.now
+) {
+  let lastCompletedAt = 0;
+  return async (maxAgeMs = 0) => {
+    if (maxAgeMs > 0 && lastCompletedAt > 0
+      && now() - lastCompletedAt < maxAgeMs) {
+      return;
+    }
+    await reload();
+    lastCompletedAt = now();
+  };
+}
+
+/**
+ * 持久化快照：只复制数组外壳，不深拷贝元素。
+ *
+ * 这里原来对每个业务数组做 structuredClone —— 每次 store.persist() 都把整库
+ * 复制一遍（客户、跟进、单据、日志……），一次写入的临时内存等于整个数据集，
+ * 写频率高的时候 GC 一直追着跑。持久化只需要保证「写的过程中不会有人往数组里
+ * push/splice」把结果写花：新数组外壳就够。元素级字段变更（如 item.updatedAt）
+ * 由下一次 persist 覆盖，因为内存态才是真相源。
+ */
+export function persistenceSnapshot(store: CrmStore): CrmStore {
   const snapshot = Object.fromEntries(
     Object.entries(store).map(([key, value]) => [
       key,
-      Array.isArray(value) ? structuredClone(value) : value
+      Array.isArray(value) ? value.slice() : value
     ])
   ) as unknown as CrmStore;
   snapshot.persist = async () => undefined;
   return snapshot;
+}
+
+/**
+ * 只读校验视图：给 validateProspectRunPersistence / validateProspectCampaignPersistence
+ * 这类「只读不写」的校验用。
+ *
+ * 校验只是遍历 + zod parse，既不写候选对象也不留住它，整库深拷贝在这里是纯浪费：
+ * 重载一次（轮询期间每几秒一轮）就要把所有业务表复制一遍。浅拷贝即可——只需要
+ * 能把「待校验的新数组」挂在候选上，其它数组按引用共享，校验完成后就地丢弃。
+ */
+export function validationView(store: CrmStore): CrmStore {
+  const view = { ...store } as CrmStore;
+  view.persist = async () => undefined;
+  return view;
 }
 
 type LoadedProspectRunState =
@@ -303,7 +349,8 @@ function replaceProspectExecutionCache(
     executionState: LoadedProspectExecutionState;
   }
 ) {
-  const candidate = persistenceSnapshot(store);
+  // 校验只读，用浅拷贝视图代替整库深拷贝（见 validationView 注释）
+  const candidate = validationView(store);
   candidate.prospectSearchRuns = loaded.runState.runs;
   candidate.prospectRunShards = loaded.runState.shards;
   candidate.prospectRunEvents = loaded.runState.events;
@@ -676,16 +723,11 @@ export async function createMysqlStore(
     () => persistAll(pool, persistenceSnapshot(store))
   );
   const persistProspectSuperSearches = () => {
+    // 同样只复制数组外壳：这三张表只是「写快照」，不需要逐元素深拷贝
     const state = {
-      prospectSuperSearchMissions: structuredClone(
-        store.prospectSuperSearchMissions
-      ),
-      prospectSuperSearchRounds: structuredClone(
-        store.prospectSuperSearchRounds
-      ),
-      prospectSuperSearchEvents: structuredClone(
-        store.prospectSuperSearchEvents
-      )
+      prospectSuperSearchMissions: store.prospectSuperSearchMissions.slice(),
+      prospectSuperSearchRounds: store.prospectSuperSearchRounds.slice(),
+      prospectSuperSearchEvents: store.prospectSuperSearchEvents.slice()
     };
     return enqueuePersistence(async () => {
       const connection = await pool.getConnection();
@@ -962,6 +1004,7 @@ export async function createMysqlStore(
            SET owner_id = ?,
                pool_status = 'owned',
                claimed_at = ?,
+               protected_until = ?,
                ownership_version = ownership_version + 1
            WHERE id = ?
              AND team_id = ?
@@ -970,6 +1013,7 @@ export async function createMysqlStore(
           [
             input.actorId,
             mysqlDate(occurredAt),
+            new Date(Date.now() + 14 * 86_400_000),
             customer.id,
             input.actorTeamId,
             currentVersion
@@ -1308,7 +1352,9 @@ export async function createMysqlStore(
     );
   });
   let reloadProspectRuns!: () => Promise<void>;
-  const readBarrier = () => reloadProspectRuns();
+  // 进度/候选轮询会每几秒打一次 readBarrier：给 1 秒窗口，窗口内复用上次重载结果，
+  // 写路径与调度路径不传参数，仍然每次都读（见 createReloadGuard 注释）。
+  const readBarrier = createReloadGuard(() => reloadProspectRuns());
   const readProspectRunFeed = (input: ProspectRunFeedReadInput) =>
     readProspectRunFeedMysql(pool, input);
   let closed = false;
@@ -1452,7 +1498,8 @@ export async function createMysqlStore(
       const loadedProviderCatalog = await loadProviderCatalog(connection);
       const loadedProviderConnections =
         await loadProviderConnections(connection);
-      const candidate = persistenceSnapshot(store);
+      // 校验只读，用浅拷贝视图代替整库深拷贝（见 validationView 注释）
+      const candidate = validationView(store);
       candidate.prospectSearchRuns = loaded.runs;
       candidate.prospectRunShards = loaded.shards;
       candidate.prospectRunEvents = loaded.events;
@@ -2664,6 +2711,7 @@ async function ensureSchema(pool: mysql.Pool) {
   await ensureColumn(pool, "customers", "release_reason", "VARCHAR(500) DEFAULT ''");
   await ensureColumn(pool, "customers", "claimed_at", "DATETIME(3) NULL");
   await ensureColumn(pool, "customers", "ownership_version", "INT NOT NULL DEFAULT 0");
+  await ensureColumn(pool, "customers", "protected_until", "DATETIME(3) NULL");
   await ensureColumn(pool, "customers", "phone", "VARCHAR(40) DEFAULT ''");
   await ensureColumn(pool, "customers", "email", "VARCHAR(160) DEFAULT ''");
   await ensureColumn(pool, "customers", "website", "VARCHAR(255) DEFAULT ''");
@@ -6781,6 +6829,9 @@ function customerFromRow(row: Record<string, any>): Customer {
       ? row.claimed_at.toISOString()
       : row.claimed_at || "",
     ownershipVersion: Number(row.ownership_version || 0),
+    protectedUntil: row.protected_until instanceof Date
+      ? row.protected_until.toISOString()
+      : row.protected_until || "",
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at || ""
   };
 }
@@ -12503,7 +12554,7 @@ async function persistAll(pool: mysql.Pool, store: CrmStore) {
     await replaceRows(connection, "daily_reports", store.dailyReports, (item) => [item.id, item.reportDate, item.completedWork, item.customerProgress, item.results, item.risks, item.nextPlan, item.supportNeeded, item.status, item.ownerId, item.teamId, mysqlDate(item.submittedAt), mysqlDate(item.createdAt), mysqlDate(item.updatedAt)], "(id,report_date,completed_work,customer_progress,results_text,risks_text,next_plan,support_needed,report_status,owner_id,team_id,submitted_at,created_at,updated_at)");
     await replaceRows(connection, "daily_report_comments", store.dailyReportComments, (item) => [item.id, item.reportId, item.parentId || "", item.content, item.authorId, item.teamId, mysqlDate(item.createdAt), mysqlDate(item.updatedAt)], "(id,report_id,parent_id,content,author_id,team_id,created_at,updated_at)");
     await replaceRows(connection, "internal_messages", store.internalMessages, (item) => [item.id, item.threadId, item.senderId, item.recipientId, item.teamId, item.type, item.subject, item.content, item.relatedType, item.relatedId, item.idempotencyKey || null, item.readAt ? mysqlDate(item.readAt) : null, mysqlDate(item.createdAt), mysqlDate(item.updatedAt)], "(id,thread_id,sender_id,recipient_id,team_id,message_type,subject,content,related_type,related_id,idempotency_key,read_at,created_at,updated_at)");
-    await replaceRows(connection, "customers", store.customers, (item) => [item.id, item.company, item.country, item.contact, item.whatsapp || "", item.wechat || "", item.otherNotes || "", item.ownerId, item.teamId, item.stage, item.amount, item.health, item.source || "", item.grade || "C", item.lifecycleStatus || "open", item.wonAt ? mysqlDate(item.wonAt) : null, item.wonByDealId || "", item.nextReminder, item.wecomBound, item.billingName || item.companyFullName || item.company || "", item.companyFullName || item.billingName || item.company || "", item.billingAddress || "", item.documentContact || "", item.contactRemark || "", item.phone || "", item.email || "", item.website || "", item.defaultPortDischarge || "", item.defaultIncoterm || "", item.defaultPaymentTerm || "", item.poolStatus || "owned", item.previousOwnerId || "", item.releasedBy || "", item.releasedAt ? mysqlDate(item.releasedAt) : null, item.releaseReason || "", item.claimedAt ? mysqlDate(item.claimedAt) : null, item.ownershipVersion || 0, item.createdAt ? mysqlDate(item.createdAt) : null], "(id,company,country,contact,whatsapp,wechat,other_notes,owner_id,team_id,stage,amount,health,customer_source,customer_grade,lifecycle_status,won_at,won_by_deal_id,next_reminder,wecom_bound,billing_name,company_full_name,billing_address,document_contact,contact_remark,phone,email,website,default_port_discharge,default_incoterm,default_payment_term,pool_status,previous_owner_id,released_by,released_at,release_reason,claimed_at,ownership_version,created_at)");
+    await replaceRows(connection, "customers", store.customers, (item) => [item.id, item.company, item.country, item.contact, item.whatsapp || "", item.wechat || "", item.otherNotes || "", item.ownerId, item.teamId, item.stage, item.amount, item.health, item.source || "", item.grade || "C", item.lifecycleStatus || "open", item.wonAt ? mysqlDate(item.wonAt) : null, item.wonByDealId || "", item.nextReminder, item.wecomBound, item.billingName || item.companyFullName || item.company || "", item.companyFullName || item.billingName || item.company || "", item.billingAddress || "", item.documentContact || "", item.contactRemark || "", item.phone || "", item.email || "", item.website || "", item.defaultPortDischarge || "", item.defaultIncoterm || "", item.defaultPaymentTerm || "", item.poolStatus || "owned", item.previousOwnerId || "", item.releasedBy || "", item.releasedAt ? mysqlDate(item.releasedAt) : null, item.releaseReason || "", item.claimedAt ? mysqlDate(item.claimedAt) : null, item.ownershipVersion || 0, item.protectedUntil ? mysqlDate(item.protectedUntil) : null, item.createdAt ? mysqlDate(item.createdAt) : null], "(id,company,country,contact,whatsapp,wechat,other_notes,owner_id,team_id,stage,amount,health,customer_source,customer_grade,lifecycle_status,won_at,won_by_deal_id,next_reminder,wecom_bound,billing_name,company_full_name,billing_address,document_contact,contact_remark,phone,email,website,default_port_discharge,default_incoterm,default_payment_term,pool_status,previous_owner_id,released_by,released_at,release_reason,claimed_at,ownership_version,protected_until,created_at)");
     // ⚠️ 这里**不能**直接写 `mysqlDate(item.updatedAt)`：`mysqlDate(undefined)` 返回的是
     // `new Date()`（见 :15197 的实现），会让所有从未编辑过的记录都落成「刚刚编辑过」——
     // 不报错、不崩溃，只是数据全错。必须显式判空传 null。
@@ -12750,21 +12801,40 @@ async function persistAll(pool: mysql.Pool, store: CrmStore) {
   }
 }
 
+/**
+ * 单条 INSERT 最多拼多少行。
+ *
+ * 原来是把整张表 map 成二维数组再 flat() 成一个参数数组：峰值内存约等于
+ * 「整表 × 2」，而这一段又是全量落库的必经之路（一次 persist 要过几十张表）。
+ * 分批后峰值只跟批次有关，顺带避开数据量上来后单个包撞 max_allowed_packet。
+ */
+const WRITE_CHUNK_ROWS = 500;
+
 async function replaceRows<T>(connection: mysql.PoolConnection, table: string, items: T[], values: (item: T) => unknown[], columns: string) {
   await connection.query(`DELETE FROM ${table}`);
   if (!items.length) return;
-  const mapped = items.map(values);
-  const placeholders = mapped.map((row) => `(${row.map(() => "?").join(",")})`).join(",");
-  await connection.query(`INSERT INTO ${table} ${columns} VALUES ${placeholders}`, mapped.flat());
+  const tuple = `(${columns.slice(1, -1).split(",").map(() => "?").join(",")})`;
+  for (let offset = 0; offset < items.length; offset += WRITE_CHUNK_ROWS) {
+    const rows = items.slice(offset, offset + WRITE_CHUNK_ROWS).map(values);
+    await connection.query(
+      `INSERT INTO ${table} ${columns} VALUES ${rows.map(() => tuple).join(",")}`,
+      rows.flat()
+    );
+  }
 }
 
 async function upsertRows<T>(connection: mysql.PoolConnection, table: string, items: T[], values: (item: T) => unknown[], columns: string) {
   if (!items.length) return;
   const names = columns.slice(1, -1).split(",");
-  const mapped = items.map(values);
-  const placeholders = mapped.map((row) => `(${row.map(() => "?").join(",")})`).join(",");
+  const tuple = `(${names.map(() => "?").join(",")})`;
   const updates = names.slice(1).map((name) => `${name}=VALUES(${name})`).join(",");
-  await connection.query(`INSERT INTO ${table} ${columns} VALUES ${placeholders} ON DUPLICATE KEY UPDATE ${updates}`, mapped.flat());
+  for (let offset = 0; offset < items.length; offset += WRITE_CHUNK_ROWS) {
+    const rows = items.slice(offset, offset + WRITE_CHUNK_ROWS).map(values);
+    await connection.query(
+      `INSERT INTO ${table} ${columns} VALUES ${rows.map(() => tuple).join(",")} ON DUPLICATE KEY UPDATE ${updates}`,
+      rows.flat()
+    );
+  }
 }
 
 async function persistWebsiteOpportunityRows(

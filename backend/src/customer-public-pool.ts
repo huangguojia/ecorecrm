@@ -145,6 +145,9 @@ export function mutateCustomerOwnershipMemory(
     customer.ownerId = input.actorId;
     customer.poolStatus = "owned";
     customer.claimedAt = now;
+    // 领取即重新起算 2 周保护期：否则刚领到的客户可能因为旧到期日立刻又被放回公海
+    customer.protectedUntil = new Date(Date.now() + 14 * 86_400_000).toISOString();
+    customer.releaseReason = "";
   }
   customer.ownershipVersion = (customer.ownershipVersion || 0) + 1;
   store.customerOwnershipEvents.unshift(event);

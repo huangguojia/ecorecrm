@@ -1187,26 +1187,14 @@ assert.equal(
     "旧的供应商专用小类（sup-mobile-meta / sup-badge-cell）已并入客户管理同款，不能残留"
   );
 
-  // —— 供应商编码：类型 / 表单 / 列表 / 导出四段都要通，只在后端加列等于没做 ——
+  // —— 供应商编码：按需求从界面彻底移除（后端仍自动生成，只用于团队内唯一约束）——
   assert.ok(
     /interface Supplier \{[\s\S]{0,300}?code: string;/.test(apiLayer),
-    "前端 Supplier 类型必须带 code，否则编码拿不到，列表和导出这一列永远是空的"
+    "前端 Supplier 类型保留 code：后端仍生成，只是界面不再展示"
   );
   assert.ok(
-    /id="supplierCodeInput"/.test(apiLayer) && /code: qs<HTMLInputElement>\("#supplierCodeInput"\)/.test(apiLayer),
-    "供应商弹窗要有编码输入，且保存时真的提交 code（只有输入框不提交等于没做）"
-  );
-  assert.ok(
-    /supplier\.code \? `<b class="sup-code">/.test(apiLayer),
-    "列表必须显示供应商编码（等宽小字），否则同名供应商对不上号"
-  );
-  assert.ok(
-    /\["供应商编码", "供应商名称"/.test(apiLayer) && /item\.code, item\.company/.test(apiLayer),
-    "导出 CSV 必须带编码列，且列头与数据同序"
-  );
-  assert.ok(
-    /#suppliers \.sup-code, #supplierDrawer \.sup-code \{/.test(prototype),
-    "编码要有独立样式（等宽字体），混在正文里看不出这是编号"
+    !/id="supplierCodeInput"/.test(apiLayer) && !/供应商编码/.test(apiLayer),
+    "供应商弹窗 / 列表 / 抽屉 / 导出都不能再出现供应商编码"
   );
 
   // —— 供应商文件：走文件中心的 file_references，不另造一套附件表 ——

@@ -738,6 +738,8 @@ export interface Customer {
   releaseReason?: string;
   claimedAt?: string;
   ownershipVersion?: number;
+  /** 未成交保护期到期时间（ISO）：超过即自动流入客户公海 */
+  protectedUntil?: string;
   /**
    * 客户建档时间（customers.created_at）。
    * 持久化是整表 DELETE + INSERT，如果不把原值带回来，MySQL 的 DEFAULT CURRENT_TIMESTAMP

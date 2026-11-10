@@ -2937,8 +2937,11 @@ async function recoverEngineCliJobs(reason: string) {
 }
 
 function startAiEngineRecoveryScheduler() {
-  if (process.env.AI_ENGINE_RECOVERY === "false") {
-    console.log("GoodJob CRM AI engine job recovery disabled (AI_ENGINE_RECOVERY=false)");
+  // 默认关闭：AI 引擎入口在 ECORECRM 已经隐藏，库里没有作业，这个 5 分钟一次的
+  // 扫描（每次读 ai_engine_jobs + agent_jobs 两张表）纯属空转。需要恢复作业时
+  // 显式设置 AI_ENGINE_RECOVERY=true，或直接打开 ECORE_HIDDEN_MODULE_WORKERS。
+  if (process.env.AI_ENGINE_RECOVERY !== "true") {
+    console.log("GoodJob CRM AI engine job recovery disabled (AI_ENGINE_RECOVERY!=true)");
     return;
   }
   const pollMs = Math.max(60_000, Number(process.env.AI_ENGINE_RECOVERY_POLL_MS || 300_000) || 300_000);
@@ -4064,7 +4067,8 @@ export async function getAgentProspectSearchProgress(actor: { id: string }, inpu
   const runId = agentInputText(input, "runId");
   if (!runId) throw new Error("缺少搜客任务 runId");
   const store = getStore();
-  await store.readBarrier();
+  // 进度接口是被前端每 4 秒轮询一次的：给它 1 秒窗口，避免每次轮询都重读 30 张表。
+  await store.readBarrier(1_000);
   const detail = getProspectRun(store, session, runId);
   const terminalStatuses = new Set(["succeeded", "succeeded_empty", "partial_success", "failed", "cancelled"]);
   const settledStatuses = new Set(["succeeded", "succeeded_empty", "partial_success", "failed", "cancelled"]);
@@ -4125,7 +4129,8 @@ export async function getAgentProspectSearchProgress(actor: { id: string }, inpu
 async function listAgentProspectCandidates(actor: { id: string }, input: Record<string, unknown>) {
   const { session } = agentSessionUser(actor);
   const store = getStore();
-  await store.readBarrier();
+  // 与进度接口同源，同样按轮询处理
+  await store.readBarrier(1_000);
   const runId = agentInputText(input, "runId");
   let candidateIds: string[] = [];
   if (runId) {
@@ -6614,10 +6619,10 @@ async function tickPruneResourceEvents(reason: string) {
   }
 }
 
-/** 关闭方式：RESOURCE_EVENT_PRUNE=false；间隔：RESOURCE_EVENT_PRUNE_MS（默认 24h，下限 1h）。 */
+/** 默认关闭（资源中心在 ECORECRM 已隐藏）；需要清理时显式设 RESOURCE_EVENT_PRUNE=true。 */
 function startResourceEventPruneScheduler() {
-  if (process.env.RESOURCE_EVENT_PRUNE === "false") {
-    console.log("GoodJob CRM resource event prune scheduler disabled (RESOURCE_EVENT_PRUNE=false)");
+  if (process.env.RESOURCE_EVENT_PRUNE !== "true") {
+    console.log("GoodJob CRM resource event prune scheduler disabled (RESOURCE_EVENT_PRUNE!=true)");
     return;
   }
   const intervalMs = Math.max(

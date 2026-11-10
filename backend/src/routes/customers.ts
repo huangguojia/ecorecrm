@@ -440,9 +440,10 @@ const supplierInputSchema = z.object({
   paymentTerm: z.string().trim().max(200).optional(),
   leadTimeDays: z.number().int().min(0).max(3650).optional(),
   grade: z.enum(["A", "B", "C", "D"]).optional(),
-  status: z.enum(["active", "evaluating", "paused"]).optional(),
+  status: z.enum(["open", "won", "public"]).optional(),
   source: z.string().trim().max(120).optional(),
-  remark: z.string().max(2000).optional()
+  remark: z.string().max(2000).optional(),
+  protectedUntil: z.string().trim().max(40).optional()
 });
 
 function findDuplicateCustomer(store: ReturnType<typeof getStore>, teamId: string, company: string, country: string, excludeId = "") {
@@ -508,8 +509,42 @@ function sendDuplicateCustomer(
   });
 }
 
+/** 未成交客户保护期（天）：到期仍未成交 → 自动进客户公海 */
+const CUSTOMER_PROTECTION_DAYS = 14;
+let lastCustomerReleaseAt = 0;
+
+/**
+ * 惰性释放：把超过保护期仍未成交的客户放回公海。
+ * 改内存里的归属字段再 persist，和 claim/release 走同一条持久化路径；
+ * 直接写 SQL 会被下一次全表写回覆盖，所以不这么做。
+ */
+async function releaseExpiredCustomers() {
+  if (Date.now() - lastCustomerReleaseAt < 5 * 60_000) return 0;
+  lastCustomerReleaseAt = Date.now();
+  const store = getStore();
+  const now = Date.now();
+  let released = 0;
+  for (const customer of store.customers) {
+    if (customer.lifecycleStatus !== "open" || customer.poolStatus === "public") continue;
+    const until = customer.protectedUntil ? new Date(customer.protectedUntil).getTime() : 0;
+    if (!until || until > now) continue;
+    customer.previousOwnerId = customer.ownerId;
+    customer.ownerId = "";
+    customer.poolStatus = "public";
+    customer.releasedBy = "system";
+    customer.releasedAt = new Date(now).toISOString();
+    customer.releaseReason = `超过 ${CUSTOMER_PROTECTION_DAYS} 天保护期未成交，自动进入客户公海`;
+    customer.claimedAt = "";
+    customer.ownershipVersion = (customer.ownershipVersion || 0) + 1;
+    released += 1;
+  }
+  if (released) await store.persist();
+  return released;
+}
+
 export function registerCustomersRoutes(app: Express) {
-  app.get("/api/customers", requireAuth, (req, res) => {
+  app.get("/api/customers", requireAuth, asyncRoute(async (req, res) => {
+    await releaseExpiredCustomers();
     const parsedScope = z.enum(["mine", "public", "team"]).safeParse(req.query.scope || "mine");
     if (!parsedScope.success) {
       res.status(400).json({ message: "客户范围参数无效" });
@@ -522,7 +557,58 @@ export function registerCustomersRoutes(app: Express) {
       customers: scoped.map((customer) => customerWithPipeline(customer, req.user!)),
       ...customerPoolCounts(req.user!)
     });
-  });
+  }));
+
+  /**
+   * 查重：客户与供应商分开查（对同一家公司，买他 vs 卖他是两回事）。
+   * 只返回「可跟进 / 已合作」两种状态，不列公海归属细节，避免被当成客户清单用。
+   */
+  app.get("/api/dedupe", requireAuth, asyncRoute(async (req, res) => {
+    const query = z.object({
+      type: z.enum(["customer", "supplier"]),
+      q: z.string().trim().min(1).max(120)
+    }).parse(req.query);
+    const store = getStore();
+    const keyword = query.q.toLowerCase();
+    const hit = (values: Array<string | undefined>) =>
+      values.some((value) => String(value || "").toLowerCase().includes(keyword));
+    const ownerName = (ownerId: string) => store.users.find((user) => user.id === ownerId)?.name || "";
+
+    if (query.type === "customer") {
+      const matches = store.customers
+        .filter((customer) => customer.teamId === req.user!.teamId
+          && hit([customer.company, customer.companyFullName, customer.website, customer.email, customer.phone]))
+        .slice(0, 50)
+        .map((customer) => ({
+          id: customer.id,
+          type: "customer" as const,
+          company: customer.company,
+          country: customer.country,
+          ownerName: ownerName(customer.ownerId),
+          stage: customer.lifecycleStatus === "won" ? "已合作" : "可跟进",
+          inPool: customer.poolStatus === "public"
+        }));
+      res.json({ matches });
+      return;
+    }
+
+    const repository = getSupplierRepository();
+    if (!repository) { res.status(503).json({ message: "供应商库不可用" }); return; }
+    const suppliers = await repository.list(req.user!.teamId);
+    const matches = suppliers
+      .filter((supplier) => hit([supplier.company, supplier.companyFullName, supplier.website, supplier.email, supplier.phone]))
+      .slice(0, 50)
+      .map((supplier) => ({
+        id: supplier.id,
+        type: "supplier" as const,
+        company: supplier.company,
+        country: supplier.country,
+        ownerName: ownerName(supplier.ownerId),
+        stage: supplier.status === "won" ? "已合作" : "可跟进",
+        inPool: supplier.status === "public"
+      }));
+    res.json({ matches });
+  }));
 
   app.post("/api/customers", requireAuth, asyncRoute(async (req, res) => {
     const schema = z.object({
@@ -547,7 +633,8 @@ export function registerCustomersRoutes(app: Express) {
       website: z.string().optional().default(""),
       defaultPortDischarge: z.string().optional().default(""),
       defaultIncoterm: z.string().optional().default(""),
-      defaultPaymentTerm: z.string().optional().default("")
+      defaultPaymentTerm: z.string().optional().default(""),
+      protectedUntil: z.string().trim().max(40).optional().default("")
     });
     const body = schema.parse(req.body);
     const store = getStore();
@@ -568,6 +655,8 @@ export function registerCustomersRoutes(app: Express) {
       lifecycleStatus: "open" as const,
       createdAt: new Date().toISOString(),
       ...body,
+      // 未成交客户默认只保护 2 周，到期由 releaseExpiredCustomers 自动放回公海
+      protectedUntil: body.protectedUntil || new Date(Date.now() + CUSTOMER_PROTECTION_DAYS * 86_400_000).toISOString(),
       companyFullName,
       billingName: body.billingName || companyFullName
     };
@@ -844,7 +933,8 @@ export function registerCustomersRoutes(app: Express) {
       website: z.string().optional(),
       defaultPortDischarge: z.string().optional(),
       defaultIncoterm: z.string().optional(),
-      defaultPaymentTerm: z.string().optional()
+      defaultPaymentTerm: z.string().optional(),
+      protectedUntil: z.string().trim().max(40).optional()
     });
     const body = schema.parse(req.body);
     const store = getStore();
@@ -989,6 +1079,8 @@ export function registerCustomersRoutes(app: Express) {
   app.get("/api/suppliers", requireAuth, asyncRoute(async (req, res) => {
     const repository = getSupplierRepository();
     if (!repository) { res.status(503).json({ message: "供应商库不可用" }); return; }
+    // 先惰性释放超期未成交的供应商，再取团队全量
+    await repository.releaseExpired().catch(() => 0);
     // 供应商是团队资产：按 teamId 取全量，不再按 ownerId 二次过滤
     // （否则创建人离职/停用后，他录入的供应商会从列表里整批消失）。
     const suppliers = await repository.list(req.user!.teamId);

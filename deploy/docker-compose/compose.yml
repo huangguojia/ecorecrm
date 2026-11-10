@@ -11,8 +11,15 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
-      - --innodb-buffer-pool-size=384M
-      - --max-connections=100
+      # 1.8G 内存机型上 384M 池 + 100 连接会顶穿 768M 容器上限，触发 OOM 杀 mysqld。
+      # 实测 256M 池对 20MB 级数据库无性能影响，连接数 80 已足够。
+      - --innodb-buffer-pool-size=256M
+      - --max-connections=80
+      # 2026-11-08 实测：这三项在镜像默认值下白占约 175MB（performance_schema 约 127MB、
+      # log buffer 64M 默认、table_open_cache 4000 默认）。768M 上限机型必须压，否则池一大就顶穿。
+      - --innodb-log-buffer-size=16M
+      - --table-open-cache=512
+      - --performance-schema=OFF
       # 本项目要求关闭 binlog（MySQL 8.0 起默认开启）。后端与迁移启动时会校验 @@log_bin，
       # 生产环境未关闭会拒绝启动；不要删除这一行。
       - --disable-log-bin
@@ -91,6 +98,10 @@ services:
       CONTAINER_NETWORK_BIND: "true"
       TRUST_PROXY_HOPS: "1"
       PORT: "4188"
+      # V8 老生代默认按机器内存推算（1.8G 机型能放到 ~800MB），GC 迟迟不触发，
+      # RSS 会先撞上 640M 容器上限。显式封顶 + 收窄新生代：内存换一点 CPU，
+      # 换来的是堆不会再无上限地爬，避免被 Docker OOM kill。
+      NODE_OPTIONS: "--max-old-space-size=384 --max-semi-space-size=16"
       LIBREOFFICE_BIN: /usr/bin/soffice
       WHATSAPP_PLUGIN_INTERNAL_URL: http://communication:3100
       WHATSAPP_PLUGIN_PORT: "3100"

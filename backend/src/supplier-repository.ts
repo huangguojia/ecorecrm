@@ -16,11 +16,13 @@ import type { Pool } from "mysql2/promise";
 //   否则同一个工厂会被每个业务员各录一遍。
 // ---------------------------------------------------------------------------
 
-export type SupplierStatus = "active" | "evaluating" | "paused";
+export type SupplierStatus = "open" | "won" | "public";
 export type SupplierGrade = "A" | "B" | "C" | "D";
 
-export const SUPPLIER_STATUSES: SupplierStatus[] = ["active", "evaluating", "paused"];
+export const SUPPLIER_STATUSES: SupplierStatus[] = ["open", "won", "public"];
 export const SUPPLIER_GRADES: SupplierGrade[] = ["A", "B", "C", "D"];
+/** 未成交供应商保护期（天）：到期仍未成交 → 自动释放进供应商公池 */
+export const SUPPLIER_PROTECTION_DAYS = 21;
 
 export interface Supplier {
   id: string;
@@ -52,6 +54,8 @@ export interface Supplier {
   status: SupplierStatus;
   source: string;
   remark: string;
+  /** 未成交保护期到期时间（ISO）；到期且仍未成交 → 自动流入供应商公池 */
+  protectedUntil: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -74,6 +78,7 @@ export interface SupplierInput {
   status?: SupplierStatus;
   source?: string;
   remark?: string;
+  protectedUntil?: string;
 }
 
 function text(value: unknown, max: number) {
@@ -85,9 +90,13 @@ export function normalizeSupplierGrade(value: unknown): SupplierGrade {
   return (SUPPLIER_GRADES as string[]).includes(grade) ? grade as SupplierGrade : "C";
 }
 
+/** 三态：未成交 / 已成交 / 公池。旧值（active/evaluating/paused）按语义映射过来，老数据不用手工改。 */
 export function normalizeSupplierStatus(value: unknown): SupplierStatus {
   const status = String(value ?? "").trim().toLowerCase();
-  return (SUPPLIER_STATUSES as string[]).includes(status) ? status as SupplierStatus : "active";
+  if (status === "won" || status === "active") return "won";
+  if (status === "public" || status === "paused") return "public";
+  if (status === "open" || status === "evaluating") return "open";
+  return "open";
 }
 
 /** 交货周期：负数/NaN 一律归 0（0 = 未登记），上限 3650 天挡住手滑多打几位 */
@@ -169,9 +178,10 @@ export function normalizeSupplierInput(input: SupplierInput, existing?: Supplier
     paymentTerm: existing?.paymentTerm || "",
     leadTimeDays: existing?.leadTimeDays ?? 0,
     grade: existing?.grade || "C",
-    status: existing?.status || "active",
+    status: existing?.status || "open",
     source: existing?.source || "",
-    remark: existing?.remark || ""
+    remark: existing?.remark || "",
+    protectedUntil: existing?.protectedUntil || ""
   };
   const company = input.company !== undefined ? text(input.company, 200) : base.company;
   const companyFullName = input.companyFullName !== undefined
@@ -196,7 +206,8 @@ export function normalizeSupplierInput(input: SupplierInput, existing?: Supplier
     grade: input.grade !== undefined ? normalizeSupplierGrade(input.grade) : base.grade,
     status: input.status !== undefined ? normalizeSupplierStatus(input.status) : base.status,
     source: input.source !== undefined ? text(input.source, 120) : base.source,
-    remark: input.remark !== undefined ? text(input.remark, 2000) : base.remark
+    remark: input.remark !== undefined ? text(input.remark, 2000) : base.remark,
+    protectedUntil: input.protectedUntil !== undefined ? text(input.protectedUntil, 40) : base.protectedUntil
   };
 }
 
@@ -228,6 +239,7 @@ export function supplierFromRow(row: Record<string, unknown>): Supplier {
     status: normalizeSupplierStatus(row.status),
     source: String(row.source ?? ""),
     remark: String(row.remark ?? ""),
+    protectedUntil: iso(row.protected_until),
     createdAt: iso(row.created_at),
     updatedAt: iso(row.updated_at)
   };
@@ -257,9 +269,10 @@ export async function ensureSupplierSchema(pool: Pool) {
     payment_term VARCHAR(200) NOT NULL DEFAULT '',
     lead_time_days INT NOT NULL DEFAULT 0,
     grade VARCHAR(2) NOT NULL DEFAULT 'C',
-    status VARCHAR(20) NOT NULL DEFAULT 'active',
+    status VARCHAR(20) NOT NULL DEFAULT 'open',
     source VARCHAR(120) NOT NULL DEFAULT '',
     remark TEXT,
+    protected_until DATETIME(3) NULL,
     created_at DATETIME(3) NOT NULL,
     updated_at DATETIME(3) NOT NULL,
     UNIQUE KEY uk_suppliers_code(team_id, supplier_code),
@@ -272,6 +285,9 @@ export async function ensureSupplierSchema(pool: Pool) {
   if (!(await schemaHasColumn(pool, "suppliers", "supplier_code"))) {
     await pool.query(`ALTER TABLE suppliers ADD COLUMN supplier_code VARCHAR(40) NOT NULL DEFAULT '' AFTER team_id`);
   }
+  if (!(await schemaHasColumn(pool, "suppliers", "protected_until"))) {
+    await pool.query(`ALTER TABLE suppliers ADD COLUMN protected_until DATETIME(3) NULL AFTER remark`);
+  }
   await backfillSupplierCodes(pool);
   if (!(await schemaHasIndex(pool, "suppliers", "uk_suppliers_code"))) {
     try {
@@ -281,6 +297,22 @@ export async function ensureSupplierSchema(pool: Pool) {
       console.warn("[suppliers] 供应商编码唯一索引创建失败：", (error as Error).message);
     }
   }
+}
+
+let lastSupplierReleaseAt = 0;
+
+/**
+ * 把超过保护期仍未成交的供应商释放进公池（owner 置空、状态置 public）。
+ * 惰性执行：列表接口先调一次，5 分钟节流 —— 比再加一个定时器简单，也不会重复扫。
+ */
+export async function releaseExpiredSuppliers(pool: Pool) {
+  if (Date.now() - lastSupplierReleaseAt < 5 * 60_000) return 0;
+  lastSupplierReleaseAt = Date.now();
+  const [result] = await pool.query(
+    `UPDATE suppliers SET status = 'public', owner_id = '', updated_at = NOW(3)
+      WHERE status = 'open' AND protected_until IS NOT NULL AND protected_until <= NOW(3)`
+  );
+  return Number((result as { affectedRows?: number }).affectedRows || 0);
 }
 
 async function schemaHasColumn(pool: Pool, table: string, column: string) {
@@ -344,10 +376,15 @@ async function backfillSupplierCodes(pool: Pool) {
 }
 
 const COLUMNS = `id, owner_id, team_id, supplier_code, company, company_full_name, country, category, contact, phone, email,
-  wechat, website, address, payment_term, lead_time_days, grade, status, source, remark, created_at, updated_at`;
+  wechat, website, address, payment_term, lead_time_days, grade, status, source, remark, protected_until, created_at, updated_at`;
 
 class MysqlSupplierRepository {
   constructor(private readonly pool: Pool) {}
+
+  /** 惰性释放：列表前先把超保护期仍未成交的供应商推进公池（5 分钟节流） */
+  async releaseExpired() {
+    return releaseExpiredSuppliers(this.pool);
+  }
 
   async list(teamId: string, ownerIds?: string[]): Promise<Supplier[]> {
     // ownerIds 为 undefined 表示不限（团队全量）；空数组时返回空，调用方据此短路
@@ -405,12 +442,14 @@ class MysqlSupplierRepository {
 
   private insertRow(record: Supplier, now: Date) {
     return this.pool.execute(
-      `INSERT INTO suppliers (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO suppliers (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         record.id, record.ownerId, record.teamId, record.code, record.company, record.companyFullName,
         record.country, record.category, record.contact, record.phone, record.email, record.wechat,
         record.website, record.address, record.paymentTerm, record.leadTimeDays, record.grade,
-        record.status, record.source, record.remark, now, now
+        record.status, record.source, record.remark,
+        record.protectedUntil ? new Date(record.protectedUntil) : null,
+        now, now
       ]
     );
   }
@@ -418,12 +457,15 @@ class MysqlSupplierRepository {
   async create(ownerId: string, teamId: string, input: SupplierInput): Promise<Supplier> {
     const now = new Date();
     const normalized = normalizeSupplierInput(input);
+    // 未成交供应商默认只保护 3 周：到期仍未成交，由定时任务释放进供应商公池
+    const defaultProtectedUntil = new Date(now.getTime() + SUPPLIER_PROTECTION_DAYS * 86_400_000).toISOString();
     const build = (code: string): Supplier => ({
       id: `sup_${randomUUID()}`,
       ownerId,
       teamId,
       ...normalized,
       code,
+      protectedUntil: normalized.protectedUntil || defaultProtectedUntil,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString()
     });
@@ -451,12 +493,14 @@ class MysqlSupplierRepository {
     await this.pool.execute(
       `UPDATE suppliers SET supplier_code = ?, company = ?, company_full_name = ?, country = ?, category = ?, contact = ?, phone = ?,
         email = ?, wechat = ?, website = ?, address = ?, payment_term = ?, lead_time_days = ?, grade = ?,
-        status = ?, source = ?, remark = ?, updated_at = ?
+        status = ?, source = ?, remark = ?, protected_until = ?, updated_at = ?
        WHERE team_id = ? AND id = ?`,
       [
         next.code, next.company, next.companyFullName, next.country, next.category, next.contact, next.phone,
         next.email, next.wechat, next.website, next.address, next.paymentTerm, next.leadTimeDays,
-        next.grade, next.status, next.source, next.remark, new Date(), teamId, id
+        next.grade, next.status, next.source, next.remark,
+        next.protectedUntil ? new Date(next.protectedUntil) : null,
+        new Date(), teamId, id
       ]
     );
     return next;

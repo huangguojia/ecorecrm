@@ -23628,6 +23628,10 @@ body.platform-mode .workspace-tabs { display:none !important; }
             <svg viewBox="0 0 24 24"><path d="M8 4h9a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="M9 8h7M9 12h7M9 16h4"/><path d="M6 8H4m2 4H4m2 4H4"/></svg>
             <span class="nav-text"><b>PO</b><i>采购订单</i></span>
           </button>
+          <button data-view="dedupe" title="客户 / 供应商查重">
+            <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.4 15.4 21 21"/><path d="M8 10.5h5"/></svg>
+            <span class="nav-text"><b>Dedupe</b><i>查重</i></span>
+          </button>
         </div>
 
         <details class="nav-section" aria-label="客户管理" open>
@@ -23651,9 +23655,9 @@ body.platform-mode .workspace-tabs { display:none !important; }
           </summary>
           <div class="nav-secondary-grid">
             <button class="nav-secondary-button" data-view="suppliers" data-supplier-status="all" title="全部供应商"><span>全部供应商</span></button>
-            <button class="nav-secondary-button" data-view="suppliers" data-supplier-status="active" title="合作中"><span>合作中</span></button>
-            <button class="nav-secondary-button" data-view="suppliers" data-supplier-status="evaluating" title="考察中"><span>考察中</span></button>
-            <button class="nav-secondary-button" data-view="suppliers" data-supplier-status="paused" title="已停用"><span>已停用</span></button>
+            <button class="nav-secondary-button" data-view="suppliers" data-supplier-status="open" title="未成交供应商"><span>未成交供应商</span></button>
+            <button class="nav-secondary-button" data-view="suppliers" data-supplier-status="won" title="已成交供应商"><span>已成交供应商</span></button>
+            <button class="nav-secondary-button" data-view="suppliers" data-supplier-status="public" title="供应商公池"><span>供应商公池</span></button>
           </div>
         </details>
 
@@ -24468,7 +24472,7 @@ body.platform-mode .workspace-tabs { display:none !important; }
           <div class="page-head">
             <div><h1 id="customerPageTitle">未成交客户</h1></div>
             <div class="customer-head-actions">
-              <button class="btn" id="customerImportButton" type="button" data-permission="customer.create">导入</button>
+              <button class="btn" id="customerImportButton" type="button" data-permission="customer.create">快速新增</button>
               <button class="btn" id="customerExportButton" type="button" data-permission="customer.export">导出</button>
               <select id="customerViewModeSelect" class="customer-view-select" aria-label="客户视图切换">
                 <option value="list">列表</option>
@@ -25230,7 +25234,7 @@ body.platform-mode .workspace-tabs { display:none !important; }
             <div class="customer-workspace">
               <div class="customer-filter-row customer-view-filter">
                 <input id="supplierSearchInput" type="search" placeholder="搜索供应商、品类、国家、联系人或备注" aria-label="搜索供应商" />
-                <select id="supplierStatusFilter" aria-label="按合作状态筛选"><option value="all">全部状态</option><option value="active">合作中</option><option value="evaluating">考察中</option><option value="paused">已停用</option></select>
+                <select id="supplierStatusFilter" aria-label="按供应商状态筛选"><option value="all">全部状态</option><option value="open">未成交供应商</option><option value="won">已成交供应商</option><option value="public">供应商公池</option></select>
                 <button class="btn" id="supplierFilterReset" type="button">重置</button>
               </div>
 
@@ -25355,6 +25359,30 @@ body.platform-mode .workspace-tabs { display:none !important; }
 
 
 
+
+        <div class="view" id="dedupe">
+          <div class="page-head">
+            <div>
+              <h1>查重</h1>
+              <p class="page-sub">同一家公司在「买」和「卖」两个方向分开查：要卖给他，查客户库；要找他采购，查供应商库。</p>
+            </div>
+          </div>
+          <div class="panel section dedupe-panel">
+            <div class="dedupe-toolbar">
+              <div class="dedupe-tabs" role="tablist">
+                <button class="dedupe-tab active" data-dedupe-type="customer" type="button" role="tab">客户查重</button>
+                <button class="dedupe-tab" data-dedupe-type="supplier" type="button" role="tab">供应商查重</button>
+              </div>
+              <div class="dedupe-search">
+                <input id="dedupeQuery" maxlength="120" placeholder="输入公司名 / 官网 / 邮箱 / 电话">
+                <button class="btn primary" id="dedupeRunButton" type="button">查询</button>
+              </div>
+            </div>
+            <div id="dedupeResults" class="dedupe-results">
+              <p class="dedupe-empty">输入关键词后查询。结果只显示「可跟进」与「已合作」两种状态。</p>
+            </div>
+          </div>
+        </div>
 
         <div class="view" id="profile">
           <div class="page-head">
@@ -26761,6 +26789,7 @@ body.platform-mode .workspace-tabs { display:none !important; }
       "integration-center": "集成中心",
       "prospect-list": "搜客清单",
       customers: "客户",
+      dedupe: "查重",
       whatsapp: "即刻沟通",
       reminders: "跟进提醒",
       "plan-growth": "计划任务",
@@ -29021,7 +29050,8 @@ h1, h2, h3, h4, strong, b { color: inherit; }
 .ec-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .ec-kpi {
   position: relative;
-  padding: 16px 18px 14px;
+  padding: 20px 20px 18px;
+  min-height: 212px;
   border: 1px solid #242424;
   border-radius: 12px;
   background: #111111;
@@ -29048,19 +29078,19 @@ h1, h2, h3, h4, strong, b { color: inherit; }
 .ec-kpi-icon { width: 15px; height: 15px; flex: none; fill: none; stroke: #8a8a90; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .ec-kpi strong {
   display: block;
-  margin: 16px 0 6px;
+  margin: 20px 0 8px;
   color: #fafafa;
-  font-size: 29px;
+  font-size: 34px;
   font-weight: 600;
   line-height: 1;
   letter-spacing: -.015em;
   font-variant-numeric: tabular-nums;
 }
 .ec-kpi p { margin: 0; color: #6b6b72; font-size: 10.5px; }
-.ec-spark { display: block; width: 100%; height: 42px; margin-top: 12px; }
+.ec-spark { display: block; width: 100%; height: 56px; margin-top: 14px; }
 .ec-spark-line { fill: none; stroke: var(--green, #4ade80); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; opacity: .9; }
 .ec-spark-area { fill: rgba(74, 222, 128, .08); stroke: none; }
-.ec-bars { display: flex; align-items: flex-end; gap: 5px; height: 42px; margin-top: 12px; }
+.ec-bars { display: flex; align-items: flex-end; gap: 5px; height: 56px; margin-top: 14px; }
 .ec-bars i { flex: 1; min-width: 2px; background: linear-gradient(180deg, #4a4a50, #262629); border-radius: 2px 2px 0 0; }
 
 /* 面板 */
@@ -29536,6 +29566,27 @@ hr, .divider { border-color: var(--line) !important; }
 .customer-map-credit { color: rgba(255, 255, 255, .55) !important; }
 .customer-map-credit a:hover { color: #97cede !important; }
 
+/* 备注插图：客户/供应商备注里插入的图片，表单与详情共用 */
+.note-image-tools { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.note-image-tools .form-hint { margin: 0; }
+.note-inline-image { display: block; max-width: 280px; max-height: 200px; margin: 6px 0; border-radius: 8px; border: 1px solid var(--line-soft); object-fit: contain; }
+
+/* 查重页：客户 / 供应商两个方向分开查 */
+.dedupe-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.dedupe-tabs { display: inline-flex; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; }
+.dedupe-tab { padding: 7px 14px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-size: 12.5px; cursor: pointer; }
+.dedupe-tab.active { background: rgba(255, 255, 255, .08); color: var(--text); }
+.dedupe-search { display: flex; gap: 8px; flex: 0 1 420px; min-width: 240px; margin-left: auto; }
+.dedupe-search input { flex: 1; min-width: 0; }
+.dedupe-results { display: grid; gap: 8px; }
+.dedupe-empty { margin: 8px 0; color: var(--muted); font-size: 12.5px; }
+.dedupe-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 12px 14px; border: 1px solid var(--line-soft); border-radius: 10px; }
+.dedupe-row b { display: block; font-size: 13.5px; }
+.dedupe-row small { color: var(--muted); font-size: 11.5px; }
+.dedupe-stage { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; }
+.dedupe-stage.is-open { background: rgba(240, 180, 92, .14); color: #f0b45c; }
+.dedupe-stage.is-won { background: rgba(74, 222, 128, .14); color: #4ade80; }
+
 /* ⑫ 权限总览：把「成员 × 模块」的授权范围画成热力图。
        原来权限页只有表格和下拉框，管理员得逐行读才知道谁拿到了多宽的数据。 */
 .ac-admin-state {
@@ -29549,7 +29600,7 @@ hr, .divider { border-color: var(--line) !important; }
 .ac-viz { display:grid; gap:0; min-width:0; }
 /* 权限总览的指标条单独一套类名：不走被设计规范废弃的 .ac-metrics，避免把旧的顶部统计条带回来 */
 .ac-viz-kpis {
-  display:grid; grid-template-columns:repeat(5,minmax(0,1fr));
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
   border:1px solid var(--line); border-radius:8px; background:var(--surface); overflow:hidden;
 }
 .ac-viz-kpi { min-width:0; padding:16px 18px; border-right:1px solid var(--line-soft); }

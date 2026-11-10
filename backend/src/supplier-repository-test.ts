@@ -44,7 +44,7 @@ function existing(): Supplier {
     paymentTerm: "T/T 30% deposit",
     leadTimeDays: 30,
     grade: "B",
-    status: "active",
+    status: "won",
     source: "展会",
     remark: "合作 3 年",
     createdAt: "2026-10-01T00:00:00.000Z",
@@ -57,7 +57,7 @@ const created = normalizeSupplierInput({ company: "  Acme Sensors  " });
 ok(created.company === "Acme Sensors", "公司名要做 trim，不能把首尾空格存进库");
 ok(created.companyFullName === "Acme Sensors", "全名留空时必须回落简称（单据抬头不能为空）");
 ok(created.grade === "C", "未指定分级默认 C，与客户口径一致");
-ok(created.status === "active", "未指定状态默认 active");
+ok(created.status === "open", "未指定状态默认「未成交供应商」");
 ok(created.leadTimeDays === 0, "未登记交期应为 0，而不是 NaN");
 ok(created.country === "" && created.contact === "", "缺省文本字段应为空串，不能是 undefined");
 
@@ -66,7 +66,7 @@ const patched = normalizeSupplierInput({ phone: "  +49 40 123  " }, existing());
 ok(patched.phone === "+49 40 123", "提交的字段要 trim 后写入");
 ok(patched.company === "Acme Sensors", "未提交的 company 不能被清空");
 ok(patched.companyFullName === "Acme Sensors GmbH", "未提交的全名要保留原值");
-ok(patched.leadTimeDays === 30 && patched.grade === "B" && patched.status === "active",
+ok(patched.leadTimeDays === 30 && patched.grade === "B" && patched.status === "won",
   "未提交的交期/分级/状态要保留原值");
 
 // —— 显式清空全名 = 回落简称，不是留空 ——
@@ -77,8 +77,11 @@ ok(cleared.companyFullName === "Acme Sensors", "主动清空全名时回落简�
 ok(normalizeSupplierGrade("a") === "A", "小写分级要能识别");
 ok(normalizeSupplierGrade("X") === "C", "非法分级回落 C，不能把脏值写库");
 ok(normalizeSupplierGrade(undefined) === "C", "缺省分级回落 C");
-ok(normalizeSupplierStatus("EVALUATING") === "evaluating", "状态大小写不敏感");
-ok(normalizeSupplierStatus("deleted") === "active", "非法状态回落 active");
+// 旧库里的 active/evaluating/paused 要按语义映射到新三态，老数据不用手工迁移。
+ok(normalizeSupplierStatus("EVALUATING") === "open", "旧值 evaluating 映射为未成交");
+ok(normalizeSupplierStatus("ACTIVE") === "won", "旧值 active 映射为已成交");
+ok(normalizeSupplierStatus("paused") === "public", "旧值 paused 映射为供应商公池");
+ok(normalizeSupplierStatus("deleted") === "open", "非法状态回落未成交");
 
 // —— 交期兜底 ——
 ok(normalizeLeadTimeDays(-5) === 0, "负数交期归 0");
@@ -105,7 +108,7 @@ const row = supplierFromRow({
   payment_term: "T/T 100%",
   lead_time_days: 21,
   grade: "A",
-  status: "paused",
+  status: "public",
   source: "官网",
   remark: "",
   created_at: new Date("2026-10-03T00:00:00.000Z"),
@@ -113,12 +116,12 @@ const row = supplierFromRow({
 });
 ok(row.ownerId === "u_9" && row.teamId === "team_9", "归属字段要映射到 ownerId/teamId");
 ok(row.companyFullName === "Nordic Scale AB" && row.paymentTerm === "T/T 100%", "snake_case 列名要正确映射");
-ok(row.leadTimeDays === 21 && row.grade === "A" && row.status === "paused", "数值/枚举列要正确还原");
+ok(row.leadTimeDays === 21 && row.grade === "A" && row.status === "public", "数值/枚举列要正确还原");
 ok(row.createdAt === "2026-10-03T00:00:00.000Z", "DATETIME 要转成 ISO 字符串给前端");
 
 // —— 缺列 / 脏行不能抛错 ——
 const sparse = supplierFromRow({});
-ok(sparse.id === "" && sparse.company === "" && sparse.grade === "C" && sparse.status === "active",
+ok(sparse.id === "" && sparse.company === "" && sparse.grade === "C" && sparse.status === "open",
   "空行要回落安全默认值而不是抛错");
 
 // —— 重复判定：大小写 / 空格 / 国家 ——

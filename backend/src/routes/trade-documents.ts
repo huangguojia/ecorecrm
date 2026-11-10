@@ -833,7 +833,7 @@ const tradeDocumentImportsDir = path.join(uploadsDir, ".trade-document-imports")
 const documentAssetUploadSchema = z.object({
   image: z.string().min(1),
   mime: z.enum(["image/png", "image/jpeg"]),
-  kind: z.enum(["letterhead-logo", "stamp", "signature", "product"])
+  kind: z.enum(["letterhead-logo", "stamp", "signature", "product", "note-image"])
 });
 
 function decodeVerifiedDocumentImage(image: string, declaredMime: "image/png" | "image/jpeg") {

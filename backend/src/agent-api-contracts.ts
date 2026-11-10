@@ -93,9 +93,10 @@ const supplierFields: Record<string, JsonSchema> = {
   paymentTerm: string({ default: "", maxLength: 200 }),
   leadTimeDays: integer({ minimum: 0, maximum: 3650, default: 0 }),
   grade: oneOf("A", "B", "C", "D"),
-  status: oneOf("active", "evaluating", "paused"),
+  status: oneOf("open", "won", "public"),
   source: string({ default: "手动新增", maxLength: 120 }),
-  remark: string({ default: "", maxLength: 2000 })
+  remark: string({ default: "", maxLength: 2000 }),
+  protectedUntil: string({ default: "", maxLength: 40 })
 };
 
 const leadFields: Record<string, JsonSchema> = {
@@ -216,6 +217,7 @@ const registry: Record<string, AgentApiBusinessContract> = {};
 const define = (key: string, schema: JsonSchema, guidance: string) => { registry[key] = { schema, guidance }; };
 const defineMany = (keys: string[], schema: JsonSchema, guidance: string) => keys.forEach((key) => define(key, schema, guidance));
 
+define("GET /api/dedupe", emptySchema, "客户 / 供应商查重：query 传 type=customer|supplier 与 q=公司名或域名等关键词，只返回当前团队内命中项的「可跟进 / 已合作」状态与归属人，不写入任何数据。");
 define("POST /api/customers", objectSchema(["company"], customerFields), "创建客户。用户允许补齐时只能使用明确的待维护默认值，不得编造真实联系方式；响应 customer.id 是完成证据。");
 define("PATCH /api/customers/{id}", objectSchema([], customerFields), "更新当前账号有写权限的客户；只提交用户要求修改的字段。");
 define("POST /api/customers/{id}/release", objectSchema(["reason"], { reason: string({ minLength: 2, maxLength: 500 }), expectedVersion: integer({ minimum: 0 }) }), "释放客户到公池；必须说明原因并再次确认。");

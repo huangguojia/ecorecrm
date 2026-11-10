@@ -269,6 +269,8 @@ interface Customer {
   phone?: string;
   email?: string;
   website?: string;
+  /** 未成交保护期到期时间（ISO），超过后自动进客户公海 */
+  protectedUntil?: string;
   defaultPortDischarge?: string;
   defaultIncoterm?: string;
   defaultPaymentTerm?: string;
@@ -2632,14 +2634,14 @@ interface Peer {
 }
 
 /** 供应商：与后端 supplier-repository.ts 的 Supplier 一一对应 */
-type SupplierStatus = "active" | "evaluating" | "paused";
+type SupplierStatus = "open" | "won" | "public";
 type SupplierGrade = "A" | "B" | "C" | "D";
 
 interface Supplier {
   id: string;
   ownerId: string;
   teamId: string;
-  /** 团队内唯一的供应商编码（SUP-0001 形式，可人工改写） */
+  /** 团队内唯一的内部编号（SUP-0001 形式）：后端自动生成，界面不展示、不可编辑 */
   code: string;
   company: string;
   companyFullName: string;
@@ -2657,14 +2659,16 @@ interface Supplier {
   status: SupplierStatus;
   source: string;
   remark: string;
+  /** 未成交保护期到期时间（ISO），到期后自动进供应商公池 */
+  protectedUntil: string;
   createdAt: string;
   updatedAt: string;
 }
 
 const SUPPLIER_STATUS_META: Record<SupplierStatus, { label: string; tone: string }> = {
-  active: { label: "合作中", tone: "green" },
-  evaluating: { label: "考察中", tone: "amber" },
-  paused: { label: "已停用", tone: "gray" }
+  open: { label: "未成交供应商", tone: "amber" },
+  won: { label: "已成交供应商", tone: "green" },
+  public: { label: "供应商公池", tone: "gray" }
 };
 
 const SUPPLIER_GRADE_LABEL: Record<SupplierGrade, string> = {
@@ -2674,7 +2678,7 @@ const SUPPLIER_GRADE_LABEL: Record<SupplierGrade, string> = {
   D: "D · 备选"
 };
 
-const SUPPLIER_STATUS_VALUES: SupplierStatus[] = ["active", "evaluating", "paused"];
+const SUPPLIER_STATUS_VALUES: SupplierStatus[] = ["open", "won", "public"];
 const SUPPLIER_PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 interface CaseStudy {
@@ -3403,6 +3407,8 @@ interface AppState {
   suppliersLoaded: boolean;
   supplierSearch: string;
   supplierStatusFilter: "all" | SupplierStatus;
+  /** 查重页当前查的是客户还是供应商 */
+  dedupeType: "customer" | "supplier";
   supplierPage: number;
   supplierPageSize: number;
   selectedSupplierId: string | null;
@@ -3630,6 +3636,7 @@ const state: AppState = {
   suppliersLoaded: false,
   supplierSearch: "",
   supplierStatusFilter: "all",
+  dedupeType: "customer",
   supplierPage: 1,
   supplierPageSize: 20,
   selectedSupplierId: null,
@@ -3785,6 +3792,7 @@ const viewLabels: Record<string, string> = {
   dashboard: "工作台",
   customers: "客户",
   suppliers: "供应商",
+  dedupe: "查重",
   "customer-pool": "客户公池",
   "customer-detail": "客户全景",
   orders: "订单",
@@ -9445,7 +9453,7 @@ function renderCustomerDetailPage(customer?: Customer) {
             </dl>
             <div class="cp-note">
               <span>其它说明</span>
-              <p>${escapeHtml(current.otherNotes || "暂无补充说明")}</p>
+              <p>${current.otherNotes ? renderNoteHtml(current.otherNotes) : "暂无补充说明"}</p>
             </div>
           </div>
         </div>
@@ -9958,6 +9966,7 @@ function renderCustomerDrawer(customer?: Customer) {
       <div class="info"><span>预计金额</span><b>${money(customer.amount)}</b></div>
       <div class="info"><span>最近跟进</span><b>${customer.lastActivityAt ? escapeHtml(formatDateTime(customer.lastActivityAt)) : "暂无跟进"}</b></div>
       <div class="info"><span>下一提醒</span><b>${escapeHtml(customer.nextReminder)}</b></div>
+      <div class="info"><span>保护期</span><b>${customer.lifecycleStatus === "won" ? "已成交，不限" : (customer.protectedUntil ? `至 ${escapeHtml(formatDateTime(customer.protectedUntil))}` : "未设置")}</b></div>
     </div>
     <section class="customer-doc-info">
       <div class="customer-deals-head"><h3>联系方式</h3><button class="btn" data-edit-customer-drawer>维护信息</button></div>
@@ -9969,7 +9978,7 @@ function renderCustomerDrawer(customer?: Customer) {
         <div class="info"><span>微信</span><b>${escapeHtml(contacts.wechat || "未维护")}</b></div>
         <div class="info"><span>官网</span><b>${escapeHtml(customer.website || "未维护")}</b></div>
         <div class="info"><span>其它渠道</span><b>${escapeHtml(customer.contactRemark || "未维护")}</b></div>
-        <div class="info"><span>其它说明</span><b>${escapeHtml(customer.otherNotes || "未维护")}</b></div>
+        <div class="info"><span>其它说明</span><b>${customer.otherNotes ? renderNoteHtml(customer.otherNotes) : "未维护"}</b></div>
       </div>
     </section>
     <div class="inline-actions"><button class="${whatsAppEntryClass(contacts.whatsapp)}" data-customer-whatsapp-drawer ${whatsAppEntryAttrs(contacts.whatsapp)}>WhatsApp</button><button class="btn" data-add-follow>新增跟进记录</button><button class="btn" data-edit-customer-drawer>编辑客户</button><button class="btn" data-customer-release-drawer>放入公池</button></div>
@@ -11039,7 +11048,7 @@ async function loadSuppliers(force = false) {
 }
 
 function supplierStatusBadge(supplier: Supplier) {
-  const meta = SUPPLIER_STATUS_META[supplier.status] || SUPPLIER_STATUS_META.active;
+  const meta = SUPPLIER_STATUS_META[supplier.status] || SUPPLIER_STATUS_META.open;
   return badge(meta.label, meta.tone);
 }
 
@@ -11201,10 +11210,10 @@ function exportSuppliers(rows: Supplier[]) {
     toast("当前筛选下没有可导出的供应商", "error");
     return;
   }
-  const header = ["供应商编码", "供应商名称", "公司全名", "国家", "供应品类", "分级", "状态", "联系人", "邮箱", "电话", "微信", "官网", "交期(天)", "付款条款", "来源", "地址", "备注", "建档时间"];
+  const header = ["供应商名称", "公司全名", "国家", "供应品类", "分级", "状态", "联系人", "邮箱", "电话", "微信", "官网", "交期(天)", "付款条款", "来源", "地址", "备注", "建档时间"];
   const escapeCsv = (value: unknown) => `"${String(value ?? "").replace(/"/gu, '""')}"`;
   const lines = [header.map(escapeCsv).join(",")].concat(rows.map((item) => [
-    item.code, item.company, item.companyFullName, item.country, item.category, item.grade,
+    item.company, item.companyFullName, item.country, item.category, item.grade,
     SUPPLIER_STATUS_META[item.status]?.label || item.status, item.contact, item.email, item.phone,
     item.wechat, item.website, item.leadTimeDays, item.paymentTerm, item.source, item.address,
     item.remark, formatLeadDate(item.createdAt)
@@ -11235,7 +11244,7 @@ function renderSuppliers() {
 
   tbody.innerHTML = rows.length ? rows.map((supplier) => `<tr data-supplier-id="${escapeHtml(supplier.id)}" class="${supplier.id === state.selectedSupplierId ? "selected" : ""}">
     <td><input type="checkbox" class="supplier-row-check" data-supplier-check="${escapeHtml(supplier.id)}" aria-label="选择 ${escapeHtml(supplier.company)}"${state.selectedSupplierIds.includes(supplier.id) ? " checked" : ""} /></td>
-    <td><div class="company">${countryFlag(supplier.country)}<div><button type="button" class="customer-name" data-open-supplier="${escapeHtml(supplier.id)}" title="查看供应商详情">${escapeHtml(supplier.company)}</button><span>${supplier.code ? `<b class="sup-code">${escapeHtml(supplier.code)}</b> · ` : ""}${escapeHtml(supplier.country || "国家待补充")} · ${escapeHtml(supplier.contact || "联系人待补充")}</span></div></div></td>
+    <td><div class="company">${countryFlag(supplier.country)}<div><button type="button" class="customer-name" data-open-supplier="${escapeHtml(supplier.id)}" title="查看供应商详情">${escapeHtml(supplier.company)}</button><span>${escapeHtml(supplier.country || "国家待补充")} · ${escapeHtml(supplier.contact || "联系人待补充")}</span></div></div></td>
     <td><div class="sup-category-cell" title="${escapeHtml(supplier.category || "供应品类待补充")}">${escapeHtml(categoryText(supplier, 18) || "品类待补充")}</div></td>
     <td><div class="customer-value-cell">${supplierGradeChip(supplier)}${supplierStatusBadge(supplier)}</div></td>
     <td>${supplierContactCell(supplier)}</td>
@@ -11252,7 +11261,7 @@ function renderSuppliers() {
     <article class="customer-mobile-card" data-supplier-mobile-id="${escapeHtml(supplier.id)}">
       <span class="customer-mobile-top"><span class="customer-mobile-company">${countryFlag(supplier.country)}<button type="button" class="customer-name" data-open-supplier="${escapeHtml(supplier.id)}">${escapeHtml(supplier.company)}</button></span>${supplierStatusBadge(supplier)}</span>
       <span>${escapeHtml(supplier.country || "国家待补充")} · ${escapeHtml(supplier.contact || "联系人待补充")}</span>
-      <span class="customer-mobile-meta">${supplier.code ? `<i class="sup-code">${escapeHtml(supplier.code)}</i>` : ""}<i>${escapeHtml((supplier.grade || "C") + " 级 · " + SUPPLIER_GRADE_SHORT[(supplier.grade || "C") as SupplierGrade])}</i><i>${escapeHtml(categoryText(supplier, 20) || "品类待补充")}</i><i>${supplier.leadTimeDays ? `交期 ${supplier.leadTimeDays} 天` : "交期待登记"}</i></span>
+      <span class="customer-mobile-meta"><i>${escapeHtml((supplier.grade || "C") + " 级 · " + SUPPLIER_GRADE_SHORT[(supplier.grade || "C") as SupplierGrade])}</i><i>${escapeHtml(categoryText(supplier, 20) || "品类待补充")}</i><i>${supplier.leadTimeDays ? `交期 ${supplier.leadTimeDays} 天` : "交期待登记"}</i></span>
       ${supplierContactCell(supplier)}
       <div class="customer-row-actions"><button class="btn" type="button" data-supplier-action="view" data-supplier-row-id="${escapeHtml(supplier.id)}">详情</button><button class="btn" type="button" data-supplier-action="edit" data-supplier-row-id="${escapeHtml(supplier.id)}">编辑</button>${supplierCanDelete() ? `<button class="btn sup-action-delete" type="button" data-supplier-action="delete" data-supplier-row-id="${escapeHtml(supplier.id)}">删除</button>` : ""}</div>
     </article>`).join("") : `<div class="empty-cell">${state.suppliers.length ? "没有符合筛选条件的供应商。" : "暂无供应商。"}</div>`;
@@ -11548,7 +11557,6 @@ function renderSupplierDrawer(supplier?: Supplier) {
       <div class="inline-actions">${supplierStatusBadge(supplier)}<button class="btn icon-only" id="supplierDrawerClose" type="button" title="关闭" aria-label="关闭供应商详情">×</button></div>
     </div>
     <div class="info-grid">
-      <div class="info"><span>供应商编码</span><b class="sup-code sup-code-lg">${escapeHtml(supplier.code || "未编码")}</b></div>
       <div class="info"><span>公司全名</span><b>${escapeHtml(supplier.companyFullName || supplier.company)}</b></div>
       <div class="info"><span>联系人</span><b>${escapeHtml(supplier.contact || "待补充")}</b></div>
       <div class="info"><span>邮箱</span><b>${supplier.email ? `<a href="mailto:${escapeHtml(supplier.email)}">${escapeHtml(supplier.email)}</a>` : "待补充"}</b></div>
@@ -11559,6 +11567,7 @@ function renderSupplierDrawer(supplier?: Supplier) {
       <div class="info"><span>交货周期</span><b>${supplier.leadTimeDays ? `${supplier.leadTimeDays} 天` : "待登记"}</b></div>
       <div class="info"><span>来源</span><b>${escapeHtml(supplier.source || "未登记")}</b></div>
       <div class="info"><span>建档时间</span><b>${escapeHtml(formatLeadDate(supplier.createdAt))}</b></div>
+      <div class="info"><span>保护期</span><b>${supplier.status !== "open" ? "已成交 / 公池，不限" : (supplier.protectedUntil ? `至 ${escapeHtml(formatLeadDate(supplier.protectedUntil))}` : "未设置")}</b></div>
     </div>
     <div class="sup-drawer-block">
       <h3>地址</h3>
@@ -11566,7 +11575,7 @@ function renderSupplierDrawer(supplier?: Supplier) {
     </div>
     <div class="sup-drawer-block">
       <h3>备注</h3>
-      <p class="sup-drawer-text">${escapeHtml(supplier.remark || "暂无备注")}</p>
+      <p class="sup-drawer-text">${supplier.remark ? renderNoteHtml(supplier.remark) : "暂无备注"}</p>
     </div>
     <div class="sup-drawer-block sup-files-block">
       <div class="sup-files-head">
@@ -11605,17 +11614,81 @@ function closeSupplierDrawer() {
   }
 }
 
+/** 查重命中项：只区分「可跟进 / 已合作」两种，公池单独标注 */
+interface DedupeMatch {
+  id: string;
+  type: "customer" | "supplier";
+  company: string;
+  country: string;
+  ownerName: string;
+  stage: string;
+  inPool: boolean;
+}
+
+/** 渲染查重页的 tab 选中态与输入提示 */
+function renderDedupe() {
+  qsa<HTMLButtonElement>("[data-dedupe-type]").forEach((button) => {
+    button.classList.toggle("active", (button.dataset.dedupeType || "customer") === state.dedupeType);
+  });
+  const input = qs<HTMLInputElement>("#dedupeQuery");
+  if (input) {
+    input.placeholder = state.dedupeType === "supplier"
+      ? "输入供应商公司名 / 官网 / 邮箱 / 电话"
+      : "输入客户公司名 / 官网 / 邮箱 / 电话";
+  }
+}
+
+/** 执行查重：客户库与供应商库分开查，避免「买他」和「卖他」混在一起 */
+async function runDedupe() {
+  const results = qs<HTMLElement>("#dedupeResults");
+  if (!results) return;
+  const keyword = qs<HTMLInputElement>("#dedupeQuery")?.value.trim() || "";
+  if (!keyword) {
+    results.innerHTML = `<p class="dedupe-empty">请先输入公司名、官网、邮箱或电话。</p>`;
+    return;
+  }
+  const button = qs<HTMLButtonElement>("#dedupeRunButton");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "查询中";
+  }
+  try {
+    const type = state.dedupeType;
+    const data = await api<{ matches: DedupeMatch[] }>(`/api/dedupe?type=${type}&q=${encodeURIComponent(keyword)}`);
+    if (!data.matches.length) {
+      results.innerHTML = `<p class="dedupe-empty">没有命中记录，可以直接建档跟进。</p>`;
+      return;
+    }
+    results.innerHTML = data.matches.map((match) => {
+      const won = match.stage === "已合作";
+      const meta = [match.country || "国家未登记", match.ownerName ? `归属 ${match.ownerName}` : "无归属", match.inPool ? "公池" : ""]
+        .filter(Boolean)
+        .join(" · ");
+      return `<div class="dedupe-row">
+        <div><b>${escapeHtml(match.company)}</b><small>${escapeHtml(meta)}</small></div>
+        <span class="dedupe-stage ${won ? "is-won" : "is-open"}">${escapeHtml(match.stage)}</span>
+      </div>`;
+    }).join("");
+  } catch (error) {
+    results.innerHTML = `<p class="dedupe-empty">查询失败：${escapeHtml(error instanceof Error ? error.message : "请稍后再试")}</p>`;
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "查询";
+    }
+  }
+}
+
 function openSupplierModal(supplier?: Supplier) {
   const editing = Boolean(supplier);
   const gradeOptions = (Object.keys(SUPPLIER_GRADE_LABEL) as SupplierGrade[])
     .map((grade) => `<option value="${grade}" ${(supplier?.grade || "C") === grade ? "selected" : ""}>${SUPPLIER_GRADE_LABEL[grade]}</option>`)
     .join("");
   const statusOptions = SUPPLIER_STATUS_VALUES
-    .map((status) => `<option value="${status}" ${(supplier?.status || "active") === status ? "selected" : ""}>${SUPPLIER_STATUS_META[status].label}</option>`)
+    .map((status) => `<option value="${status}" ${(supplier?.status || "open") === status ? "selected" : ""}>${SUPPLIER_STATUS_META[status].label}</option>`)
     .join("");
   openModal(editing ? "编辑供应商" : "新增供应商", `
     <div class="form-grid">
-      <div class="form-field full"><label>供应商编码</label><input id="supplierCodeInput" maxlength="40" value="${escapeHtml(supplier?.code || "")}" placeholder="留空自动生成，例如 SUP-0001"><small class="form-hint">团队内唯一，只能使用字母、数字、点、下划线、连字符；留空保存时按顺序生成</small></div>
       <div class="form-field full"><label>供应商名称 *</label><input id="supplierCompanyInput" maxlength="200" value="${escapeHtml(supplier?.company || "")}" placeholder="例如：Acme Sensors GmbH"><small class="form-hint">列表与工作台使用这个短名称</small></div>
       <div class="form-field full"><label>公司全名（单据 / 资料）</label><input id="supplierCompanyFullNameInput" maxlength="200" value="${escapeHtml(supplier?.companyFullName || "")}" placeholder="留空则沿用上面的名称"><small class="form-hint">采购合同、报关资料优先使用此名称</small></div>
       <div class="form-field"><label>国家 / 地区</label><input id="supplierCountryInput" maxlength="80" value="${escapeHtml(supplier?.country || "")}" placeholder="例如：德国"></div>
@@ -11629,13 +11702,21 @@ function openSupplierModal(supplier?: Supplier) {
       <div class="form-field"><label>付款条款</label><input id="supplierPaymentTermInput" maxlength="200" value="${escapeHtml(supplier?.paymentTerm || "")}" placeholder="例如 T/T 30% deposit"></div>
       <div class="form-field"><label>交货周期（天）</label><input id="supplierLeadTimeInput" type="number" min="0" max="3650" step="1" value="${supplier?.leadTimeDays || 0}"></div>
       <div class="form-field"><label>供应分级</label><select id="supplierGradeInput">${gradeOptions}</select></div>
-      <div class="form-field"><label>合作状态</label><select id="supplierStatusInput">${statusOptions}</select></div>
+      <div class="form-field"><label>供应商状态</label><select id="supplierStatusInput">${statusOptions}</select></div>
       <div class="form-field"><label>来源</label><input id="supplierSourceInput" maxlength="120" value="${escapeHtml(supplier?.source || (editing ? "" : "手动新增"))}" placeholder="展会、官网、转介绍等"></div>
-      <div class="form-field full"><label>备注</label><textarea id="supplierRemarkInput" rows="3" maxlength="2000" placeholder="合作历史、质量表现、注意事项等">${escapeHtml(supplier?.remark || "")}</textarea></div>
+      <div class="form-field full">
+        <label>备注</label>
+        <textarea id="supplierRemarkInput" rows="3" maxlength="2000" placeholder="合作历史、质量表现、注意事项等，可插入图片">${escapeHtml(supplier?.remark || "")}</textarea>
+        <div class="note-image-tools">
+          <button class="btn" id="supplierNoteImageButton" type="button">插入图片</button>
+          <small class="form-hint">支持 PNG / JPEG，单张不超过 2 MB；未成交供应商只保护 3 周，到期自动进入供应商公池</small>
+        </div>
+      </div>
     </div>
   `, `<button class="btn" data-modal-close>取消</button><button class="btn primary" id="saveSupplierButton" data-editing-id="${escapeHtml(supplier?.id || "")}">${editing ? "保存修改" : "保存供应商"}</button>`, { closeOnBackdrop: false, modalClass: "supplier-editor-modal" });
   qsa("[data-modal-close]").forEach((node) => node.addEventListener("click", closeModal));
   qs("#saveSupplierButton")?.addEventListener("click", () => void saveSupplier());
+  qs("#supplierNoteImageButton")?.addEventListener("click", () => attachNoteImage("supplierRemarkInput"));
   qs<HTMLInputElement>("#supplierCompanyInput")?.focus();
 }
 
@@ -11649,7 +11730,6 @@ async function saveSupplier() {
   const saveButton = qs<HTMLButtonElement>("#saveSupplierButton");
   const editingId = saveButton?.dataset.editingId || "";
   const payload = {
-    code: qs<HTMLInputElement>("#supplierCodeInput")?.value.trim() || "",
     company,
     companyFullName: qs<HTMLInputElement>("#supplierCompanyFullNameInput")?.value.trim() || "",
     country: qs<HTMLInputElement>("#supplierCountryInput")?.value.trim() || "",
@@ -11663,7 +11743,7 @@ async function saveSupplier() {
     paymentTerm: qs<HTMLInputElement>("#supplierPaymentTermInput")?.value.trim() || "",
     leadTimeDays: Math.max(0, Math.min(3650, Math.floor(Number(qs<HTMLInputElement>("#supplierLeadTimeInput")?.value || 0)) || 0)),
     grade: (qs<HTMLSelectElement>("#supplierGradeInput")?.value || "C") as SupplierGrade,
-    status: (qs<HTMLSelectElement>("#supplierStatusInput")?.value || "active") as SupplierStatus,
+    status: (qs<HTMLSelectElement>("#supplierStatusInput")?.value || "open") as SupplierStatus,
     source: qs<HTMLInputElement>("#supplierSourceInput")?.value.trim() || (editingId ? "" : "手动新增"),
     remark: qs<HTMLTextAreaElement>("#supplierRemarkInput")?.value.trim() || ""
   };
@@ -12148,7 +12228,7 @@ const advancedDocumentCategoryLabels: Record<AdvancedDocumentTemplate["category"
   procurement: "采购协同"
 };
 
-async function uploadDocumentImage(file: File, kind: "letterhead-logo" | "stamp" | "signature" | "product") {
+async function uploadDocumentImage(file: File, kind: "letterhead-logo" | "stamp" | "signature" | "product" | "note-image") {
   if (!["image/png", "image/jpeg"].includes(file.type)) throw new Error("只支持 PNG 或 JPEG 图片");
   if (file.size > 2 * 1024 * 1024) throw new Error("图片不能超过 2 MB");
   const image = await new Promise<string>((resolve, reject) => {
@@ -12161,6 +12241,42 @@ async function uploadDocumentImage(file: File, kind: "letterhead-logo" | "stamp"
     method: "POST",
     body: JSON.stringify({ image, mime: file.type, kind })
   });
+}
+
+/**
+ * 备注插图：选图 → 上传 → 在光标处写入 Markdown 图片标记。
+ * 备注字段仍是纯文本（VARCHAR），展示时由 renderNoteHtml 还原成图片，
+ * 这样不用给客户/供应商表加附件字段，也不会把 HTML 写进库里。
+ */
+function attachNoteImage(textareaId: string) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/png,image/jpeg";
+  input.addEventListener("change", async () => {
+    const file = input.files?.[0];
+    const area = qs<HTMLTextAreaElement>(`#${CSS.escape(textareaId)}`);
+    if (!file || !area) return;
+    try {
+      const { imageUrl } = await uploadDocumentImage(file, "note-image");
+      const start = area.selectionStart ?? area.value.length;
+      const end = area.selectionEnd ?? start;
+      const mark = `\n![](${imageUrl})\n`;
+      area.value = `${area.value.slice(0, start)}${mark}${area.value.slice(end)}`;
+      area.focus();
+      area.setSelectionRange(start + mark.length, start + mark.length);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "备注图片上传失败", "error");
+    }
+  });
+  input.click();
+}
+
+/** 备注正文渲染：先整体转义，只还原 ![](/uploads/x.png) 这种本系统图片标记 */
+function renderNoteHtml(text: string) {
+  return escapeHtml(text || "")
+    .replace(/!\[\]\((\/uploads\/[A-Za-z0-9._-]+\.(?:png|jpe?g))\)/giu, (_match, url: string) =>
+      `<img class="note-inline-image" src="${url}" alt="备注图片" loading="lazy">`)
+    .replace(/\n/gu, "<br>");
 }
 
 function documentAssetPlacementValue(placement?: DocumentAssetPlacement): DocumentAssetPlacement {
@@ -14898,6 +15014,15 @@ const CUSTOM_B_PI_TEXT: Record<string, Record<string, string>> = {
  *
  * Logo 取数顺序：所选公司档案 logoUrl → 单据快照 logoUrl → 文字标志。
  */
+/** 单据 LOGO 兜底：卖方档案没上传 LOGO 时用 ECORE 品牌图，保证 PI/PO 抬头一定有标识 */
+const ECORE_DOCUMENT_DEFAULT_LOGO = "/assets/ecore-logo-black.png";
+
+/** 转成绝对地址：PDF 走 html-to-image 的 SVG foreignObject，相对路径在里面解析不到 */
+function documentLogoImageSrc(url: string) {
+  const value = (url || "").trim() || ECORE_DOCUMENT_DEFAULT_LOGO;
+  return value.startsWith("/") ? `${window.location.origin}${value}` : value;
+}
+
 function renderCustomBPiPreview(document: TradeDocument, preview: HTMLElement) {
   const total = documentTotal(document);
   const productItems = document.items.filter((item) => item.lineType !== "shipping_cost");
@@ -14915,12 +15040,10 @@ function renderCustomBPiPreview(document: TradeDocument, preview: HTMLElement) {
   // 否则换档案后还会沿用上一家的 logo；没选档案的老单据才回落到保存时的快照。
   const logoUrl = letterhead ? (letterhead.logoUrl || "") : (document.letterheadSnapshot?.logoUrl || "");
   const company = letterhead?.companyName || document.letterheadSnapshot?.companyName || document.seller || "—";
-  const brandText = [...(document.brandMarkText || document.seller || "").trim()].slice(0, 14).join("").toUpperCase() || "—";
   // 「卖方公司」里为定制B · PI 单独调好的位置与大小在这里生效（没调过沿用通用值，未调整时默认版式不变）
   const logoStyle = documentLogoPlacementStyle(documentLogoPlacementFor(letterhead, document.letterheadSnapshot, "PI"), "right");
-  const logoHtml = logoUrl
-    ? `<img class="cb-logo-image" src="${escapeHtml(logoUrl)}" alt="${escapeHtml(company)}"${logoStyle}>`
-    : `<span class="cb-logo-text"${logoStyle}>${escapeHtml(brandText)}</span>`;
+  // 卖方档案没上传 LOGO 时落到内置默认品牌图：单据抬头必须有 LOGO，不能只剩一行字
+  const logoHtml = `<img class="cb-logo-image" src="${escapeHtml(documentLogoImageSrc(logoUrl))}" alt="${escapeHtml(company)}"${logoStyle}>`;
 
   const stamp = state.documentAssets.stamps.find((item) => item.id === document.stampId);
   const signature = state.documentAssets.signatures.find((item) => item.id === document.signatureId);
@@ -15063,12 +15186,10 @@ function renderCustomBPoPreview(document: TradeDocument, preview: HTMLElement) {
     || document.letterheadSnapshot?.companyName
     || document.seller
     || "—";
-  const buyerBrandText = [...(document.brandMarkText || buyerCompany || "").trim()].slice(0, 14).join("").toUpperCase() || "—";
   // 「卖方公司」里为定制B · PO 单独调好的位置与大小（PO 的 Logo 在左上角，锚点取 left）
   const logoStyle = documentLogoPlacementStyle(documentLogoPlacementFor(letterhead, document.letterheadSnapshot, "PO"), "left");
-  const logoHtml = logoUrl
-    ? `<img class="cb-logo-image" src="${escapeHtml(logoUrl)}" alt="${escapeHtml(buyerCompany)}"${logoStyle}>`
-    : `<span class="cb-logo-text"${logoStyle}>${escapeHtml(buyerBrandText)}</span>`;
+  // 同 PI：没上传 LOGO 就落到内置默认品牌图，保证 PO 抬头有标识
+  const logoHtml = `<img class="cb-logo-image" src="${escapeHtml(documentLogoImageSrc(logoUrl))}" alt="${escapeHtml(buyerCompany)}"${logoStyle}>`;
 
   const stamp = state.documentAssets.stamps.find((item) => item.id === document.stampId);
   const signature = state.documentAssets.signatures.find((item) => item.id === document.signatureId);
@@ -15850,25 +15971,72 @@ async function parseCustomerImportFile(file: File): Promise<CustomerImportRow[]>
   }).filter((row) => row.company);
 }
 
-/** 客户导入窗口：选择 Excel / CSV → 开始导入（沿用 importCustomersFromFile 的元素 ID） */
+/** 客户录入窗口：直接填关键字段，不再要求整理 Excel（备注支持插图） */
 function openCustomerImportModal() {
-  openModal("导入客户", `
-    <div class="customer-import-modal" style="display:grid;gap:12px;">
-      <p style="margin:0;color:var(--muted);font-size:12px;line-height:1.6;">支持 Excel（.xlsx / .xls）与 CSV。第一行为表头，至少包含「公司名 / 公司简称 / company」一列；同名客户会更新已有资料，不会重复新增。</p>
-      <label class="btn" style="justify-self:start;cursor:pointer;">选择文件<input id="customerImportInput" type="file" accept=".xlsx,.xls,.csv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label>
-      <span id="customerImportFileName" style="color:var(--muted);font-size:12px;">未选择文件</span>
-      <button class="btn" id="downloadCustomerTemplateButton" type="button" style="justify-self:start;">下载导入模板</button>
-    </div>`, `<button class="btn" data-modal-close>取消</button><button class="btn primary" id="runCustomerImportButton" type="button">导入客户</button>`);
-  const input = qs<HTMLInputElement>("#customerImportInput");
-  input?.addEventListener("change", () => {
-    const label = qs<HTMLElement>("#customerImportFileName");
-    if (label) label.textContent = input.files?.[0]?.name || "未选择文件";
-  });
-  qs<HTMLButtonElement>("#downloadCustomerTemplateButton")?.addEventListener("click", downloadCustomerTemplate);
-  qs<HTMLButtonElement>("#runCustomerImportButton")?.addEventListener("click", async (event) => {
-    const ok = await importCustomersFromFile(event.currentTarget as HTMLButtonElement);
-    if (ok) closeModal();
-  });
+  openModal("新增客户", `
+    <div class="form-grid" style="display:grid;gap:12px;">
+      <div class="form-field full"><label>公司名 *</label><input id="quickCustomerCompany" maxlength="200" placeholder="例如 Pacific Trading Co., Ltd."></div>
+      <div class="form-field"><label>官网</label><input id="quickCustomerWebsite" maxlength="255" placeholder="https://"></div>
+      <div class="form-field"><label>联系方式</label><input id="quickCustomerPhone" maxlength="80" placeholder="电话 / WhatsApp"></div>
+      <div class="form-field"><label>国家 / 地区</label><input id="quickCustomerCountry" maxlength="80" placeholder="例如 United States"></div>
+      <div class="form-field"><label>对接人邮箱</label><input id="quickCustomerEmail" type="email" maxlength="160" placeholder="buyer@example.com"></div>
+      <div class="form-field"><label>下次联系时间</label><input id="quickCustomerReminder" maxlength="60" placeholder="例如 2026-11-20 10:00"></div>
+      <div class="form-field full">
+        <label>备注</label>
+        <textarea id="quickCustomerNotes" rows="4" maxlength="2000" placeholder="客户偏好、沟通要点、注意事项，可插入图片"></textarea>
+        <div class="note-image-tools">
+          <button class="btn" id="quickCustomerNoteImage" type="button">插入图片</button>
+          <small class="form-hint">支持 PNG / JPEG，单张不超过 2 MB，图片以链接形式存在备注里</small>
+        </div>
+      </div>
+    </div>`, `<button class="btn" data-modal-close>取消</button><button class="btn primary" id="saveQuickCustomerButton" type="button">保存客户</button>`);
+  qs<HTMLButtonElement>("#quickCustomerNoteImage")?.addEventListener("click", () => attachNoteImage("quickCustomerNotes"));
+  qs<HTMLButtonElement>("#saveQuickCustomerButton")?.addEventListener("click", () => void saveQuickCustomer());
+}
+
+/** 保存「新增客户」表单：一次请求建档，重名由后端 409 拦回 */
+async function saveQuickCustomer() {
+  const button = qs<HTMLButtonElement>("#saveQuickCustomerButton");
+  const company = qs<HTMLInputElement>("#quickCustomerCompany")?.value.trim() || "";
+  if (!company) {
+    toast("请先填写公司名", "error");
+    return;
+  }
+  const payload = {
+    company,
+    companyFullName: company,
+    website: qs<HTMLInputElement>("#quickCustomerWebsite")?.value.trim() || "",
+    phone: qs<HTMLInputElement>("#quickCustomerPhone")?.value.trim() || "",
+    country: qs<HTMLInputElement>("#quickCustomerCountry")?.value.trim() || "未知",
+    email: qs<HTMLInputElement>("#quickCustomerEmail")?.value.trim() || "",
+    nextReminder: qs<HTMLInputElement>("#quickCustomerReminder")?.value.trim() || "明天 10:00",
+    otherNotes: qs<HTMLTextAreaElement>("#quickCustomerNotes")?.value.trim() || "",
+    source: "手动新增"
+  };
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = "保存中";
+    }
+    const result = await api<{ customer: Customer }>("/api/customers", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    state.customers.unshift(result.customer);
+    state.selectedCustomerId = result.customer.id;
+    renderCustomers(state.customers);
+    renderTopbarStats();
+    void refreshDashboardOnly();
+    closeModal();
+    toast(`已新增客户：${result.customer.company}`);
+  } catch (error) {
+    toast(error instanceof Error ? error.message : "客户保存失败", "error");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "保存客户";
+    }
+  }
 }
 
 async function importCustomersFromFile(button?: HTMLButtonElement) {
@@ -17514,10 +17682,7 @@ function renderAccessControlOverview(overview: AccessControlOverview) {
   if (!members.length) {
     return `<div class="ac-workbench"><div class="ac-empty"><div><h2>暂无公司成员</h2><p>先在成员管理里新增成员，权限热力图会自动生成。</p></div></div></div>`;
   }
-  const highRiskCount = overview.permissions.filter((permission) => permission.riskLevel === "high" || permission.riskLevel === "critical").length;
-  const adminCount = members.filter((member) => /admin/u.test(member.roleCode)).length;
   const disabledCount = members.filter((member) => member.status !== "active").length;
-  const unassignedCount = overview.metrics?.unassignedMemberCount || 0;
   const maxRoleMembers = Math.max(1, ...overview.roles.map((role) => role.memberCount));
 
   const head = `<tr><th class="ac-viz-corner" scope="col">成员 / 模块</th>${modules
@@ -17545,10 +17710,6 @@ function renderAccessControlOverview(overview: AccessControlOverview) {
     })
     .join("");
 
-  const legend = (["self", "public_pool", "org_unit", "org_subtree", "tenant"] as AccessControlScope[])
-    .map((scope) => `<span class="ac-viz-legend-item"><i class="ac-viz-cell lvl-${accessControlScopeReach[scope]}"></i>${accessControlScopeText[scope]}</span>`)
-    .join("");
-
   const roleBars = overview.roles
     .map((role) => `<div class="ac-viz-role">
       <div class="ac-viz-role-head"><span><b>${escapeHtml(role.name)}</b><small>${role.permissionCount} 项权限 · ${role.moduleCount} 个模块</small></span><em>${role.memberCount} 人</em></div>
@@ -17556,22 +17717,13 @@ function renderAccessControlOverview(overview: AccessControlOverview) {
     </div>`)
     .join("");
 
-  const alerts: Array<{ tone: "warn" | "info"; text: string }> = [];
-  if (adminCount <= 1) alerts.push({ tone: "warn", text: `当前只有 ${adminCount} 名管理员，建议至少保留 2 名，避免无人能管成员与权限` });
-  if (disabledCount) alerts.push({ tone: "warn", text: `${disabledCount} 名成员已停用，授权记录仍在，恢复后立即生效` });
-  if (unassignedCount) alerts.push({ tone: "warn", text: `${unassignedCount} 名成员未分配组织，数据范围最多只能到「本人」` });
-  if (highRiskCount) alerts.push({ tone: "info", text: `${highRiskCount} 项高风险权限，建议只授予管理员或长期在职岗位` });
   const customRoles = overview.roles.filter((role) => !role.is_protected);
-  if (customRoles.length) alerts.push({ tone: "info", text: `${customRoles.length} 个自定义角色在生效，发布前请复核授权范围` });
-  if (!alerts.length) alerts.push({ tone: "info", text: "当前授权结构没有明显风险" });
 
   return `<div class="ac-viz">
     <div class="ac-viz-kpis">
       <div class="ac-viz-kpi"><span>公司成员</span><b>${members.length}</b><small>${overview.company?.name || "当前公司"}</small></div>
       <div class="ac-viz-kpi"><span>启用中</span><b>${overview.metrics?.activeMemberCount ?? members.filter((member) => member.status === "active").length}</b><small>${disabledCount} 人停用</small></div>
       <div class="ac-viz-kpi"><span>角色模板</span><b>${overview.roles.length}</b><small>${customRoles.length} 个自定义</small></div>
-      <div class="ac-viz-kpi"><span>可开通模块</span><b>${modules.length}</b><small>覆盖 ${overview.permissions.length} 项权限</small></div>
-      <div class="ac-viz-kpi${highRiskCount ? " is-attention" : ""}"><span>高风险权限</span><b>${highRiskCount}</b><small>需管理员级岗位</small></div>
     </div>
     <div class="ac-viz-layout">
       <section class="ac-viz-pane">
@@ -17587,14 +17739,6 @@ function renderAccessControlOverview(overview: AccessControlOverview) {
         <section class="ac-viz-card">
           <header><h3>角色分布</h3><span>${overview.roles.length} 个模板</span></header>
           <div class="ac-viz-roles">${roleBars || `<div class="ac-viz-empty">暂无角色</div>`}</div>
-        </section>
-        <section class="ac-viz-card">
-          <header><h3>数据范围图例</h3><span>颜色越深，范围越大</span></header>
-          <div class="ac-viz-legend">${legend}</div>
-        </section>
-        <section class="ac-viz-card">
-          <header><h3>需要关注</h3><span>${alerts.length} 项</span></header>
-          <ul class="ac-viz-alerts">${alerts.map((alert) => `<li class="is-${alert.tone}"><i></i><span>${escapeHtml(alert.text)}</span></li>`).join("")}</ul>
         </section>
       </aside>
     </div>
@@ -19735,7 +19879,11 @@ function openCustomerModal(customer?: Customer) {
       <div class="form-field"><label>邮箱</label><input id="customerEmailInput" type="email" value="${escapeHtml(customer?.email || "")}" placeholder="例如 sales@example.com"></div>
       <div class="form-field full"><label>联系方式备注 / 其它渠道</label><textarea id="customerContactRemarkInput" rows="2" maxlength="500" placeholder="例如：LinkedIn / 微信 / Telegram / 展会名片；可分行记录多个渠道">${escapeHtml(customer?.contactRemark || "")}</textarea></div>
       <div class="form-field full"><label>官网</label><input id="customerWebsiteInput" value="${escapeHtml(customer?.website || "")}" placeholder="例如 https://example.com"></div>
-      <div class="form-field full"><label>其它说明</label><textarea id="customerOtherNotesInput" rows="3" maxlength="2000" placeholder="客户偏好、业务背景、注意事项等自由记录">${escapeHtml(customer?.otherNotes || "")}</textarea></div>
+      <div class="form-field full">
+        <label>其它说明</label>
+        <textarea id="customerOtherNotesInput" rows="3" maxlength="2000" placeholder="客户偏好、业务背景、注意事项等自由记录">${escapeHtml(customer?.otherNotes || "")}</textarea>
+        <div class="note-image-tools"><button class="btn" id="customerNoteImageButton" type="button">插入图片</button><small class="form-hint">支持 PNG / JPEG，单张不超过 2 MB</small></div>
+      </div>
       <label class="form-field"><span>客户分级</span><select id="customerGradeInput"><option value="A" ${selectedGrade === "A" ? "selected" : ""}>A · 核心客户</option><option value="B" ${selectedGrade === "B" ? "selected" : ""}>B · 重点客户</option><option value="C" ${selectedGrade === "C" ? "selected" : ""}>C · 常规客户</option><option value="D" ${selectedGrade === "D" ? "selected" : ""}>D · 低优先级</option></select></label>
       <div class="form-field"><label>健康度（人工评分）</label><input id="customerHealthInput" type="number" min="0" max="100" value="${customer?.health ?? 72}"></div>
       <div class="form-field"><label>下一提醒</label><input id="customerReminderInput" value="${escapeHtml(customer?.nextReminder || "")}"></div>
@@ -19748,6 +19896,7 @@ function openCustomerModal(customer?: Customer) {
   `, `<button class="btn" data-modal-close>取消</button><button class="btn primary" id="saveCustomerButton" data-editing-id="${escapeHtml(customer?.id || "")}">${editing ? "保存修改" : "保存客户"}</button>`, { closeOnBackdrop: false, modalClass: "customer-editor-modal" });
   qsa("[data-modal-close]").forEach((node) => node.addEventListener("click", closeModal));
   qs("#saveCustomerButton")?.addEventListener("click", () => void saveCustomer());
+  qs("#customerNoteImageButton")?.addEventListener("click", () => attachNoteImage("customerOtherNotesInput"));
   // ECORECRM：不再挂载本机 CLI 资料识别（面板已移除）
   qs<HTMLInputElement>("#customerCompanyInput")?.focus();
 }
@@ -20366,6 +20515,20 @@ function installEvents() {
     renderSuppliers();
   });
   qs<HTMLButtonElement>("#supplierFilterReset")?.addEventListener("click", resetSupplierFilters);
+  // 查重页：切 tab 只换方向，真有输入就顺手重查一次
+  qsa<HTMLButtonElement>("[data-dedupe-type]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.dedupeType = (button.dataset.dedupeType || "customer") === "supplier" ? "supplier" : "customer";
+      renderDedupe();
+      if (qs<HTMLInputElement>("#dedupeQuery")?.value.trim()) void runDedupe();
+    });
+  });
+  qs<HTMLButtonElement>("#dedupeRunButton")?.addEventListener("click", () => void runDedupe());
+  qs<HTMLInputElement>("#dedupeQuery")?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.isComposing) return;
+    event.preventDefault();
+    void runDedupe();
+  });
   qs<HTMLSelectElement>("#supplierPageSize")?.addEventListener("change", (event) => {
     state.supplierPageSize = Number((event.currentTarget as HTMLSelectElement).value) || 20;
     state.supplierPage = 1;
@@ -21589,6 +21752,7 @@ function activateNavView(view: string, after?: () => void) {
     void refreshInternalMessages(false);
   }
   if (view === "dashboard") requestDashboardRefresh();
+  if (view === "dedupe") renderDedupe();
   if (view === "customer-pool") {
     renderCustomerPool();
     void reloadCustomerScopes().catch((error) => toast(error instanceof Error ? error.message : "客户公池加载失败", "error"));
