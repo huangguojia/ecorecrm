@@ -412,7 +412,9 @@ assert.equal(prototype.includes("topReminderCount"), false, "全局顶部栏不�
 assert.equal(prototype.includes("主库 <b>MySQL<\/b>"), false, "全局顶部栏不应显示数据库实现信息");
 assert.equal(prototype.includes("topImportButton"), false, "客户导入不能继续占用全局顶部栏");
 assert.equal(prototype.includes("topExportButton"), false, "客户导出不能继续占用全局顶部栏");
-assert.match(prototype, /class="customer-head-actions"[\s\S]*id="customerImportButton"[\s\S]*id="customerExportButton"/u, "客户导入导出必须位于客户页右上角");
+assert.match(prototype, /class="customer-head-actions"[\s\S]*id="customerExportButton"[\s\S]*id="customerCreateButton"[\s\S]*>新增</u, "客户页只能保留一个「新增」入口，导出按钮与它在同一行");
+assert.match(prototype, /<th>客户价值<\/th><th>保护期<\/th><th>跟进节奏<\/th>/u, "客户列表必须在客户价值之后展示保护期列");
+assert.match(apiLayer, /function protectionCellHtml[\s\S]{0,320}?已到期[\s\S]{0,160}?剩 \$\{days\} 天/u, "保护期列必须同时区分已到期与剩余天数，不能只显示日期");
 assert.match(prototype, /id="customerPagination"[\s\S]*id="customerPageSize"[\s\S]*id="customerPrevPage"[\s\S]*id="customerNextPage"/u, "客户列表必须保留分页和每页数量控制");
 assert.match(apiLayer, /function customerPageRows[\s\S]*customers\.slice\(start, start \+ state\.customerPageSize\)/, "客户列表必须只渲染当前页数据");
 assert.match(apiLayer, /state\.customerPage = Math\.min\(Math\.max\(1, state\.customerPage\), pageCount\)/, "客户数据减少后必须自动校正页码");
@@ -1156,13 +1158,14 @@ assert.equal(
     "供应商表格必须套用客户管理那套皮肤（18px 内边距 / 14px 圆角 + 投影 / 73px 行高），只继承全局 table 样式会比客户表矮一档"
   );
   assert.ok(
-    /#suppliers table \{ min-width: 0; \}/.test(prototype),
-    "供应商表格要放开全局 min-width:900px，否则窄栏里会横向滚动"
+    /#suppliers table \{ min-width: 0; table-layout: fixed; \}/.test(prototype),
+    "供应商表格要放开全局 min-width:900px 并改固定布局，否则 9 列按内容撑开后「操作」会被顶出可视区"
   );
   assert.ok(
-    /<th>供应商名称<\/th><th>供应品类<\/th><th>供应等级<\/th><th>联系方式<\/th>/.test(prototype),
-    "供应商表格必须是 8 列（与客户管理同列数）：分级与状态合并成「供应等级」，多一列会把名称列压到 241px"
+    /<th>供应商名称<\/th><th>供应品类<\/th><th>供应等级<\/th><th>保护期<\/th><th>联系方式<\/th>/.test(prototype),
+    "供应商表格必须是 9 列（供应等级与保护期各占一列）：分级与状态合并成「供应等级」，多一列会把名称列压到 241px"
   );
+  assert.match(apiLayer, /function supplierProtectionExempt[\s\S]{0,200}?公池/u, "供应商保护期必须对已成交和公池停止计时");
   assert.ok(
     /function supplierGradeChip[\s\S]{0,600}?customer-grade customer-grade-/.test(apiLayer),
     "供应分级必须复用客户管理「客户价值」的字母方块（customer-grade），用 badge 会变成一颗横躺的大药丸"

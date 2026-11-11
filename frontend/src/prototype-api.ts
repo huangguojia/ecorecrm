@@ -7382,6 +7382,47 @@ function renderCustomerBoard() {
   });
 }
 
+/** 保护期剩几天：向上取整，已过期返回 0 或负数 */
+function protectionDaysLeft(value?: string) {
+  if (!value) return null;
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return null;
+  return Math.ceil((time - Date.now()) / 86_400_000);
+}
+
+/** 列表用的保护期：成交 / 公海直接给状态词，其余给「剩 N 天」，临期标色 */
+function protectionCellHtml(value: string | undefined, exemptLabel = "") {
+  if (exemptLabel) return badge(exemptLabel, "gray");
+  const days = protectionDaysLeft(value);
+  if (days === null) return `<span>—</span>`;
+  const label = days <= 0 ? "已到期" : `剩 ${days} 天`;
+  if (days <= 3) return badge(label, "red");
+  if (days <= 7) return badge(label, "amber");
+  return `<span>${label}</span>`;
+}
+
+/** 移动端卡片用的纯文本版本 */
+function protectionPlainText(value: string | undefined, exemptLabel = "") {
+  if (exemptLabel) return exemptLabel;
+  const days = protectionDaysLeft(value);
+  if (days === null) return "未设置";
+  return days <= 0 ? "已到期" : `剩 ${days} 天`;
+}
+
+/** 客户保护期的例外状态：已成交、公海都不再计时 */
+function customerProtectionExempt(customer: Customer) {
+  if (customer.hasWonDeal || customer.lifecycleStatus === "won") return "已成交";
+  if (customer.poolStatus === "public") return "公海";
+  return "";
+}
+
+/** 供应商保护期的例外状态：已成交、公池都不再计时 */
+function supplierProtectionExempt(supplier: Supplier) {
+  if (supplier.status === "won") return "已成交";
+  if (supplier.status === "public") return "公池";
+  return "";
+}
+
 function renderCustomers(customers: Customer[]) {
   const tbody = qs<HTMLElement>("#customers tbody");
   if (!tbody) return;
@@ -7416,17 +7457,18 @@ function renderCustomers(customers: Customer[]) {
     <td><div class="customer-follow-cell">${badge(escapeHtml(pipelineStage), pipelineStage === "成交" || pipelineStage === "谈判" ? "green" : pipelineStage === "已报价" ? "amber" : "")}<span>${escapeHtml(money(customer.amount))}</span></div></td>
     <td><div class="customer-follow-cell"><b>${escapeHtml(customer.source || "未登记")}</b><span>获客渠道</span></div></td>
     <td><div class="customer-value-cell">${customerGradeHtml(customer)}${badge(customerWonLabel(customer), customer.hasWonDeal ? "green" : "gray")}</div></td>
+    <td title="${customer.protectedUntil ? `保护至 ${escapeHtml(formatDateTime(customer.protectedUntil))}` : "未设置保护期"}">${protectionCellHtml(customer.protectedUntil, customerProtectionExempt(customer))}</td>
     <td><div class="customer-follow-cell"><span>${customer.lastActivityAt ? `最近 ${escapeHtml(formatDateTime(customer.lastActivityAt))}` : "暂无跟进"}</span><b>${reminder}</b></div></td>
     <td><button class="${whatsAppEntryClass(customerWhatsapp)}" type="button" data-customer-whatsapp ${whatsAppEntryAttrs(customerWhatsapp)}>WhatsApp</button></td>
     <td><div class="customer-row-actions"><button class="btn" data-open-customer-page>全景</button><button class="btn" data-edit-customer>编辑</button><button class="btn" data-release-customer>放入公池</button></div></td>
   </tr>`;
-  }).join("") : `<tr><td colspan="8" class="empty-cell">当前${customerOutcomeLabel()}筛选下暂无客户。</td></tr>`;
+  }).join("") : `<tr><td colspan="9" class="empty-cell">当前${customerOutcomeLabel()}筛选下暂无客户。</td></tr>`;
   const mobile = qs<HTMLElement>("#customerMobileList");
   if (mobile) mobile.innerHTML = pageCustomers.length ? pageCustomers.map((customer) => `
     <article class="customer-mobile-card" data-customer-mobile-id="${escapeHtml(customer.id)}">
       <span class="customer-mobile-top"><span class="customer-mobile-company">${countryFlag(customer.country)}<button type="button" class="customer-name ${(customer.activeDealCount || 0) > 0 ? "has-active-deal" : ""}" data-open-customer="${escapeHtml(customer.id)}">${escapeHtml(customer.company)}</button></span>${badge(customer.stage || "待跟进", customer.stage === "谈判" || customer.stage === "成交" ? "green" : customer.stage === "已报价" ? "amber" : "gray")}</span>
       <span>${escapeHtml(customer.country)} · ${escapeHtml(customer.contact)} · ${escapeHtml(customer.ownerName || "未分配")}</span>
-      <span class="customer-mobile-meta"><i>来源 · ${escapeHtml(customer.source || "未登记")}</i><i>${customerGradeValue(customer)}级 · ${customerGradeLabel(customerGradeValue(customer))}</i><i>${customerWonLabel(customer)}</i><i>${escapeHtml(money(customer.amount))}</i><i>${escapeHtml(customer.nextReminder || "待安排")}</i><i>${customer.lastActivityAt ? `最近 ${escapeHtml(formatDateTime(customer.lastActivityAt))}` : "暂无跟进"}</i></span>
+      <span class="customer-mobile-meta"><i>来源 · ${escapeHtml(customer.source || "未登记")}</i><i>${customerGradeValue(customer)}级 · ${customerGradeLabel(customerGradeValue(customer))}</i><i>${customerWonLabel(customer)}</i><i>保护期 ${escapeHtml(protectionPlainText(customer.protectedUntil, customerProtectionExempt(customer)))}</i><i>${escapeHtml(money(customer.amount))}</i><i>${escapeHtml(customer.nextReminder || "待安排")}</i><i>${customer.lastActivityAt ? `最近 ${escapeHtml(formatDateTime(customer.lastActivityAt))}` : "暂无跟进"}</i></span>
       <div class="customer-row-actions"><button class="${whatsAppEntryClass(customerContactDetails(customer).whatsapp)}" type="button" data-customer-mobile-whatsapp ${whatsAppEntryAttrs(customerContactDetails(customer).whatsapp)}>WhatsApp</button><button class="btn" type="button" data-customer-mobile-pool>放入公池</button></div>
     </article>`).join("") : `<div class="empty-cell">当前${customerOutcomeLabel()}筛选下暂无客户。</div>`;
   qsa<HTMLElement>("tr", tbody).forEach((row, index) => {
@@ -11047,9 +11089,14 @@ async function loadSuppliers(force = false) {
   state.suppliersLoaded = true;
 }
 
+/** 列表里状态只留两三个字：完整文案（未成交供应商）留给筛选器和导出，列表里会把供应商名称挤掉 */
+const SUPPLIER_STATUS_SHORT_LABEL: Record<SupplierStatus, string> = {
+  open: "未成交", won: "已成交", public: "公池"
+};
+
 function supplierStatusBadge(supplier: Supplier) {
   const meta = SUPPLIER_STATUS_META[supplier.status] || SUPPLIER_STATUS_META.open;
-  return badge(meta.label, meta.tone);
+  return badge(SUPPLIER_STATUS_SHORT_LABEL[supplier.status] || meta.label, meta.tone);
 }
 
 const SUPPLIER_GRADE_SHORT: Record<SupplierGrade, string> = {
@@ -11247,13 +11294,14 @@ function renderSuppliers() {
     <td><div class="company">${countryFlag(supplier.country)}<div><button type="button" class="customer-name" data-open-supplier="${escapeHtml(supplier.id)}" title="查看供应商详情">${escapeHtml(supplier.company)}</button><span>${escapeHtml(supplier.country || "国家待补充")} · ${escapeHtml(supplier.contact || "联系人待补充")}</span></div></div></td>
     <td><div class="sup-category-cell" title="${escapeHtml(supplier.category || "供应品类待补充")}">${escapeHtml(categoryText(supplier, 18) || "品类待补充")}</div></td>
     <td><div class="customer-value-cell">${supplierGradeChip(supplier)}${supplierStatusBadge(supplier)}</div></td>
+    <td title="${supplier.protectedUntil ? `保护至 ${escapeHtml(formatLeadDate(supplier.protectedUntil))}` : "未设置保护期"}">${protectionCellHtml(supplier.protectedUntil, supplierProtectionExempt(supplier))}</td>
     <td>${supplierContactCell(supplier)}</td>
     <td><div class="customer-follow-cell"><b>${supplier.leadTimeDays ? `${supplier.leadTimeDays} 天` : "未登记"}</b><span>${escapeHtml(supplier.paymentTerm || "付款条款待补充")}</span></div></td>
     <td>${supplierUpdatedCell(supplier)}</td>
     <td><div class="customer-row-actions"><button class="btn" type="button" data-supplier-action="view" data-supplier-row-id="${escapeHtml(supplier.id)}">详情</button><button class="btn" type="button" data-supplier-action="edit" data-supplier-row-id="${escapeHtml(supplier.id)}">编辑</button>${supplierCanDelete() ? `<button class="btn sup-action-delete" type="button" data-supplier-action="delete" data-supplier-row-id="${escapeHtml(supplier.id)}">删除</button>` : ""}</div></td>
   </tr>`).join("") : (state.suppliers.length
-    ? `<tr><td colspan="8" class="empty-cell">没有符合筛选条件的供应商。<button class="btn tiny" id="supplierEmptyReset" type="button">清空筛选</button></td></tr>`
-    : `<tr><td colspan="8" class="empty-cell">${state.suppliersLoaded ? "暂无供应商，点右上角「新增供应商」开始建档。" : "供应商数据加载中…"}</td></tr>`);
+    ? `<tr><td colspan="9" class="empty-cell">没有符合筛选条件的供应商。<button class="btn tiny" id="supplierEmptyReset" type="button">清空筛选</button></td></tr>`
+    : `<tr><td colspan="9" class="empty-cell">${state.suppliersLoaded ? "暂无供应商，点右上角「新增供应商」开始建档。" : "供应商数据加载中…"}</td></tr>`);
 
   const mobile = qs<HTMLElement>("#supplierMobileList");
   if (mobile) {
@@ -11261,7 +11309,7 @@ function renderSuppliers() {
     <article class="customer-mobile-card" data-supplier-mobile-id="${escapeHtml(supplier.id)}">
       <span class="customer-mobile-top"><span class="customer-mobile-company">${countryFlag(supplier.country)}<button type="button" class="customer-name" data-open-supplier="${escapeHtml(supplier.id)}">${escapeHtml(supplier.company)}</button></span>${supplierStatusBadge(supplier)}</span>
       <span>${escapeHtml(supplier.country || "国家待补充")} · ${escapeHtml(supplier.contact || "联系人待补充")}</span>
-      <span class="customer-mobile-meta"><i>${escapeHtml((supplier.grade || "C") + " 级 · " + SUPPLIER_GRADE_SHORT[(supplier.grade || "C") as SupplierGrade])}</i><i>${escapeHtml(categoryText(supplier, 20) || "品类待补充")}</i><i>${supplier.leadTimeDays ? `交期 ${supplier.leadTimeDays} 天` : "交期待登记"}</i></span>
+      <span class="customer-mobile-meta"><i>${escapeHtml((supplier.grade || "C") + " 级 · " + SUPPLIER_GRADE_SHORT[(supplier.grade || "C") as SupplierGrade])}</i><i>${escapeHtml(categoryText(supplier, 20) || "品类待补充")}</i><i>${supplier.leadTimeDays ? `交期 ${supplier.leadTimeDays} 天` : "交期待登记"}</i><i>保护期 ${escapeHtml(protectionPlainText(supplier.protectedUntil, supplierProtectionExempt(supplier)))}</i></span>
       ${supplierContactCell(supplier)}
       <div class="customer-row-actions"><button class="btn" type="button" data-supplier-action="view" data-supplier-row-id="${escapeHtml(supplier.id)}">详情</button><button class="btn" type="button" data-supplier-action="edit" data-supplier-row-id="${escapeHtml(supplier.id)}">编辑</button>${supplierCanDelete() ? `<button class="btn sup-action-delete" type="button" data-supplier-action="delete" data-supplier-row-id="${escapeHtml(supplier.id)}">删除</button>` : ""}</div>
     </article>`).join("") : `<div class="empty-cell">${state.suppliers.length ? "没有符合筛选条件的供应商。" : "暂无供应商。"}</div>`;
@@ -15972,7 +16020,8 @@ async function parseCustomerImportFile(file: File): Promise<CustomerImportRow[]>
 }
 
 /** 客户录入窗口：直接填关键字段，不再要求整理 Excel（备注支持插图） */
-function openCustomerImportModal() {
+/** 客户页唯一的「新增」入口：先给精简表单，字段不够再走「填写完整资料」 */
+function openCustomerCreateModal() {
   openModal("新增客户", `
     <div class="form-grid" style="display:grid;gap:12px;">
       <div class="form-field full"><label>公司名 *</label><input id="quickCustomerCompany" maxlength="200" placeholder="例如 Pacific Trading Co., Ltd."></div>
@@ -15989,8 +16038,19 @@ function openCustomerImportModal() {
           <small class="form-hint">支持 PNG / JPEG，单张不超过 2 MB，图片以链接形式存在备注里</small>
         </div>
       </div>
-    </div>`, `<button class="btn" data-modal-close>取消</button><button class="btn primary" id="saveQuickCustomerButton" type="button">保存客户</button>`);
+    </div>`, `<button class="btn" data-modal-close>取消</button><button class="btn" id="quickCustomerFullButton" type="button">填写完整资料</button><button class="btn primary" id="saveQuickCustomerButton" type="button">保存客户</button>`);
   qs<HTMLButtonElement>("#quickCustomerNoteImage")?.addEventListener("click", () => attachNoteImage("quickCustomerNotes"));
+  qs<HTMLButtonElement>("#quickCustomerFullButton")?.addEventListener("click", () => {
+    // 精简表单填了一半也能带走：先把公司名搬到完整表单，避免重复输入
+    const company = qs<HTMLInputElement>("#quickCustomerCompany")?.value.trim() || "";
+    closeModal();
+    openCustomerModal();
+    const companyInput = qs<HTMLInputElement>("#customerCompanyInput");
+    if (companyInput && company) {
+      companyInput.value = company;
+      companyInput.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  });
   qs<HTMLButtonElement>("#saveQuickCustomerButton")?.addEventListener("click", () => void saveQuickCustomer());
 }
 
@@ -20460,9 +20520,6 @@ function installEvents() {
   // 否则待办只能由「批量生成」或提醒规则产生，用户既建不了也删不掉。
   qs<HTMLButtonElement>("#newTodoButton")?.addEventListener("click", () => openTodoModal());
   qs<HTMLButtonElement>("#batchPriorityButton")?.addEventListener("click", (event) => void batchProcessPriorityTasks(event.currentTarget as HTMLButtonElement));
-  qsa<HTMLButtonElement>("#customers .page-head .btn.primary").forEach((button) => {
-    if (button.textContent?.includes("新增客户")) button.addEventListener("click", () => openCustomerModal());
-  });
   qs<HTMLSelectElement>("#customerViewModeSelect")?.addEventListener("change", (event) => {
     state.customerViewMode = (event.currentTarget as HTMLSelectElement).value as "list" | "map" | "board";
     renderCustomers(state.customers);
@@ -20588,11 +20645,13 @@ function installEvents() {
   });
   qs<HTMLButtonElement>("#topPrimaryAction")?.addEventListener("click", () => {
     const view = qs<HTMLElement>(".view.active")?.id;
-    if (view === "customers") openCustomerModal();
+    // 顶栏与客户页右上角必须是同一个入口、同一个弹窗，否则两处「新增」出来的表单字段不一样
+    if (view === "customers") openCustomerCreateModal();
   });
   // ECORECRM 没有「导入导出」独立页面（imports 视图已移除），原先跳转过去再点隐藏输入框，
-  // 结果点「导入」只会被弹回仪表盘、什么都不发生。改为在当前页弹出导入窗口，导出直接执行。
-  qs<HTMLButtonElement>("#customerImportButton")?.addEventListener("click", () => openCustomerImportModal());
+  // 结果点「导入」只会被弹回仪表盘、什么都不发生。现在客户页只留一个「新增」入口，
+  // 直接弹出精简表单；完整字段走弹窗里的「填写完整资料」。
+  qs<HTMLButtonElement>("#customerCreateButton")?.addEventListener("click", () => openCustomerCreateModal());
   qs<HTMLButtonElement>("#customerExportButton")?.addEventListener("click", () => void exportCustomers());
   qsa<HTMLButtonElement>(".sidebar button[data-view]").forEach((button) => {
     button.addEventListener("click", () => {

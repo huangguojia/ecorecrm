@@ -3965,9 +3965,9 @@
     /* 上半部分固定高度：明细表顶端落在参考件的 338.27pt（451px）处 */
     .custom-b-pi .cbq-head { min-height: 397px; }
     .custom-b-pi .cbq-top { display: flex; align-items: flex-start; justify-content: flex-end; }
-    .custom-b-pi .cbq-logo { display: flex; align-items: flex-start; justify-content: flex-end; height: 58px; }
-    .custom-b-pi .cb-logo-image { display: block; width: auto; height: auto; max-width: 296px; max-height: 58px; object-fit: contain; object-position: right center; }
-    .custom-b-pi .cb-logo-text { display: block; max-width: 296px; overflow: hidden; color: #000; font-size: 46px; font-weight: 800; letter-spacing: 2.5px; line-height: 1.26; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+    .custom-b-pi .cbq-logo { display: flex; align-items: flex-start; justify-content: flex-end; height: 42px; }
+    .custom-b-pi .cb-logo-image { display: block; width: auto; height: auto; max-width: 200px; max-height: 42px; object-fit: contain; object-position: right center; }
+    .custom-b-pi .cb-logo-text { display: block; max-width: 200px; overflow: hidden; color: #000; font-size: 33px; font-weight: 800; letter-spacing: 2.5px; line-height: 1.26; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
     .custom-b-pi .cbq-body { display: grid; grid-template-columns: minmax(0, 1fr) 287px; column-gap: 32px; align-items: start; margin-top: 41px; }
     .custom-b-pi .cbq-title { margin: 0; color: #000; font-size: 32px; font-weight: 400; letter-spacing: 0; line-height: 1.1; white-space: nowrap; }
     .custom-b-pi .cbq-meta { font-size: 12px; line-height: 16.8px; }
@@ -4026,9 +4026,9 @@
     @media (max-width: 600px) {
       .doc-paper.custom-b-pi { padding: 26px 18px 34px; }
       .custom-b-pi .cbq-head { min-height: 0; }
-      .custom-b-pi .cbq-logo { height: 44px; }
-      .custom-b-pi .cb-logo-image { max-width: 210px; max-height: 44px; }
-      .custom-b-pi .cb-logo-text { font-size: 30px; letter-spacing: 2px; }
+      .custom-b-pi .cbq-logo { height: 32px; }
+      .custom-b-pi .cb-logo-image { max-width: 150px; max-height: 32px; }
+      .custom-b-pi .cb-logo-text { font-size: 22px; letter-spacing: 2px; }
       .custom-b-pi .cbq-body { grid-template-columns: 1fr; gap: 0; margin-top: 20px; }
       .custom-b-pi .cbq-title { font-size: 24px; white-space: normal; }
       .custom-b-pi .cbq-meta { width: 100%; margin-top: 14px; }
@@ -4076,9 +4076,9 @@
       box-shadow: 0 16px 36px rgba(33,45,62,.12);
     }
     .custom-b-po .cbp-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 62px; }
-    .custom-b-po .cb-logo { display: flex; align-items: center; flex: none; min-width: 170px; max-width: 300px; min-height: 52px; }
-    .custom-b-po .cb-logo-image { display: block; width: auto; height: auto; max-width: 300px; max-height: 64px; object-fit: contain; object-position: left center; }
-    .custom-b-po .cb-logo-text { display: block; max-width: 300px; color: #111; font-size: 27px; font-weight: 800; letter-spacing: 1.5px; line-height: 1.15; overflow-wrap: anywhere; }
+    .custom-b-po .cb-logo { display: flex; align-items: center; flex: none; min-width: 120px; max-width: 212px; min-height: 40px; }
+    .custom-b-po .cb-logo-image { display: block; width: auto; height: auto; max-width: 212px; max-height: 44px; object-fit: contain; object-position: left center; }
+    .custom-b-po .cb-logo-text { display: block; max-width: 212px; color: #111; font-size: 19px; font-weight: 800; letter-spacing: 1.5px; line-height: 1.15; overflow-wrap: anywhere; }
     .custom-b-po .cbp-company { color: #111; font-size: 16px; font-weight: 700; text-align: right; }
     .custom-b-po .cbp-title { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 24px; margin: 26px 0 14px; }
     .custom-b-po .cbp-title h1 { margin: 0; color: #111; font-size: 21px; font-weight: 700; letter-spacing: .6px; line-height: 1.15; white-space: nowrap; }
@@ -4139,7 +4139,7 @@
     @media (max-width: 600px) {
       .doc-paper.custom-b-po { padding: 24px 18px 32px; }
       .custom-b-po .cbp-head { flex-direction: column; align-items: flex-start; gap: 10px; }
-      .custom-b-po .cb-logo-image { max-width: 220px; max-height: 56px; }
+      .custom-b-po .cb-logo-image { max-width: 160px; max-height: 34px; }
       .custom-b-po .cbp-company { text-align: left; }
       .custom-b-po .cbp-title { flex-direction: column; align-items: flex-start; gap: 8px; }
       .custom-b-po .cbp-title h1 { font-size: 17px; }
@@ -5049,29 +5049,34 @@
       white-space: nowrap;
     }
 
+    /* 9 列：勾选 / 简称 / 阶段 / 来源 / 价值 / 保护期 / 跟进 / 通讯 / 操作。
+       加了保护期这一列就得整体重排，否则固定布局会把「操作」压到 30px 直接看不见 */
     #customers th:nth-child(1),
-    #customers td:nth-child(1) { width: 42px; }
+    #customers td:nth-child(1) { width: 34px; }
 
     #customers th:nth-child(2),
-    #customers td:nth-child(2) { width: 30%; }
+    #customers td:nth-child(2) { width: 23%; }
 
     #customers th:nth-child(3),
-    #customers td:nth-child(3) { width: 92px; }
+    #customers td:nth-child(3) { width: 84px; }
 
     #customers th:nth-child(4),
-    #customers td:nth-child(4) { width: 112px; }
+    #customers td:nth-child(4) { width: 84px; }
 
     #customers th:nth-child(5),
-    #customers td:nth-child(5) { width: 112px; }
+    #customers td:nth-child(5) { width: 118px; }
 
     #customers th:nth-child(6),
-    #customers td:nth-child(6) { width: 126px; }
+    #customers td:nth-child(6) { width: 86px; }
 
     #customers th:nth-child(7),
-    #customers td:nth-child(7) { width: 72px; }
+    #customers td:nth-child(7) { width: 96px; }
 
     #customers th:nth-child(8),
-    #customers td:nth-child(8) { width: 112px; }
+    #customers td:nth-child(8) { width: 84px; }
+
+    #customers th:nth-child(9),
+    #customers td:nth-child(9) { width: 150px; }
     #customers th {
       background: var(--surface-2);
       color: #667085;
@@ -24472,14 +24477,13 @@ body.platform-mode .workspace-tabs { display:none !important; }
           <div class="page-head">
             <div><h1 id="customerPageTitle">未成交客户</h1></div>
             <div class="customer-head-actions">
-              <button class="btn" id="customerImportButton" type="button" data-permission="customer.create">快速新增</button>
               <button class="btn" id="customerExportButton" type="button" data-permission="customer.export">导出</button>
               <select id="customerViewModeSelect" class="customer-view-select" aria-label="客户视图切换">
                 <option value="list">列表</option>
                 <option value="map">地图</option>
                 <option value="board">三栏看板</option>
               </select>
-              <button class="btn primary" data-permission="customer.create">新增客户</button>
+              <button class="btn primary" id="customerCreateButton" type="button" data-permission="customer.create">新增</button>
             </div>
           </div>
           <div class="content-grid customer-content-grid">
@@ -24493,7 +24497,7 @@ body.platform-mode .workspace-tabs { display:none !important; }
                 <div class="toolbar" id="customerBulkToolbar"></div>
                 <div class="table-wrap customer-desktop-table">
                   <table>
-                    <thead><tr><th style="width:34px">选</th><th>客户简称</th><th>客户阶段</th><th>客户来源</th><th>客户价值</th><th>跟进节奏</th><th>通讯接入</th><th>操作</th></tr></thead>
+                    <thead><tr><th style="width:34px">选</th><th>客户简称</th><th>客户阶段</th><th>客户来源</th><th>客户价值</th><th>保护期</th><th>跟进节奏</th><th>通讯接入</th><th>操作</th></tr></thead>
                     <tbody></tbody>
                   </table>
                 </div>
@@ -25242,7 +25246,7 @@ body.platform-mode .workspace-tabs { display:none !important; }
                 <div class="toolbar" id="supplierBulkToolbar"></div>
                 <div class="table-wrap customer-desktop-table">
                   <table>
-                    <thead><tr><th style="width:34px">选</th><th>供应商名称</th><th>供应品类</th><th>供应等级</th><th>联系方式</th><th>交期 / 付款条款</th><th>最近更新</th><th>操作</th></tr></thead>
+                    <thead><tr><th style="width:34px">选</th><th>供应商名称</th><th>供应品类</th><th>供应等级</th><th>保护期</th><th>联系方式</th><th>交期 / 付款条款</th><th>最近更新</th><th>操作</th></tr></thead>
                     <tbody id="suppliersTableBody"></tbody>
                   </table>
                 </div>
@@ -25277,14 +25281,24 @@ body.platform-mode .workspace-tabs { display:none !important; }
                结构抄得一样、观感却差一档，就是这批规则没抄。下面照抄那套，只换列宽。 */
             #suppliers .panel.section { padding: 18px; }
             #suppliers .table-wrap { border-radius: 14px; box-shadow: 0 14px 30px rgba(22, 35, 64, .055); }
-            #suppliers table { min-width: 0; }
+            #suppliers table { min-width: 0; table-layout: fixed; }
             #suppliers th,
-            #suppliers td { padding: 14px 10px; white-space: nowrap; }
-            /* 列宽：勾选 42px、操作 132px 写死（按钮是定宽内容，按百分比缩会顶出单元格），
-               其余列交给自动布局按内容分配 —— 固定布局下 Chrome 不认 calc(百分比 - px)，
-               只能二选一，这里选「内容自适应 + 总宽 100%」 */
-            #suppliers th:nth-child(1), #suppliers td:nth-child(1) { width: 42px; }
-            #suppliers th:nth-child(8), #suppliers td:nth-child(8) { width: 132px; }
+            #suppliers td { padding: 14px 8px; white-space: nowrap; }
+            /* 列宽：勾选 36px、名称吃百分比，其余定宽。9 列（新增「保护期」后）总宽要压在容器内，
+               否则自动布局会把「操作」顶出可视区 */
+            #suppliers th:nth-child(1), #suppliers td:nth-child(1) { width: 36px; }
+            #suppliers th:nth-child(2), #suppliers td:nth-child(2) { width: 24.5%; }
+            #suppliers th:nth-child(3), #suppliers td:nth-child(3) { width: 100px; }
+            #suppliers th:nth-child(4), #suppliers td:nth-child(4) { width: 116px; }
+            #suppliers th:nth-child(5), #suppliers td:nth-child(5) { width: 88px; }
+            #suppliers th:nth-child(6), #suppliers td:nth-child(6) { width: 80px; }
+            #suppliers th:nth-child(7), #suppliers td:nth-child(7) { width: 100px; }
+            #suppliers th:nth-child(8), #suppliers td:nth-child(8) { width: 92px; }
+            #suppliers th:nth-child(9), #suppliers td:nth-child(9) { width: 132px; }
+            /* 交期/付款条款是最长的一段文本，定宽后会顶破单元格，必须单行省略 */
+            #suppliers .customer-follow-cell { min-width: 0; }
+            #suppliers .customer-follow-cell b,
+            #suppliers .customer-follow-cell span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             #suppliers th { background: var(--surface-2); color: #667085; font-size: 11px; letter-spacing: 0; }
             /* 行高对齐客户表（73px）：供应商的单元格内容最多只有 36px 高，
                不撑的话整表会比客户表紧一档，两个列表并排看就露馅 */
