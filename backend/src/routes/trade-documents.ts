@@ -184,6 +184,8 @@ const documentItemSchema = z.object({
   imageUrl: z.string().trim().max(512).optional().default("").refine((value) => !value || /^\/uploads\/[A-Za-z0-9._-]+\.(?:png|jpe?g)$/iu.test(value), "商品图片必须来自本系统"),
   product: z.string().min(1).max(500),
   model: z.string().max(200).optional().default(""),
+  /** 自由描述：产品全称 + 规格，一段话写完；material / finish 只留作历史数据兼容 */
+  description: z.string().max(2_000).optional().default(""),
   material: z.string().max(200).optional().default(""),
   finish: z.string().max(200).optional().default(""),
   hsCode: z.string().max(40).optional().default(""),
@@ -227,6 +229,10 @@ const documentBodySchema = z.object({
   validityDate: z.string().max(40).optional().default(""),
   bankInfo: z.string().max(8_000).optional().default(""),
   notes: z.string().max(8_000).optional().default(""),
+  /** PO 条款区三栏（模板早有表头，此处补上可写入的字段） */
+  condition: z.string().max(200).optional().default(""),
+  warranty: z.string().max(200).optional().default(""),
+  leadTime: z.string().max(200).optional().default(""),
   language: z.enum(["EN", "ES", "RU", "AR", "ZH"]).optional().default("EN"),
   templateStyle: z.enum(["executive", "classic", "compact", "indigo", "emerald", "rose", "slate", "amber", "longtec", "custom-b"]).default("rose"),
   status: z.enum(["draft", "ready", "pending_approval", "approved", "rejected", "exported"]).optional().default("draft"),
@@ -1786,6 +1792,8 @@ export function registerTradeDocumentsRoutes(app: Express) {
     const auditFields = [
       "title", "number", "issueDate", "buyer", "buyerAddress", "buyerContact", "seller",
       "sellerAddress", "currency", "incoterm", "paymentTerm", "shippingMethod",
+      // condition / warranty / leadTime 是合同条款，改了必须留痕（2026-11-12 补）
+      "condition", "warranty", "leadTime",
       "portLoading", "portDischarge", "validityDate", "bankInfo", "notes", "templateStyle", "language", "status"
     ] as const;
     auditFields.forEach((field) => appendDocumentAudit(document, field, existing[field], document[field], req.user!));

@@ -541,9 +541,30 @@ assert.match(prototype, /\.custom-b-po \.cbp-parties \{[\s\S]{0,200}?grid-templa
 assert.match(prototype, /\.custom-b-po \.cbp-table th \{[\s\S]{0,160}?background: #d9d9d9/u, "PO 表头必须是黑白模板的浅灰底");
 assert.match(prototype, /\.custom-b-po \.cbp-head \{[\s\S]{0,160}?justify-content: space-between/u, "PO 页头必须是 Logo 与公司名左右分置");
 assert.match(prototype, /\.custom-b-po \.cbp-sign \{[\s\S]{0,120}?grid-template-columns: 1fr 1fr/u, "PO 的 Confirmed By / For and on behalf of 必须是双栏签章区");
-assert.match(prototype, /\.custom-b-po \.cbp-terms-table th:nth-child\(4\) \{ width: 26%; \}/u, "PO 条款表必须固定五列比例，否则 Payment Term 会把 Terms 挤没");
+assert.match(prototype, /\.custom-b-po \.cbp-terms-table th:nth-child\(4\) \{ width: 31%; \}/u, "PO 条款表必须固定五列比例，否则 Payment Term 会把 Terms 挤没");
 assert.doesNotMatch(prototype, /id="leadFinderLfindButton"[\s\S]*Lfind 深入查询/u, "『自动获客页必须提供 Lfind 深入查询入口』所属模块已从精简版移除");
 assert.doesNotMatch(prototype, /id="leadFinderLfindInlineButton"[\s\S]*Lfind 深入查询/u, "『来源与执行设置中必须提供 Lfind 深入查询入口』所属模块已从精简版移除");
+
+// ---------------------------------------------------------------------------
+// 2026-11-12 试用反馈（《CRM试用》《CRM系统测试反馈及修改建议》）
+//
+// 这几条守的都是「表单和后端脱节」类问题：模板上有字段、表单没处填；
+// 用户选了成交、后端写死未成交。改回去很容易，所以用断言钉住。
+// ---------------------------------------------------------------------------
+assert.match(apiLayer, /customerLifecycleInput/u, "客户完整表单必须有「成交状态」下拉，否则录入已成交客户只能落成未成交");
+assert.match(apiLayer, /quickCustomerLifecycle/u, "客户快速新增表单也必须能选成交状态（它才是默认入口）");
+assert.match(apiLayer, /lifecycleStatus: \(qs<HTMLSelectElement>\("#customerLifecycleInput"\)/u, "客户保存必须把成交状态提交给后端");
+assert.match(apiLayer, /data-doc-field="description"/u, "商品明细必须用单一 Description 自由输入框");
+assert.doesNotMatch(apiLayer, /data-doc-field="material"/u, "材质 / 后处理拆栏已合并进 Description，不应再出现");
+assert.match(apiLayer, /docConditionInput/u, "单据表单必须有 Condition（产品状态）输入项");
+assert.match(apiLayer, /docWarrantyInput/u, "单据表单必须有 Warranty（质保）输入项");
+assert.match(apiLayer, /docLeadTimeInput/u, "单据表单必须有 Lead Time（交期）输入项");
+assert.match(prototype, /id="docConditionInput"/u, "Condition 输入框必须真实存在于单据表单 DOM 里");
+assert.match(prototype, /id="docWarrantyInput"/u, "Warranty 输入框必须真实存在于单据表单 DOM 里");
+assert.match(prototype, /id="docLeadTimeInput"/u, "Lead Time 输入框必须真实存在于单据表单 DOM 里");
+assert.match(prototype, /\.custom-b-po \.cbp-items-table th\.cbp-money \{ text-align: center; white-space: normal/u, "PO 表头长标题必须允许换行，否则 TOTAL AMOUNT (USD) 被裁掉");
+assert.match(prototype, /label\[data-doc-size="description"\] \{[\s\S]{0,40}span 7/u, "Description 必须按宽栏排版，不能挤成窄条");
+assert.match(apiLayer, /if \(!selected \|\| selected\.type !== newType\) \{[\s\S]{0,200}fillDocumentEditor\(defaultTradeDocument\(newType\)\)/u, "切到另一种单据必须重建空白表单，不能把上一份的数据带过去");
 assert.match(apiLayer, /\/api\/lead-finder\/lfind-tasks/, "前端必须通过 Lfind 任务接口启动和轮询本地 Skill");
 assert.match(apiLayer, /searchReport/, "搜客候选必须接收每行搜索报告");
 

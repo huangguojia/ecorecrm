@@ -755,6 +755,8 @@ interface TradeDocumentItem {
   imageUrl?: string;
   product: string;
   model: string;
+  /** 自由描述（产品全称 + 规格）；material / finish 仅历史单据还在用 */
+  description?: string;
   material?: string;
   finish?: string;
   hsCode: string;
@@ -905,6 +907,10 @@ interface TradeDocument {
   validityDate: string;
   bankInfo: string;
   notes: string;
+  /** PO 条款三栏：Condition（产品状态）/ Warranty（质保）/ Lead Time（交期） */
+  condition?: string;
+  warranty?: string;
+  leadTime?: string;
   language: "EN" | "ES" | "RU" | "AR" | "ZH";
   templateStyle: "executive" | "classic" | "compact" | "indigo" | "emerald" | "rose" | "slate" | "amber" | "longtec" | "custom-b";
   status: "draft" | "ready" | "pending_approval" | "approved" | "rejected" | "exported";
@@ -11732,8 +11738,10 @@ function openSupplierModal(supplier?: Supplier) {
   const gradeOptions = (Object.keys(SUPPLIER_GRADE_LABEL) as SupplierGrade[])
     .map((grade) => `<option value="${grade}" ${(supplier?.grade || "C") === grade ? "selected" : ""}>${SUPPLIER_GRADE_LABEL[grade]}</option>`)
     .join("");
+  // 从「已成交供应商」页点新增时默认按已成交建，避免又落进未成交档案（试用反馈第 1 条）
+  const defaultSupplierStatus = supplier?.status || (state.supplierStatusFilter === "won" ? "won" : "open");
   const statusOptions = SUPPLIER_STATUS_VALUES
-    .map((status) => `<option value="${status}" ${(supplier?.status || "open") === status ? "selected" : ""}>${SUPPLIER_STATUS_META[status].label}</option>`)
+    .map((status) => `<option value="${status}" ${defaultSupplierStatus === status ? "selected" : ""}>${SUPPLIER_STATUS_META[status].label}</option>`)
     .join("");
   openModal(editing ? "编辑供应商" : "新增供应商", `
     <div class="form-grid">
@@ -14073,7 +14081,10 @@ function fillDocumentEditor(document: TradeDocument) {
     docValidityInput: document.validityDate,
     docPaymentInput: document.paymentTerm,
     docBankInput: document.bankInfo,
-    docNotesInput: document.notes
+    docNotesInput: document.notes,
+    docConditionInput: document.condition || "",
+    docWarrantyInput: document.warranty || "",
+    docLeadTimeInput: document.leadTime || ""
   };
   const shippingCost = document.items.find((item) => item.lineType === "shipping_cost")?.unitPrice || 0;
   values.docShippingCostInput = shippingCost ? String(shippingCost) : "";
@@ -14366,6 +14377,20 @@ function currentDocumentType(): "PI" | "CI" | "PO" | "CUSTOMS" | "PL" | "CONTRAC
 // 两处必须走同一套逻辑：切 tab、按类型重配卖方档案、新建态的标题/编号跟随类型。
 function switchDocumentType(newType: "PI" | "CI" | "PO" | "CUSTOMS" | "PL" | "CONTRACT" | "QUOTATION" | "COO" | "SHIPPING") {
   if (currentDocumentType() === newType) return;
+  // 切到另一种单据 = 换一张空白单据：
+  // 以前只改标题和编号，PO 的买方、明细、条款会整套留在 PI 里（试用反馈第 5 条之②）。
+  // 「把这张单转成另一种」是另一个动作，走「生成其它单据」按钮，不该由切页签顺手完成。
+  const selected = state.tradeDocuments.find((document) => document.id === state.selectedDocumentId);
+  if (!selected || selected.type !== newType) {
+    state.selectedDocumentId = "__new__";
+    fillDocumentEditor(defaultTradeDocument(newType));
+    const customerSelect = qs<HTMLSelectElement>("#docCustomerInput");
+    if (customerSelect) customerSelect.value = "";
+    const sourceSelect = qs<HTMLSelectElement>("#docDataSourceInput");
+    if (sourceSelect) sourceSelect.value = "manual";
+    renderDocumentPreview(collectDocumentDraft());
+    return;
+  }
   setDocumentType(newType);
   const customer = state.customers.find((item) => item.id === qs<HTMLSelectElement>("#docCustomerInput")?.value);
   applyMatchedSellerToEditor(customer, undefined, newType);
@@ -14377,6 +14402,11 @@ function switchDocumentType(newType: "PI" | "CI" | "PO" | "CUSTOMS" | "PL" | "CO
     if (number && (!number.value || number.value.includes("-"))) number.value = dd.number;
   }
   renderDocumentPreview(collectDocumentDraft());
+}
+
+/** 老单据只有 material / finish，打开编辑时把它们拼成一段描述，避免看到空框 */
+function itemLegacySpec(item: TradeDocumentItem) {
+  return [item.material, item.finish].filter(Boolean).join(" · ");
 }
 
 function renderDocumentItems(items: TradeDocumentItem[]) {
@@ -14392,8 +14422,7 @@ function renderDocumentItems(items: TradeDocumentItem[]) {
       <label data-doc-size="product-select"><span>产品库</span><select data-doc-product-select>${productOptions(item.productId || "")}</select></label>
       <label data-doc-size="name"><span>品名</span><input data-doc-field="product" value="${escapeHtml(item.product)}"></label>
       <label data-doc-size="model"><span>型号</span><input data-doc-field="model" value="${escapeHtml(item.model)}"></label>
-      <label data-doc-size="material"><span>材质 Material</span><input data-doc-field="material" value="${escapeHtml(item.material || "")}"></label>
-      <label data-doc-size="finish"><span>后处理 Finish</span><input data-doc-field="finish" value="${escapeHtml(item.finish || "")}"></label>
+      <label data-doc-size="description"><span>描述 Description</span><textarea data-doc-field="description" rows="2" placeholder="产品完整名称与规格，例如：LED Flood Light 200W, die-cast aluminium, IP65">${escapeHtml(item.description || itemLegacySpec(item))}</textarea></label>
       <label data-doc-size="code"><span>HS Code</span><input data-doc-field="hsCode" value="${escapeHtml(item.hsCode)}"></label>
       <label data-doc-size="short"><span>数量</span><input data-doc-field="quantity" type="number" min="0" value="${item.quantity}"></label>
       <label data-doc-size="short"><span>单位</span><input data-doc-field="unit" value="${escapeHtml(item.unit)}"></label>
@@ -14450,8 +14479,7 @@ function collectDocumentItems(): TradeDocumentItem[] {
       imageUrl: row.dataset.imageUrl || "",
       product: field("product"),
       model: field("model"),
-      material: field("material"),
-      finish: field("finish"),
+      description: field("description"),
       hsCode: field("hsCode"),
       quantity: numberField("quantity"),
       unit: field("unit") || "PCS",
@@ -14532,6 +14560,9 @@ function collectDocumentDraft(): TradeDocument {
     validityDate: qs<HTMLInputElement>("#docValidityInput")?.value || "",
     bankInfo: qs<HTMLTextAreaElement>("#docBankInput")?.value.trim() || "",
     notes: qs<HTMLTextAreaElement>("#docNotesInput")?.value.trim() || "",
+    condition: qs<HTMLInputElement>("#docConditionInput")?.value.trim() || "",
+    warranty: qs<HTMLInputElement>("#docWarrantyInput")?.value.trim() || "",
+    leadTime: qs<HTMLInputElement>("#docLeadTimeInput")?.value.trim() || "",
     // ECORECRM 只保留「默认模版」（定制 B 版式）
     templateStyle: ECORE_TEMPLATE_STYLE,
     language: (qs<HTMLSelectElement>("#docLanguageInput")?.value as TradeDocument["language"]) || "EN",
@@ -15116,7 +15147,7 @@ function renderCustomBPiPreview(document: TradeDocument, preview: HTMLElement) {
 
   // 参考件的表格只有横线：表头除 Item / Description 外全部右对齐，正文 9pt 常规字重。
   const itemRows = productItems.map((item, index) => {
-    const spec = [item.model, item.material, item.finish, item.hsCode && `HS ${item.hsCode}`].filter(Boolean).join(" · ");
+    const spec = [item.model, item.description || itemLegacySpec(item), item.hsCode && `HS ${item.hsCode}`].filter(Boolean).join(" · ");
     return `<tr>
       <td class="cbq-item-no">${escapeHtml(String(index + 1).padStart(3, "0"))}</td>
       <td class="cbq-desc">${escapeHtml(documentItemDisplayName(document, item) || "—")}${spec ? `<span>${escapeHtml(spec)}</span>` : ""}</td>
@@ -15245,8 +15276,10 @@ function renderCustomBPoPreview(document: TradeDocument, preview: HTMLElement) {
   const partyRow = (label: string, value: string) => `<div class="cbp-row"><span class="cbp-row-label">${escapeHtml(label)}</span><span class="cbp-row-value">${escapeHtml(value || "")}</span></div>`;
 
   const itemRows = productItems.map((item, index) => {
-    const spec = [item.material, item.finish, item.hsCode && `HS ${item.hsCode}`].filter(Boolean).join(" · ");
-    const itemNumber = item.model || item.hsCode || String(index + 1).padStart(2, "0");
+    const spec = [item.description || itemLegacySpec(item), item.hsCode && `HS ${item.hsCode}`].filter(Boolean).join(" · ");
+    // Item Number 只放型号，没型号就用行号；不拿 HS Code 顶替——
+    // 列名是 Item Number，HS 已单独拼进 Description 的 spec 里，顶替会重复且让人误读
+    const itemNumber = item.model || String(index + 1).padStart(2, "0");
     return `<tr>
       <td class="cbp-item-no">${escapeHtml(itemNumber)}</td>
       <td><b>${escapeHtml(documentItemDisplayName(document, item) || "—")}</b>${spec ? `<span class="cbp-item-spec">${escapeHtml(spec)}</span>` : ""}</td>
@@ -15305,11 +15338,11 @@ function renderCustomBPoPreview(document: TradeDocument, preview: HTMLElement) {
         <th>Lead Time</th>
       </tr></thead>
       <tbody><tr>
-        <td></td>
-        <td></td>
+        <td class="cbp-center">${escapeHtml(document.condition || "")}</td>
+        <td class="cbp-center">${escapeHtml(document.warranty || "")}</td>
         <td>${escapeHtml(document.incoterm || "")}</td>
         <td>${escapeHtml(document.paymentTerm || "")}</td>
-        <td></td>
+        <td class="cbp-center">${escapeHtml(document.leadTime || "")}</td>
       </tr></tbody>
     </table>
     <table class="cbp-table cbp-items-table">
@@ -15634,9 +15667,18 @@ function addDocumentItem() {
 
 function openNewDocument() {
   state.selectedDocumentId = "__new__";
-  fillDocumentEditor(defaultTradeDocument(currentDocumentType()));
+  const draft = defaultTradeDocument(currentDocumentType());
+  // 「新建」必须是真的空白：关联客户与数据源这两项以前不重置，
+  // 上一份单据的客户会被原样带过来（试用反馈第 5 条）。
+  const customerSelect = qs<HTMLSelectElement>("#docCustomerInput");
+  if (customerSelect) customerSelect.value = "";
+  const sourceSelect = qs<HTMLSelectElement>("#docDataSourceInput");
+  if (sourceSelect) sourceSelect.value = "manual";
+  fillDocumentEditor(draft);
+  const profileSelect = qs<HTMLSelectElement>("#docSellerProfileInput");
+  if (profileSelect) profileSelect.value = draft.letterheadId || "";
   qsa<HTMLElement>(".doc-list-card").forEach((card) => card.classList.remove("active"));
-  toast("已创建单据草稿，保存后写入数据库");
+  toast("已创建空白单据草稿，保存后写入数据库");
 }
 
 function renderDocThemeSwatches(activeTheme?: string) {
@@ -16029,6 +16071,7 @@ function openCustomerCreateModal() {
       <div class="form-field"><label>联系方式</label><input id="quickCustomerPhone" maxlength="80" placeholder="电话 / WhatsApp"></div>
       <div class="form-field"><label>国家 / 地区</label><input id="quickCustomerCountry" maxlength="80" placeholder="例如 United States"></div>
       <div class="form-field"><label>对接人邮箱</label><input id="quickCustomerEmail" type="email" maxlength="160" placeholder="buyer@example.com"></div>
+      <label class="form-field"><span>成交状态</span><select id="quickCustomerLifecycle"><option value="open" ${state.customerOutcomeFilter === "won" ? "" : "selected"}>未成交</option><option value="won" ${state.customerOutcomeFilter === "won" ? "selected" : ""}>已成交</option></select><small class="form-hint">从「已成交客户」页进入时默认已成交</small></label>
       <div class="form-field"><label>下次联系时间</label><input id="quickCustomerReminder" maxlength="60" placeholder="例如 2026-11-20 10:00"></div>
       <div class="form-field full">
         <label>备注</label>
@@ -16071,6 +16114,7 @@ async function saveQuickCustomer() {
     email: qs<HTMLInputElement>("#quickCustomerEmail")?.value.trim() || "",
     nextReminder: qs<HTMLInputElement>("#quickCustomerReminder")?.value.trim() || "明天 10:00",
     otherNotes: qs<HTMLTextAreaElement>("#quickCustomerNotes")?.value.trim() || "",
+    lifecycleStatus: (qs<HTMLSelectElement>("#quickCustomerLifecycle")?.value === "won" ? "won" : "open") as "open" | "won",
     source: "手动新增"
   };
   try {
@@ -19945,6 +19989,7 @@ function openCustomerModal(customer?: Customer) {
         <div class="note-image-tools"><button class="btn" id="customerNoteImageButton" type="button">插入图片</button><small class="form-hint">支持 PNG / JPEG，单张不超过 2 MB</small></div>
       </div>
       <label class="form-field"><span>客户分级</span><select id="customerGradeInput"><option value="A" ${selectedGrade === "A" ? "selected" : ""}>A · 核心客户</option><option value="B" ${selectedGrade === "B" ? "selected" : ""}>B · 重点客户</option><option value="C" ${selectedGrade === "C" ? "selected" : ""}>C · 常规客户</option><option value="D" ${selectedGrade === "D" ? "selected" : ""}>D · 低优先级</option></select></label>
+      <label class="form-field"><span>成交状态</span><select id="customerLifecycleInput"><option value="open" ${(customer ? customer.hasWonDeal !== true : state.customerOutcomeFilter !== "won") ? "selected" : ""}>未成交</option><option value="won" ${(customer ? customer.hasWonDeal === true : state.customerOutcomeFilter === "won") ? "selected" : ""}>已成交</option></select><small class="form-hint">选「已成交」后会进已成交客户档案，且不再计入保护期</small></label>
       <div class="form-field"><label>健康度（人工评分）</label><input id="customerHealthInput" type="number" min="0" max="100" value="${customer?.health ?? 72}"></div>
       <div class="form-field"><label>下一提醒</label><input id="customerReminderInput" value="${escapeHtml(customer?.nextReminder || "")}"></div>
       <div class="form-field full"><label>账单地址</label><input id="customerBillingAddressInput" value="${escapeHtml(customer?.billingAddress || "")}" placeholder="公司地址、城市、国家"></div>
@@ -20029,6 +20074,7 @@ async function saveCustomer() {
     website: qs<HTMLInputElement>("#customerWebsiteInput")?.value.trim() || "",
     otherNotes: qs<HTMLTextAreaElement>("#customerOtherNotesInput")?.value.trim() || "",
     grade: (qs<HTMLSelectElement>("#customerGradeInput")?.value || "C") as "A" | "B" | "C" | "D",
+    lifecycleStatus: (qs<HTMLSelectElement>("#customerLifecycleInput")?.value === "won" ? "won" : "open") as "open" | "won",
     health: Math.max(0, Math.min(100, Number(qs<HTMLInputElement>("#customerHealthInput")?.value || 72))),
     nextReminder: qs<HTMLInputElement>("#customerReminderInput")?.value || "明天 10:00",
     billingName: qs<HTMLInputElement>("#customerCompanyFullNameInput")?.value.trim() || company,

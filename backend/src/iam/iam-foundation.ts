@@ -31,13 +31,13 @@ export const IAM_PERMISSION_CATALOG: IamPermissionDefinition[] = [
   { code: "customer.export", module: "客户", name: "导出客户", riskLevel: "critical", scopeModes: ["self", "org_subtree", "tenant"] },
   { code: "customer.pool.claim", module: "客户", name: "领取公池客户", riskLevel: "normal", scopeModes: ["public_pool"] },
   { code: "customer.pool.release", module: "客户", name: "释放客户到公池", riskLevel: "sensitive", scopeModes: ["self", "org_subtree", "tenant"] },
-  // 供应商 = 公司共享的供应链资产：scopeModes 刻意不含 self。
-  // 业务员拿到的 scope 因此落在 org_unit（本部门/本团队），全公司共用一份供应商库，
-  // 否则同一个工厂会被每个业务员各录一遍。删除留给主管及以上（不进 salesPermissions）。
-  { code: "supplier.read", module: "供应商", name: "查看供应商", riskLevel: "normal", scopeModes: ["org_unit", "org_subtree", "tenant"] },
-  { code: "supplier.create", module: "供应商", name: "创建供应商", riskLevel: "normal", scopeModes: ["org_unit", "org_subtree", "tenant"] },
-  { code: "supplier.update", module: "供应商", name: "维护供应商", riskLevel: "normal", scopeModes: ["org_unit", "org_subtree", "tenant"] },
-  { code: "supplier.delete", module: "供应商", name: "删除供应商", riskLevel: "high", scopeModes: ["org_unit", "org_subtree", "tenant"] },
+  // 供应商口径（2026-11-12 调整）：默认按业务员「仅自己可见」理解，
+  // 因此 scopeModes 补上 self；主管及以上仍可用 org_unit / tenant 放开。
+  // 删除留给主管及以上（不进 salesPermissions）。
+  { code: "supplier.read", module: "供应商", name: "查看供应商", riskLevel: "normal", scopeModes: ["self", "org_unit", "org_subtree", "tenant"] },
+  { code: "supplier.create", module: "供应商", name: "创建供应商", riskLevel: "normal", scopeModes: ["self", "org_unit", "org_subtree", "tenant"] },
+  { code: "supplier.update", module: "供应商", name: "维护供应商", riskLevel: "normal", scopeModes: ["self", "org_unit", "org_subtree", "tenant"] },
+  { code: "supplier.delete", module: "供应商", name: "删除供应商", riskLevel: "high", scopeModes: ["self", "org_unit", "org_subtree", "tenant"] },
   { code: "deal.read", module: "商机", name: "查看商机", riskLevel: "normal", scopeModes: ["self", "org_unit", "org_subtree", "tenant"] },
   { code: "deal.create", module: "商机", name: "创建商机", riskLevel: "normal", scopeModes: ["self", "org_unit", "tenant"] },
   { code: "deal.update", module: "商机", name: "维护商机", riskLevel: "normal", scopeModes: ["self", "org_unit", "org_subtree", "tenant"] },

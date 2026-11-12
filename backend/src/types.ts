@@ -4453,6 +4453,12 @@ export interface TradeDocumentItem {
   imageUrl?: string;
   product: string;
   model: string;
+  /**
+   * 商品描述：整段自由文本（2026-11-12 试用反馈第 3 条）。
+   * 外贸实际写法是「产品完整名称 + 规格」，拆成 material / finish 两个格子反而无处落笔。
+   * material / finish 保留，只为读得懂历史单据，新单据一律用 description。
+   */
+  description?: string;
   material?: string;
   finish?: string;
   hsCode: string;
@@ -4670,6 +4676,13 @@ export interface TradeDocument {
   validityDate: string;
   bankInfo: string;
   notes: string;
+  /**
+   * PO 模板上早就有 Condition / Warranty / Lead Time 三栏，但类型和入参里一直没有，
+   * 三个格子永远空着（2026-11-12 试用反馈：模板有字段、表单没处填）。
+   */
+  condition?: string;
+  warranty?: string;
+  leadTime?: string;
   language: "EN" | "ES" | "RU" | "AR" | "ZH";
   templateStyle: "executive" | "classic" | "compact" | "indigo" | "emerald" | "rose" | "slate" | "amber" | "longtec" | "custom-b";
   status: "draft" | "ready" | "pending_approval" | "approved" | "rejected" | "exported";

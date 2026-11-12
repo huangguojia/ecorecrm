@@ -634,7 +634,13 @@ export function registerCustomersRoutes(app: Express) {
       defaultPortDischarge: z.string().optional().default(""),
       defaultIncoterm: z.string().optional().default(""),
       defaultPaymentTerm: z.string().optional().default(""),
-      protectedUntil: z.string().trim().max(40).optional().default("")
+      protectedUntil: z.string().trim().max(40).optional().default(""),
+      /**
+       * 成交状态。这一栏以前不在入参里，POST 又把 lifecycleStatus 写死成 "open"，
+       * 于是「录入已成交客户」永远落成未成交档案（2026-11-12 试用反馈第 1 条）。
+       * 现在由表单显式传入；不传时按未成交处理，保持老调用方行为不变。
+       */
+      lifecycleStatus: z.enum(["open", "won"]).optional()
     });
     const body = schema.parse(req.body);
     const store = getStore();
@@ -646,17 +652,21 @@ export function registerCustomersRoutes(app: Express) {
       }
     }
     const companyFullName = body.companyFullName || body.billingName || body.company;
+    const lifecycleStatus = body.lifecycleStatus === "won" ? "won" as const : "open" as const;
     const customer = {
       id: `c_${Date.now()}`,
       ownerId: req.user!.id,
       teamId: req.user!.teamId,
       nextReminder: "明天 10:00",
       wecomBound: false,
-      lifecycleStatus: "open" as const,
       createdAt: new Date().toISOString(),
       ...body,
-      // 未成交客户默认只保护 2 周，到期由 releaseExpiredCustomers 自动放回公海
-      protectedUntil: body.protectedUntil || new Date(Date.now() + CUSTOMER_PROTECTION_DAYS * 86_400_000).toISOString(),
+      lifecycleStatus,
+      // 未成交客户默认只保护 2 周，到期由 releaseExpiredCustomers 自动放回公海；
+      // 已成交客户不再受保护期约束（保护期是给「还没谈下来的客户」留的窗口）。
+      protectedUntil: lifecycleStatus === "won"
+        ? ""
+        : body.protectedUntil || new Date(Date.now() + CUSTOMER_PROTECTION_DAYS * 86_400_000).toISOString(),
       companyFullName,
       billingName: body.billingName || companyFullName
     };
@@ -934,7 +944,9 @@ export function registerCustomersRoutes(app: Express) {
       defaultPortDischarge: z.string().optional(),
       defaultIncoterm: z.string().optional(),
       defaultPaymentTerm: z.string().optional(),
-      protectedUntil: z.string().trim().max(40).optional()
+      protectedUntil: z.string().trim().max(40).optional(),
+      /** 成交状态可改：谈成了要能标记成已成交，标记错了也要能改回未成交 */
+      lifecycleStatus: z.enum(["open", "won"]).optional()
     });
     const body = schema.parse(req.body);
     const store = getStore();
@@ -954,6 +966,18 @@ export function registerCustomersRoutes(app: Express) {
     const normalizedBody = { ...body } as Record<string, unknown>;
     if (body.companyFullName !== undefined) normalizedBody.billingName = body.companyFullName || customer.billingName || customer.company;
     else if (body.billingName !== undefined) normalizedBody.companyFullName = body.billingName || customer.companyFullName || customer.company;
+    // 只在「成交状态真的变了」时才动保护期：客户每次编辑都重算一次保护期，
+    // 等于谁点保存谁的客户就永不过期（releaseExpiredCustomers 再也扫不到）。
+    const wasWon = customer.lifecycleStatus === "won";
+    if (body.lifecycleStatus === "won" && !wasWon) {
+      normalizedBody.lifecycleStatus = "won";
+      normalizedBody.protectedUntil = "";
+    } else if (body.lifecycleStatus === "open" && wasWon) {
+      normalizedBody.lifecycleStatus = "open";
+      normalizedBody.protectedUntil = new Date(Date.now() + CUSTOMER_PROTECTION_DAYS * 86_400_000).toISOString();
+    } else {
+      delete normalizedBody.lifecycleStatus;
+    }
     Object.assign(customer, normalizedBody);
     await store.persist();
     res.json({ customer: customerWithPipeline(customer, req.user!) });
@@ -1076,14 +1100,27 @@ export function registerCustomersRoutes(app: Express) {
     res.json({ deleted, customers });
   }));
 
+  /**
+   * 供应商可见性（2026-11-12 试用反馈第 2 条改口径）。
+   *
+   * 旧口径是「公司共享的供应链资产」：supplier.read 授到 org_unit，业务员之间互相可见。
+   * 试用反馈要求「同事之间不能互看，仅自己可见」，所以这里不再套 canSeeOwner ——
+   * org_unit 下它会解析出全团队 ownerIds，等于没过滤。改为：
+   * 本人 + 管理视角（tenantWide / admin / manager）+ 公池（公池谁都能看见才能领回来）。
+   */
+  function canSeeSupplier(user: SessionUser, supplier: { ownerId: string }) {
+    if (user.iamDataScope?.tenantWide) return true;
+    if (user.role === "super_admin" || user.role === "admin" || user.role === "manager") return true;
+    return supplier.ownerId === user.id;
+  }
+
   app.get("/api/suppliers", requireAuth, asyncRoute(async (req, res) => {
     const repository = getSupplierRepository();
     if (!repository) { res.status(503).json({ message: "供应商库不可用" }); return; }
-    // 先惰性释放超期未成交的供应商，再取团队全量
+    // 先惰性释放超期未成交的供应商，再按可见范围取
     await repository.releaseExpired().catch(() => 0);
-    // 供应商是团队资产：按 teamId 取全量，不再按 ownerId 二次过滤
-    // （否则创建人离职/停用后，他录入的供应商会从列表里整批消失）。
-    const suppliers = await repository.list(req.user!.teamId);
+    const suppliers = (await repository.list(req.user!.teamId))
+      .filter((row) => row.status === "public" || canSeeSupplier(req.user!, row));
     res.json({ suppliers });
   }));
 
@@ -1091,7 +1128,10 @@ export function registerCustomersRoutes(app: Express) {
     const repository = getSupplierRepository();
     if (!repository) { res.status(503).json({ message: "供应商库不可用" }); return; }
     const body = supplierInputSchema.parse(req.body);
-    const existing = await repository.list(req.user!.teamId);
+    // 查重只在「你看得见的那部分」里做：供应商按归属隔离后，
+    // 拿全团队比对等于告诉业务员「别人手上有这家供应商」，既越权又没意义。
+    const existing = (await repository.list(req.user!.teamId))
+      .filter((row) => row.status === "public" || canSeeSupplier(req.user!, row));
     const key = supplierDuplicateKey(body.company, body.country || "");
     const duplicate = existing.find((row) => supplierDuplicateKey(row.company, row.country) === key);
     if (duplicate) {
@@ -1119,6 +1159,10 @@ export function registerCustomersRoutes(app: Express) {
     if (!repository) { res.status(503).json({ message: "供应商库不可用" }); return; }
     const body = supplierInputSchema.partial().parse(req.body);
     try {
+      // 先确认这条供应商在他的可见范围内，再交给仓库更新（仓库只按 teamId 定位行）
+      const visible = (await repository.list(req.user!.teamId))
+        .find((row) => row.id === req.params.id && canSeeSupplier(req.user!, row));
+      if (!visible) { res.status(404).json({ message: "供应商不存在或无权访问" }); return; }
       const supplier = await repository.update(req.user!.teamId, req.params.id, body);
       if (!supplier) { res.status(404).json({ message: "供应商不存在或无权访问" }); return; }
       res.json({ supplier });
@@ -1132,14 +1176,23 @@ export function registerCustomersRoutes(app: Express) {
     const repository = getSupplierRepository();
     if (!repository) { res.status(503).json({ message: "供应商库不可用" }); return; }
     const body = z.object({ ids: z.array(z.string().trim().min(1)).min(1).max(200) }).parse(req.body);
-    const deleted = await repository.removeMany(req.user!.teamId, body.ids);
+    // 只能删自己看得见的：不认识的 id 直接忽略，不报「无权」以免泄露存在性
+    const allowedIds = new Set(
+      (await repository.list(req.user!.teamId))
+        .filter((row) => canSeeSupplier(req.user!, row))
+        .map((row) => row.id)
+    );
+    const targetIds = body.ids.filter((id) => allowedIds.has(id));
+    const deleted = targetIds.length ? await repository.removeMany(req.user!.teamId, targetIds) : [];
     if (!deleted.length) { res.status(404).json({ message: "未找到可删除的供应商" }); return; }
     // 供应商没了，附件引用必须一起清：否则文件既没有归属对象、又因 referenceCount>0 删不掉
     const files = getFileRepository();
     if (files) {
       await Promise.all(deleted.map((id) => files.removeReferencesForEntity("supplier", id).catch(() => 0)));
     }
-    res.json({ deleted, suppliers: await repository.list(req.user!.teamId) });
+    const remaining = (await repository.list(req.user!.teamId))
+      .filter((row) => row.status === "public" || canSeeSupplier(req.user!, row));
+    res.json({ deleted, suppliers: remaining });
   }));
 
   app.post("/api/customers/:id/activities", requireAuth, asyncRoute(async (req, res) => {

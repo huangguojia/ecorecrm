@@ -9,11 +9,11 @@ import type { Pool } from "mysql2/promise";
 //   新模块背上去只会拖慢每一次写请求。这里沿用 sender-mailbox / integration 的既有做法：
 //   自己建表、自己写 SQL，只把 ensure + repository 挂进 mysql-store 的启动流程。
 //
-// 与客户的口径差异（有意为之，不是漏做）：
+// 与客户的口径差异（2026-11-12 调整）：
 //   客户是「谁名下谁负责」的个人资产（ownerId + self/organization 两种可见范围）；
-//   供应商是公司共享的供应链资产 —— 权限 scopeModes 刻意不含 self，
-//   业务员的 supplier.read 落在 org_unit（本部门/本团队），全公司共用一份供应商库，
-//   否则同一个工厂会被每个业务员各录一遍。
+//   供应商原先按「公司共享的供应链资产」设计（scopeModes 不含 self、业务员落在 org_unit），
+//   试用反馈要求同事之间不互看，故改为：可见性由路由层 canSeeSupplier 判定（本人 + 管理视角 + 公池），
+//   scopeModes 也已补上 self。仓库本身仍只按 teamId 取数，不过滤归属。
 // ---------------------------------------------------------------------------
 
 export type SupplierStatus = "open" | "won" | "public";
