@@ -19,6 +19,7 @@ docker run --rm \
   --workdir /workspace \
   --env NPM_CONFIG_UPDATE_NOTIFIER=false \
   --env NPM_CONFIG_FUND=false \
+  --env PUPPETEER_SKIP_DOWNLOAD=true \
   node:22-bookworm-slim \
   sh -ec 'npm ci --no-audit --no-fund && npm run build'
 
