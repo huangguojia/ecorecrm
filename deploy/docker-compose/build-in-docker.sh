@@ -20,6 +20,9 @@ docker run --rm \
   --env NPM_CONFIG_UPDATE_NOTIFIER=false \
   --env NPM_CONFIG_FUND=false \
   --env PUPPETEER_SKIP_DOWNLOAD=true \
+  --env NPM_CONFIG_FETCH_RETRIES=6 \
+  --env NPM_CONFIG_FETCH_TIMEOUT=180000 \
+  --env NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=240000 \
   node:22-bookworm-slim \
   sh -ec 'npm ci --no-audit --no-fund && npm run build'
 
