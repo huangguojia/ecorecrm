@@ -454,7 +454,7 @@ export function registerProspectingRoutes(app: Express) {
       .default("false")
       .parse(req.query.includeArchived) === "true";
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       res.setHeader("Cache-Control", "no-store");
       res.json(listProspectCampaigns(store, req.user!, includeArchived));
@@ -485,7 +485,7 @@ export function registerProspectingRoutes(app: Express) {
   app.get("/api/prospect-campaigns/:id", requireAuth, asyncRoute(async (req, res) => {
     const campaignId = prospectCampaignIdSchema.parse(req.params.id);
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       const result = getProspectCampaign(store, req.user!, campaignId);
       setProspectCampaignEtag(res, result);
@@ -542,7 +542,7 @@ export function registerProspectingRoutes(app: Express) {
       .default("false")
       .parse(req.query.includeDisabled) === "true";
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       res.setHeader("Cache-Control", "no-store");
       res.json(listProspectStrategies(
@@ -631,7 +631,7 @@ export function registerProspectingRoutes(app: Express) {
   app.get("/api/prospect-strategies/:id", requireAuth, asyncRoute(async (req, res) => {
     const strategyId = prospectStrategyIdSchema.parse(req.params.id);
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       const result = getProspectStrategy(store, req.user!, strategyId);
       setProspectStrategyEtag(res, result);
@@ -666,7 +666,7 @@ export function registerProspectingRoutes(app: Express) {
     const strategyId = prospectStrategyIdSchema.parse(req.params.id);
     const body = previewProspectStrategySchema.parse(req.body);
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       res.setHeader("Cache-Control", "no-store");
       res.json(previewProspectStrategy({
@@ -781,7 +781,7 @@ export function registerProspectingRoutes(app: Express) {
 
   app.get("/api/prospect-schedules", requireAuth, asyncRoute(async (req, res) => {
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       res.setHeader("Cache-Control", "no-store");
       res.json(listProspectSchedules(store, req.user!));
@@ -832,7 +832,7 @@ export function registerProspectingRoutes(app: Express) {
   app.get("/api/prospect-runs", requireAuth, asyncRoute(async (req, res) => {
     const query = parseProspectRunListQuery(req.query);
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       res.setHeader("Cache-Control", "no-store");
       res.json(listProspectRuns({ store, user: req.user!, query }));
@@ -869,14 +869,14 @@ export function registerProspectingRoutes(app: Express) {
   app.get("/api/prospect-super-search", requireAuth, asyncRoute(async (req, res) => {
     const limit = z.coerce.number().int().min(1).max(100).default(30).parse(req.query.limit);
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     res.setHeader("Cache-Control", "no-store");
     res.json(listProspectSuperSearches(store, req.user!, limit));
   }));
 
   app.get("/api/prospect-super-search/:id", requireAuth, asyncRoute(async (req, res) => {
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       const result = superSearchDetail(store, req.user!, String(req.params.id));
       res.setHeader("ETag", prospectSuperSearchEtag(result.mission));
@@ -892,7 +892,7 @@ export function registerProspectingRoutes(app: Express) {
     const runId = prospectRunIdSchema.parse(req.params.id);
     const query = prospectLiveStreamQuerySchema.parse(req.query);
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       getProspectRun(store, req.user!, runId);
     } catch (error) {
@@ -1001,7 +1001,7 @@ export function registerProspectingRoutes(app: Express) {
   app.get("/api/prospect-runs/:id", requireAuth, asyncRoute(async (req, res) => {
     const runId = prospectRunIdSchema.parse(req.params.id);
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       const result = getProspectRun(store, req.user!, runId);
       setProspectRunEtag(res, result);
@@ -1015,7 +1015,7 @@ export function registerProspectingRoutes(app: Express) {
   app.get("/api/prospect-runs/:id/pending-candidates", requireAuth, asyncRoute(async (req, res) => {
     const runId = prospectRunIdSchema.parse(req.params.id);
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       const detail = getProspectRun(store, req.user!, runId);
       if (!activeProspectWorkerService) {
@@ -1042,7 +1042,7 @@ export function registerProspectingRoutes(app: Express) {
     const runId = prospectRunIdSchema.parse(req.params.id);
     const body = prospectPendingSelectionSchema.parse(req.body);
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       const detail = getProspectRun(store, req.user!, runId);
       if (!["succeeded", "succeeded_empty", "partial_success", "failed", "cancelled"].includes(detail.run.status)) {
@@ -1093,7 +1093,7 @@ export function registerProspectingRoutes(app: Express) {
         });
         return;
       }
-      await store.readBarrier();
+      await store.readBarrier(1_000);
       const updated = getProspectRun(store, req.user!, runId);
       setProspectRunEtag(res, updated);
       res.setHeader("Cache-Control", "no-store");
@@ -1106,7 +1106,7 @@ export function registerProspectingRoutes(app: Express) {
 
   app.get("/api/prospect-super-search/:id/pending-candidates", requireAuth, asyncRoute(async (req, res) => {
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       const detail = superSearchDetail(store, req.user!, String(req.params.id));
       if (!activeProspectWorkerService) {
@@ -1135,7 +1135,7 @@ export function registerProspectingRoutes(app: Express) {
   app.post("/api/prospect-super-search/:id/import-pending", requireAuth, asyncRoute(async (req, res) => {
     const body = prospectPendingSelectionSchema.parse(req.body);
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       const detail = superSearchDetail(store, req.user!, String(req.params.id));
       if (["queued", "running", "paused"].includes(detail.mission.status)) {
@@ -1193,7 +1193,7 @@ export function registerProspectingRoutes(app: Express) {
       }
       refreshProspectSuperSearchMissionResults(store, detail.mission.id);
       await store.persist();
-      await store.readBarrier();
+      await store.readBarrier(1_000);
       res.setHeader("Cache-Control", "no-store");
       res.json({ result: totals, detail: superSearchDetail(store, req.user!, String(req.params.id)) });
     } catch (error) {
@@ -1234,7 +1234,7 @@ export function registerProspectingRoutes(app: Express) {
       .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)
       .parse(req.params.id);
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       resolveMarketCampaignReference({
         store,
@@ -1313,7 +1313,7 @@ export function registerProspectingRoutes(app: Express) {
       .parse(req.params.id);
     const query = parseTradeObservationListQuery(req.query);
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       const reference = resolveMarketCampaignReference({
         store,
@@ -1349,7 +1349,7 @@ export function registerProspectingRoutes(app: Express) {
       .parse(req.params.id);
     const query = parseMarketOpportunityListQuery(req.query);
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     try {
       const reference = resolveMarketCampaignReference({
         store,

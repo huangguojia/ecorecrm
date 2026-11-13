@@ -928,7 +928,7 @@ export function registerProspectListRoutes(app: Express) {
 
   app.get("/api/prospect-list/:id/identity-bootstrap/:attemptId", requireAuth, asyncRoute(async (req, res) => {
     const store = getStore();
-    await store.readBarrier();
+    await store.readBarrier(1_000);
     const view = prospectIdentityBootstrapView(
       store,
       req.user!,
