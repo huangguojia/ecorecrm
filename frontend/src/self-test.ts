@@ -1180,11 +1180,22 @@ assert.equal(
   );
   assert.ok(
     /#suppliers table \{ min-width: 0; table-layout: fixed; \}/.test(prototype),
-    "供应商表格要放开全局 min-width:900px 并改固定布局，否则 9 列按内容撑开后「操作」会被顶出可视区"
+    "供应商表格要放开全局 min-width:900px 并改固定布局，否则按内容撑开后「操作」会被顶出可视区"
   );
   assert.ok(
-    /<th>供应商名称<\/th><th>供应品类<\/th><th>供应等级<\/th><th>保护期<\/th><th>联系方式<\/th>/.test(prototype),
-    "供应商表格必须是 9 列（供应等级与保护期各占一列）：分级与状态合并成「供应等级」，多一列会把名称列压到 241px"
+    /<th>供应商名称<\/th><th>供应品类<\/th><th>供应等级<\/th><th>归属<\/th><th>保护期<\/th><th>联系方式<\/th>/.test(prototype),
+    "供应商表格必须是 10 列，且「归属」紧跟在供应等级后面：管理员要靠这一列看「谁建的、现在归谁」"
+  );
+  // 列宽是逐列写死的：加列时不同步补 nth-child，最后两列就没有宽度约束，
+  // 定宽布局下「操作」会被挤出可视区（这是加「归属」列时真实踩到的坑）
+  assert.ok(
+    /#suppliers th:nth-child\(10\), #suppliers td:nth-child\(10\) \{ width: 132px; \}/.test(prototype),
+    "加列后必须补上第 10 列的列宽，否则「操作」列会失去右边界"
+  );
+  assert.ok(
+    apiLayer.includes('colspan="10" class="empty-cell">没有符合筛选条件的供应商')
+      && !apiLayer.includes('colspan="9" class="empty-cell">没有符合筛选条件的供应商'),
+    "供应商表头已扩到 10 列，空态 colspan 必须同步（否则空表只有 9 格宽，边框会缺一段）"
   );
   assert.match(apiLayer, /function supplierProtectionExempt[\s\S]{0,200}?公池/u, "供应商保护期必须对已成交和公池停止计时");
   assert.ok(

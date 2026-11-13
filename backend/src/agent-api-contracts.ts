@@ -226,6 +226,7 @@ define("POST /api/customers/bulk-delete", idsSchema, "批量删除客户会连�
 define("POST /api/suppliers", objectSchema(["company"], supplierFields), "创建供应商档案。只登记用户提供或有来源的事实，联系方式拿不到就留空，不得编造；响应 supplier.id 是完成证据。");
 define("PATCH /api/suppliers/{id}", objectSchema([], supplierFields), "更新供应商档案；只提交用户要求修改的字段，不得顺手改写其它字段。");
 define("POST /api/suppliers/bulk-delete", idsSchema, "批量删除供应商档案，必须展示完整 ID 清单并单独确认。");
+define("POST /api/suppliers/{id}/claim", emptySchema, "从供应商公池领取一条档案；只能用列表里状态为「公池」的真实供应商 ID，不能凭公司名猜。领取后归属变为当前账号、保护期重新计算；该档案已被同事领走时接口返回 404/409，不要重试，重新拉列表再判断。");
 define("POST /api/customers/{id}/activities", objectSchema(["type", "content"], { type: oneOf("call", "email", "whatsapp", "wechat", "meeting", "note"), content: string({ minLength: 1, maxLength: 2000 }), nextReminder: string({ maxLength: 100 }) }), "记录真实客户跟进；响应 activity.id 是写入证据。");
 define("PATCH /api/customers/{id}/activities/{activityId}", objectSchema([], { content: string({ minLength: 1, maxLength: 2000 }), type: oneOf("call", "email", "whatsapp", "wechat", "meeting", "note"), nextReminder: string({ maxLength: 100 }) }), "编辑一条客户跟进记录。自动同步写入的摘要需要能人工修正；留痕写入 updatedAt/editedBy，createdAt 与 operatorId 不可改写。至少要修改一个字段。");
 define("DELETE /api/customers/{id}/activities/{activityId}", emptySchema, "撤销一条客户跟进记录，需要明确确认。这是自动同步的安全网：写错客户或整条是噪音时可以干净撤掉。");

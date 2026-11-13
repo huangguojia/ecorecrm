@@ -14,6 +14,12 @@ import type { Pool } from "mysql2/promise";
 //   供应商原先按「公司共享的供应链资产」设计（scopeModes 不含 self、业务员落在 org_unit），
 //   试用反馈要求同事之间不互看，故改为：可见性由路由层 canSeeSupplier 判定（本人 + 管理视角 + 公池），
 //   scopeModes 也已补上 self。仓库本身仍只按 teamId 取数，不过滤归属。
+//
+// 归属三件套（2026-11-13 增补）：
+//   created_by        谁建的档。管理员要能追责，且这一列一旦写错就再也推不出来。
+//   owner_id          现在归谁。进公池时会被清空（公池的定义就是「无主」）。
+//   previous_owner_id 进公池前归谁。owner_id 一清，「原来是谁的」就永久丢失，
+//                     所以清空前必须先落到这一列 —— 这是唯一的历史来源。
 // ---------------------------------------------------------------------------
 
 export type SupplierStatus = "open" | "won" | "public";
@@ -27,6 +33,10 @@ export const SUPPLIER_PROTECTION_DAYS = 21;
 export interface Supplier {
   id: string;
   ownerId: string;
+  /** 建档人（创建时固定，之后不改）；管理员据此追责 */
+  createdBy: string;
+  /** 进公池前的归属人。公池行上用它回答「原来是张三的」 */
+  previousOwnerId: string;
   teamId: string;
   /**
    * 供应商编码：对外可引用的稳定编号（SUP-0001 形式，团队内唯一）。
@@ -221,6 +231,8 @@ export function supplierFromRow(row: Record<string, unknown>): Supplier {
   return {
     id: String(row.id ?? ""),
     ownerId: String(row.owner_id ?? ""),
+    createdBy: String(row.created_by ?? ""),
+    previousOwnerId: String(row.previous_owner_id ?? ""),
     teamId: String(row.team_id ?? ""),
     code: String(row.supplier_code ?? ""),
     company: String(row.company ?? ""),
@@ -250,10 +262,41 @@ export function supplierDuplicateKey(company: string, country: string) {
   return `${String(company || "").trim().toLowerCase().replace(/\s+/gu, "")}|${String(country || "").trim().toLowerCase()}`;
 }
 
+/**
+ * 置为公池时的归属处理（纯函数，自动释放与手工改状态共用同一口径）。
+ *
+ * 为什么不直接 `owner_id = ''`：那一步之后就再也查不到「原来是张三的」。
+ * 所以清空前提是把原归属搬到 previous_owner_id；已有历史值时保留，
+ * 不能因为重复进池把上一个主人覆盖成空。
+ */
+export function supplierPublicOwnership(existing: Pick<Supplier, "ownerId" | "previousOwnerId">) {
+  return {
+    ownerId: "",
+    previousOwnerId: existing.ownerId || existing.previousOwnerId || ""
+  };
+}
+
+/** 可认领的不变量：只有公池里的行能被认领。非公池行归某人所有，认领等于抢 */
+export function supplierClaimable(status: SupplierStatus) {
+  return status === "public";
+}
+
+/** 认领后的归属与保护期：认领人接管，并按新建口径重给 21 天保护期 */
+export function supplierClaimUpdate(ownerId: string, now: Date) {
+  return {
+    ownerId,
+    previousOwnerId: "",
+    status: "open" as SupplierStatus,
+    protectedUntil: new Date(now.getTime() + SUPPLIER_PROTECTION_DAYS * 86_400_000)
+  };
+}
+
 export async function ensureSupplierSchema(pool: Pool) {
   await pool.query(`CREATE TABLE IF NOT EXISTS suppliers (
     id VARCHAR(80) PRIMARY KEY,
     owner_id VARCHAR(64) NOT NULL,
+    created_by VARCHAR(64) NOT NULL DEFAULT '',
+    previous_owner_id VARCHAR(64) NOT NULL DEFAULT '',
     team_id VARCHAR(64) NOT NULL,
     supplier_code VARCHAR(40) NOT NULL DEFAULT '',
     company VARCHAR(200) NOT NULL,
@@ -288,6 +331,18 @@ export async function ensureSupplierSchema(pool: Pool) {
   if (!(await schemaHasColumn(pool, "suppliers", "protected_until"))) {
     await pool.query(`ALTER TABLE suppliers ADD COLUMN protected_until DATETIME(3) NULL AFTER remark`);
   }
+  if (!(await schemaHasColumn(pool, "suppliers", "created_by"))) {
+    await pool.query(`ALTER TABLE suppliers ADD COLUMN created_by VARCHAR(64) NOT NULL DEFAULT '' AFTER owner_id`);
+  }
+  if (!(await schemaHasColumn(pool, "suppliers", "previous_owner_id"))) {
+    await pool.query(`ALTER TABLE suppliers ADD COLUMN previous_owner_id VARCHAR(64) NOT NULL DEFAULT '' AFTER created_by`);
+  }
+  // 历史行回填建档人：老库里没有这一列，能拿到的最接近真相的值就是「进公池前的归属人」，
+  // 再退一步才是当前 owner_id。公池行的 owner_id 已被清空，只能靠 previous_owner_id。
+  await pool.query(
+    `UPDATE suppliers SET created_by = COALESCE(NULLIF(previous_owner_id, ''), NULLIF(owner_id, ''))
+      WHERE created_by = '' AND (previous_owner_id <> '' OR owner_id <> '')`
+  );
   await backfillSupplierCodes(pool);
   if (!(await schemaHasIndex(pool, "suppliers", "uk_suppliers_code"))) {
     try {
@@ -304,12 +359,16 @@ let lastSupplierReleaseAt = 0;
 /**
  * 把超过保护期仍未成交的供应商释放进公池（owner 置空、状态置 public）。
  * 惰性执行：列表接口先调一次，5 分钟节流 —— 比再加一个定时器简单，也不会重复扫。
+ *
+ * 赋值顺序有意义（MySQL 单表 UPDATE 从左到右求值）：
+ * previous_owner_id 必须在 owner_id 被清空**之前**取到旧主人，否则搬过去的是空值。
  */
 export async function releaseExpiredSuppliers(pool: Pool) {
   if (Date.now() - lastSupplierReleaseAt < 5 * 60_000) return 0;
   lastSupplierReleaseAt = Date.now();
   const [result] = await pool.query(
-    `UPDATE suppliers SET status = 'public', owner_id = '', updated_at = NOW(3)
+    `UPDATE suppliers
+        SET previous_owner_id = owner_id, owner_id = '', status = 'public', updated_at = NOW(3)
       WHERE status = 'open' AND protected_until IS NOT NULL AND protected_until <= NOW(3)`
   );
   return Number((result as { affectedRows?: number }).affectedRows || 0);
@@ -375,8 +434,17 @@ async function backfillSupplierCodes(pool: Pool) {
   }
 }
 
-const COLUMNS = `id, owner_id, team_id, supplier_code, company, company_full_name, country, category, contact, phone, email,
-  wechat, website, address, payment_term, lead_time_days, grade, status, source, remark, protected_until, created_at, updated_at`;
+/**
+ * 列清单是「唯一真相源」：SELECT 与 INSERT 都从这里生成，
+ * 加列时只改这一处，占位符数量由 values.length 推导 —— 手写 23 个 `?` 的对齐错误在这里没有生存空间。
+ */
+const COLUMN_LIST = [
+  "id", "owner_id", "created_by", "previous_owner_id", "team_id", "supplier_code", "company",
+  "company_full_name", "country", "category", "contact", "phone", "email", "wechat", "website",
+  "address", "payment_term", "lead_time_days", "grade", "status", "source", "remark",
+  "protected_until", "created_at", "updated_at"
+];
+const COLUMNS = COLUMN_LIST.join(", ");
 
 class MysqlSupplierRepository {
   constructor(private readonly pool: Pool) {}
@@ -441,16 +509,21 @@ class MysqlSupplierRepository {
   }
 
   private insertRow(record: Supplier, now: Date) {
+    const values = [
+      record.id, record.ownerId, record.createdBy, record.previousOwnerId, record.teamId, record.code,
+      record.company, record.companyFullName, record.country, record.category, record.contact, record.phone,
+      record.email, record.wechat, record.website, record.address, record.paymentTerm, record.leadTimeDays,
+      record.grade, record.status, record.source, record.remark,
+      record.protectedUntil ? new Date(record.protectedUntil) : null,
+      now, now
+    ];
+    if (values.length !== COLUMN_LIST.length) {
+      // 早失败好过悄悄写错列：这类错位在库里表现为「公司名跑到联系人列」，排查成本极高
+      throw new Error(`供应商列数与取值数不一致：columns=${COLUMN_LIST.length} values=${values.length}`);
+    }
     return this.pool.execute(
-      `INSERT INTO suppliers (${COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        record.id, record.ownerId, record.teamId, record.code, record.company, record.companyFullName,
-        record.country, record.category, record.contact, record.phone, record.email, record.wechat,
-        record.website, record.address, record.paymentTerm, record.leadTimeDays, record.grade,
-        record.status, record.source, record.remark,
-        record.protectedUntil ? new Date(record.protectedUntil) : null,
-        now, now
-      ]
+      `INSERT INTO suppliers (${COLUMNS}) VALUES (${values.map(() => "?").join(", ")})`,
+      values
     );
   }
 
@@ -462,6 +535,9 @@ class MysqlSupplierRepository {
     const build = (code: string): Supplier => ({
       id: `sup_${randomUUID()}`,
       ownerId,
+      // 建档人 = 创建时的归属人。之后无论换人还是进公池，这一列都不再改
+      createdBy: ownerId,
+      previousOwnerId: "",
       teamId,
       ...normalized,
       code,
@@ -487,23 +563,50 @@ class MysqlSupplierRepository {
     const existing = await this.find(teamId, id);
     if (!existing) return null;
     const next = { ...existing, ...normalizeSupplierInput(input, existing), updatedAt: new Date().toISOString() };
+    // 编辑时手工改成公池：与到期自动释放走同一口径（先记原主人，再清空归属）。
+    // 反方向（公池 → 未成交）不在这里处理：那必须先「认领」，否则会留下无主行，
+    // 除了管理员谁都看不见——比留在公池更糟。路由层会先认领再落这次编辑。
+    if (next.status === "public" && existing.status !== "public") {
+      const ownership = supplierPublicOwnership(existing);
+      next.ownerId = ownership.ownerId;
+      next.previousOwnerId = ownership.previousOwnerId;
+    }
     if (next.code !== existing.code && await this.codeTaken(teamId, next.code, id)) {
       throw new SupplierCodeConflictError(next.code);
     }
     await this.pool.execute(
       `UPDATE suppliers SET supplier_code = ?, company = ?, company_full_name = ?, country = ?, category = ?, contact = ?, phone = ?,
         email = ?, wechat = ?, website = ?, address = ?, payment_term = ?, lead_time_days = ?, grade = ?,
-        status = ?, source = ?, remark = ?, protected_until = ?, updated_at = ?
+        owner_id = ?, previous_owner_id = ?, status = ?, source = ?, remark = ?, protected_until = ?, updated_at = ?
        WHERE team_id = ? AND id = ?`,
       [
         next.code, next.company, next.companyFullName, next.country, next.category, next.contact, next.phone,
         next.email, next.wechat, next.website, next.address, next.paymentTerm, next.leadTimeDays,
-        next.grade, next.status, next.source, next.remark,
+        next.grade, next.ownerId, next.previousOwnerId, next.status, next.source, next.remark,
         next.protectedUntil ? new Date(next.protectedUntil) : null,
         new Date(), teamId, id
       ]
     );
     return next;
+  }
+
+  /**
+   * 从公池认领。
+   *
+   * 用 `status = 'public'` 当乐观锁条件，而不是「先查后写」：
+   * 两个人同时点认领时，只有一个拿得到 affectedRows=1，另一个返回 null，
+   * 路由据此回 409「已被同事认领」，不会出现两人都以为领到了的情况。
+   */
+  async claim(teamId: string, id: string, ownerId: string): Promise<Supplier | null> {
+    const now = new Date();
+    const patch = supplierClaimUpdate(ownerId, now);
+    const [result] = await this.pool.execute(
+      `UPDATE suppliers SET owner_id = ?, previous_owner_id = ?, status = ?, protected_until = ?, updated_at = ?
+        WHERE team_id = ? AND id = ? AND status = 'public'`,
+      [patch.ownerId, patch.previousOwnerId, patch.status, patch.protectedUntil, now, teamId, id]
+    );
+    if (!Number((result as { affectedRows?: number }).affectedRows || 0)) return null;
+    return this.find(teamId, id);
   }
 
   /** 批量删除只删团队内、且属于当前账号可见范围的 id */

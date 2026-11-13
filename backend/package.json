@@ -27,6 +27,7 @@
     "test:approval": "node ../scripts/run-with-env.mjs NODE_ENV=test tsx src/iam/approval-service-test.ts",
     "test:mysql:suite": "npm run test:organization-strong-identity:mysql && npm run test:prospect-campaigns:mysql && npm run test:prospect-coverage-memory:mysql && npm run test:prospect-execution:mysql && npm run test:prospect-identity-bootstrap:mysql && npm run test:prospect-lead-conversion:mysql && npm run test:prospect-qualification:mysql && npm run test:prospect-runs:mysql && npm run test:prospect-strategies:mysql && npm run test:providers:mysql",
     "test:mysql-import": "node ../scripts/run-with-env.mjs NODE_ENV=test tsx src/mysql-data-import-test.ts",
+    "test:supplier-claim:mysql": "node ../scripts/run-with-env.mjs NODE_ENV=test tsx src/supplier-claim-mysql-test.ts",
     "test:database-maintenance:mysql": "node ../scripts/run-with-env.mjs NODE_ENV=test tsx src/database-maintenance-mysql-test.ts",
     "test:auto-updater": "node ../scripts/run-with-env.mjs NODE_ENV=test tsx src/auto-updater-test.ts",
     "provision:beta-admins": "tsx src/provision-beta-admins.ts",

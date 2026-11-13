@@ -25274,7 +25274,7 @@ body.platform-mode .workspace-tabs { display:none !important; }
                 <div class="toolbar" id="supplierBulkToolbar"></div>
                 <div class="table-wrap customer-desktop-table">
                   <table>
-                    <thead><tr><th style="width:34px">选</th><th>供应商名称</th><th>供应品类</th><th>供应等级</th><th>保护期</th><th>联系方式</th><th>交期 / 付款条款</th><th>最近更新</th><th>操作</th></tr></thead>
+                    <thead><tr><th style="width:34px">选</th><th>供应商名称</th><th>供应品类</th><th>供应等级</th><th>归属</th><th>保护期</th><th>联系方式</th><th>交期 / 付款条款</th><th>最近更新</th><th>操作</th></tr></thead>
                     <tbody id="suppliersTableBody"></tbody>
                   </table>
                 </div>
@@ -25312,17 +25312,20 @@ body.platform-mode .workspace-tabs { display:none !important; }
             #suppliers table { min-width: 0; table-layout: fixed; }
             #suppliers th,
             #suppliers td { padding: 14px 8px; white-space: nowrap; }
-            /* 列宽：勾选 36px、名称吃百分比，其余定宽。9 列（新增「保护期」后）总宽要压在容器内，
-               否则自动布局会把「操作」顶出可视区 */
+            /* 列宽：勾选 36px、名称吃百分比，其余定宽。10 列（新增「归属」后）总宽要压在容器内，
+               否则定宽布局会把「操作」顶出可视区。名称从 24.5% 收到 21% 就是为了腾出归属那 96px ——
+               这一列不给固定宽，操作按钮会失去右边界。
+               顺序：选 / 名称 / 品类 / 等级 / 归属 / 保护期 / 联系方式 / 交期付款 / 最近更新 / 操作 */
             #suppliers th:nth-child(1), #suppliers td:nth-child(1) { width: 36px; }
-            #suppliers th:nth-child(2), #suppliers td:nth-child(2) { width: 24.5%; }
-            #suppliers th:nth-child(3), #suppliers td:nth-child(3) { width: 100px; }
-            #suppliers th:nth-child(4), #suppliers td:nth-child(4) { width: 116px; }
-            #suppliers th:nth-child(5), #suppliers td:nth-child(5) { width: 88px; }
-            #suppliers th:nth-child(6), #suppliers td:nth-child(6) { width: 80px; }
-            #suppliers th:nth-child(7), #suppliers td:nth-child(7) { width: 100px; }
-            #suppliers th:nth-child(8), #suppliers td:nth-child(8) { width: 92px; }
-            #suppliers th:nth-child(9), #suppliers td:nth-child(9) { width: 132px; }
+            #suppliers th:nth-child(2), #suppliers td:nth-child(2) { width: 21%; }
+            #suppliers th:nth-child(3), #suppliers td:nth-child(3) { width: 96px; }
+            #suppliers th:nth-child(4), #suppliers td:nth-child(4) { width: 110px; }
+            #suppliers th:nth-child(5), #suppliers td:nth-child(5) { width: 96px; }
+            #suppliers th:nth-child(6), #suppliers td:nth-child(6) { width: 88px; }
+            #suppliers th:nth-child(7), #suppliers td:nth-child(7) { width: 80px; }
+            #suppliers th:nth-child(8), #suppliers td:nth-child(8) { width: 100px; }
+            #suppliers th:nth-child(9), #suppliers td:nth-child(9) { width: 92px; }
+            #suppliers th:nth-child(10), #suppliers td:nth-child(10) { width: 132px; }
             /* 交期/付款条款是最长的一段文本，定宽后会顶破单元格，必须单行省略 */
             #suppliers .customer-follow-cell { min-width: 0; }
             #suppliers .customer-follow-cell b,

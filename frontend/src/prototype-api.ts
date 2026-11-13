@@ -2646,6 +2646,10 @@ type SupplierGrade = "A" | "B" | "C" | "D";
 interface Supplier {
   id: string;
   ownerId: string;
+  /** 建档人 id（后端写入，前端只读） */
+  createdBy: string;
+  /** 进公池前的归属人 id：公池行上「原属谁」的唯一来源 */
+  previousOwnerId: string;
   teamId: string;
   /** 团队内唯一的内部编号（SUP-0001 形式）：后端自动生成，界面不展示、不可编辑 */
   code: string;
@@ -2669,6 +2673,12 @@ interface Supplier {
   protectedUntil: string;
   createdAt: string;
   updatedAt: string;
+  /** 以下四个由后端拼好（人名在前端查不到，业务员拿不到全员花名册） */
+  ownerName?: string;
+  previousOwnerName?: string;
+  createdByName?: string;
+  /** 当前账号是否有权认领这一条（后端按 supplier.update 权限算） */
+  canClaim?: boolean;
 }
 
 const SUPPLIER_STATUS_META: Record<SupplierStatus, { label: string; tone: string }> = {
@@ -4988,6 +4998,8 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 async function completeLogin(user: User) {
   localStorage.setItem(storage.user, JSON.stringify(user));
   state.user = user;
+  // 先清账号隔离缓存再拉数据：否则「加载过就不再拉」的短路会把上一个账号的列表留下来
+  resetAccountScopedCaches();
   applyAuthedUser(user);
   document.body.classList.add("is-authenticated");
   await refreshAll(user);
@@ -4995,6 +5007,22 @@ async function completeLogin(user: User) {
   void initSystemUpdate();
   activateNavView(state.iamCapabilities?.source === "platform" ? "platform-operations" : rememberedWorkspaceView(user));
   void recordLog({ level: "info", category: "auth", action: "login", message: `用户 ${user.name} 登录系统`, meta: { role: user.role } });
+}
+
+/**
+ * 切换账号时必须清掉的「按账号隔离」的内存缓存。
+ *
+ * 退出登录并不刷新页面（只是把 state.user 置空、回到登录页），而供应商列表这类数据
+ * 是登录后按需拉的，并且带 `suppliersLoaded` 这种「加载过就不再拉」的短路标志。
+ * 不清的话：A 退出 → B 登录 → B 打开供应商页，看到的是 A 的供应商列表。
+ * 后端接口本身是隔离的，问题全在这个前端缓存上，所以必须在这里显式清空。
+ */
+function resetAccountScopedCaches() {
+  state.suppliers = [];
+  state.suppliersLoaded = false;
+  state.selectedSupplierId = null;
+  state.selectedSupplierIds = [];
+  supplierFileCache.clear();
 }
 
 async function openMfaEnrollment(setupToken: string) {
@@ -11084,8 +11112,12 @@ function clearCurrentUserMemoDrafts() {
 // ---------------------------------------------------------------------------
 // 供应商管理（仿「客户管理」：列表 + 筛选 + 分页 + 详情抽屉 + 新增/编辑/删除）
 //
-// 与客户的差别只在「归属」：供应商是团队共享资产，后端按 teamId 返回，
-// 前端不做「我的 / 公池」那套切换。
+// 归属口径（2026-11-13 起）：供应商按人隔离，同事之间互不可见，只有公池是共享的。
+// 三件事都由后端出数、前端只负责显示：
+//   归属人（ownerName）—— 现在归谁；公池行为空；
+//   原归属（previousOwnerName）—— 公池行上写「原属 张三」，清空前先存下来的；
+//   建档人（createdByName）—— 谁建的档，管理员据此追责。
+// 认领按钮只在「公池 + canClaim」的行上出现，权限判定在后端，前端不猜。
 // ---------------------------------------------------------------------------
 
 async function loadSuppliers(force = false) {
@@ -11103,6 +11135,58 @@ const SUPPLIER_STATUS_SHORT_LABEL: Record<SupplierStatus, string> = {
 function supplierStatusBadge(supplier: Supplier) {
   const meta = SUPPLIER_STATUS_META[supplier.status] || SUPPLIER_STATUS_META.open;
   return badge(SUPPLIER_STATUS_SHORT_LABEL[supplier.status] || meta.label, meta.tone);
+}
+
+/** 归属一句话（纯文本：导出 CSV 与移动端复用）：公池写「公池（原属 张三）」，否则写归属人 */
+function supplierOwnerPlain(supplier: Supplier) {
+  if (supplier.status === "public") {
+    return supplier.previousOwnerName ? `公池（原属 ${supplier.previousOwnerName}）` : "公池";
+  }
+  return supplier.ownerName || "未登记";
+}
+
+/**
+ * 归属列：第一行「现在归谁」，第二行「谁建的档」。
+ *
+ * 公池行第一行固定写「公池」、第二行写「原属 X」——因为 owner_id 已经被清空，
+ * 光看归属人会以为这条没主，实际上它刚从某人手上释放出来。
+ */
+function supplierOwnerCell(supplier: Supplier) {
+  const owner = supplier.status === "public" ? "公池" : (supplier.ownerName || "未登记");
+  const second = supplier.status === "public"
+    ? (supplier.previousOwnerName ? `原属 ${supplier.previousOwnerName}` : "原归属未记录")
+    : (supplier.createdByName ? `建档 ${supplier.createdByName}` : "建档人未记录");
+  return `<div class="customer-follow-cell"><b>${escapeHtml(owner)}</b><span>${escapeHtml(second)}</span></div>`;
+}
+
+/**
+ * 从供应商公池认领。
+ *
+ * 后端用 `status='public'` 当乐观锁，两个人同时点只有一个成功，另一个拿到 409；
+ * 这里不做「成功就对了」的假设，把后端的话原样告诉用户，避免出现「以为领到了其实没有」。
+ */
+async function claimSupplier(supplier: Supplier) {
+  try {
+    const result = await api<{ supplier: Supplier }>(`/api/suppliers/${encodeURIComponent(supplier.id)}/claim`, {
+      method: "POST"
+    });
+    state.suppliers = state.suppliers.map((item) => (item.id === result.supplier.id ? result.supplier : item));
+    state.selectedSupplierIds = state.selectedSupplierIds.filter((id) => id !== result.supplier.id);
+    if (state.selectedSupplierId === result.supplier.id) renderSupplierDrawer(result.supplier);
+    renderSuppliers();
+    toast(`已认领「${result.supplier.company}」，保护期重新计算`, "success");
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "认领失败";
+    // 认领失败最常见的原因就是「刚好被同事领走了」：这时它已不是公池、对当前账号也不可见，
+    // 后端为不泄露存在性只会回「供应商不存在或无权访问」。照搬这句话用户会以为系统坏了，
+    // 所以这里补一句人话，并且强制刷新列表把那条从界面上拿掉。
+    await loadSuppliers(true).then(() => renderSuppliers()).catch(() => undefined);
+    if (/不存在|无权/.test(detail)) {
+      toast("这条供应商已不在公池（可能刚被同事认领），列表已刷新", "warn");
+    } else {
+      toast(detail, "error");
+    }
+  }
 }
 
 const SUPPLIER_GRADE_SHORT: Record<SupplierGrade, string> = {
@@ -11263,13 +11347,13 @@ function exportSuppliers(rows: Supplier[]) {
     toast("当前筛选下没有可导出的供应商", "error");
     return;
   }
-  const header = ["供应商名称", "公司全名", "国家", "供应品类", "分级", "状态", "联系人", "邮箱", "电话", "微信", "官网", "交期(天)", "付款条款", "来源", "地址", "备注", "建档时间"];
+  const header = ["供应商名称", "公司全名", "国家", "供应品类", "分级", "状态", "归属", "联系人", "邮箱", "电话", "微信", "官网", "交期(天)", "付款条款", "来源", "地址", "备注", "建档人", "建档时间"];
   const escapeCsv = (value: unknown) => `"${String(value ?? "").replace(/"/gu, '""')}"`;
   const lines = [header.map(escapeCsv).join(",")].concat(rows.map((item) => [
     item.company, item.companyFullName, item.country, item.category, item.grade,
-    SUPPLIER_STATUS_META[item.status]?.label || item.status, item.contact, item.email, item.phone,
+    SUPPLIER_STATUS_META[item.status]?.label || item.status, supplierOwnerPlain(item), item.contact, item.email, item.phone,
     item.wechat, item.website, item.leadTimeDays, item.paymentTerm, item.source, item.address,
-    item.remark, formatLeadDate(item.createdAt)
+    item.remark, item.createdByName || "", formatLeadDate(item.createdAt)
   ].map(escapeCsv).join(",")));
   // 带 BOM，否则 Excel 打开中文全是乱码
   const blob = new Blob([`\ufeff${lines.join("\r\n")}`], { type: "text/csv;charset=utf-8" });
@@ -11300,14 +11384,15 @@ function renderSuppliers() {
     <td><div class="company">${countryFlag(supplier.country)}<div><button type="button" class="customer-name" data-open-supplier="${escapeHtml(supplier.id)}" title="查看供应商详情">${escapeHtml(supplier.company)}</button><span>${escapeHtml(supplier.country || "国家待补充")} · ${escapeHtml(supplier.contact || "联系人待补充")}</span></div></div></td>
     <td><div class="sup-category-cell" title="${escapeHtml(supplier.category || "供应品类待补充")}">${escapeHtml(categoryText(supplier, 18) || "品类待补充")}</div></td>
     <td><div class="customer-value-cell">${supplierGradeChip(supplier)}${supplierStatusBadge(supplier)}</div></td>
+    <td>${supplierOwnerCell(supplier)}</td>
     <td title="${supplier.protectedUntil ? `保护至 ${escapeHtml(formatLeadDate(supplier.protectedUntil))}` : "未设置保护期"}">${protectionCellHtml(supplier.protectedUntil, supplierProtectionExempt(supplier))}</td>
     <td>${supplierContactCell(supplier)}</td>
     <td><div class="customer-follow-cell"><b>${supplier.leadTimeDays ? `${supplier.leadTimeDays} 天` : "未登记"}</b><span>${escapeHtml(supplier.paymentTerm || "付款条款待补充")}</span></div></td>
     <td>${supplierUpdatedCell(supplier)}</td>
-    <td><div class="customer-row-actions"><button class="btn" type="button" data-supplier-action="view" data-supplier-row-id="${escapeHtml(supplier.id)}">详情</button><button class="btn" type="button" data-supplier-action="edit" data-supplier-row-id="${escapeHtml(supplier.id)}">编辑</button>${supplierCanDelete() ? `<button class="btn sup-action-delete" type="button" data-supplier-action="delete" data-supplier-row-id="${escapeHtml(supplier.id)}">删除</button>` : ""}</div></td>
+    <td><div class="customer-row-actions">${supplier.canClaim ? `<button class="btn primary tiny" type="button" data-supplier-action="claim" data-supplier-row-id="${escapeHtml(supplier.id)}">认领</button>` : ""}<button class="btn" type="button" data-supplier-action="view" data-supplier-row-id="${escapeHtml(supplier.id)}">详情</button><button class="btn" type="button" data-supplier-action="edit" data-supplier-row-id="${escapeHtml(supplier.id)}">编辑</button>${supplierCanDelete() ? `<button class="btn sup-action-delete" type="button" data-supplier-action="delete" data-supplier-row-id="${escapeHtml(supplier.id)}">删除</button>` : ""}</div></td>
   </tr>`).join("") : (state.suppliers.length
-    ? `<tr><td colspan="9" class="empty-cell">没有符合筛选条件的供应商。<button class="btn tiny" id="supplierEmptyReset" type="button">清空筛选</button></td></tr>`
-    : `<tr><td colspan="9" class="empty-cell">${state.suppliersLoaded ? "暂无供应商，点右上角「新增供应商」开始建档。" : "供应商数据加载中…"}</td></tr>`);
+    ? `<tr><td colspan="10" class="empty-cell">没有符合筛选条件的供应商。<button class="btn tiny" id="supplierEmptyReset" type="button">清空筛选</button></td></tr>`
+    : `<tr><td colspan="10" class="empty-cell">${state.suppliersLoaded ? "暂无供应商，点右上角「新增供应商」开始建档。" : "供应商数据加载中…"}</td></tr>`);
 
   const mobile = qs<HTMLElement>("#supplierMobileList");
   if (mobile) {
@@ -11315,9 +11400,9 @@ function renderSuppliers() {
     <article class="customer-mobile-card" data-supplier-mobile-id="${escapeHtml(supplier.id)}">
       <span class="customer-mobile-top"><span class="customer-mobile-company">${countryFlag(supplier.country)}<button type="button" class="customer-name" data-open-supplier="${escapeHtml(supplier.id)}">${escapeHtml(supplier.company)}</button></span>${supplierStatusBadge(supplier)}</span>
       <span>${escapeHtml(supplier.country || "国家待补充")} · ${escapeHtml(supplier.contact || "联系人待补充")}</span>
-      <span class="customer-mobile-meta"><i>${escapeHtml((supplier.grade || "C") + " 级 · " + SUPPLIER_GRADE_SHORT[(supplier.grade || "C") as SupplierGrade])}</i><i>${escapeHtml(categoryText(supplier, 20) || "品类待补充")}</i><i>${supplier.leadTimeDays ? `交期 ${supplier.leadTimeDays} 天` : "交期待登记"}</i><i>保护期 ${escapeHtml(protectionPlainText(supplier.protectedUntil, supplierProtectionExempt(supplier)))}</i></span>
+      <span class="customer-mobile-meta"><i>${escapeHtml((supplier.grade || "C") + " 级 · " + SUPPLIER_GRADE_SHORT[(supplier.grade || "C") as SupplierGrade])}</i><i>${escapeHtml(categoryText(supplier, 20) || "品类待补充")}</i><i>${escapeHtml(supplierOwnerPlain(supplier))}</i><i>${supplier.leadTimeDays ? `交期 ${supplier.leadTimeDays} 天` : "交期待登记"}</i><i>保护期 ${escapeHtml(protectionPlainText(supplier.protectedUntil, supplierProtectionExempt(supplier)))}</i></span>
       ${supplierContactCell(supplier)}
-      <div class="customer-row-actions"><button class="btn" type="button" data-supplier-action="view" data-supplier-row-id="${escapeHtml(supplier.id)}">详情</button><button class="btn" type="button" data-supplier-action="edit" data-supplier-row-id="${escapeHtml(supplier.id)}">编辑</button>${supplierCanDelete() ? `<button class="btn sup-action-delete" type="button" data-supplier-action="delete" data-supplier-row-id="${escapeHtml(supplier.id)}">删除</button>` : ""}</div>
+      <div class="customer-row-actions">${supplier.canClaim ? `<button class="btn primary tiny" type="button" data-supplier-action="claim" data-supplier-row-id="${escapeHtml(supplier.id)}">认领</button>` : ""}<button class="btn" type="button" data-supplier-action="view" data-supplier-row-id="${escapeHtml(supplier.id)}">详情</button><button class="btn" type="button" data-supplier-action="edit" data-supplier-row-id="${escapeHtml(supplier.id)}">编辑</button>${supplierCanDelete() ? `<button class="btn sup-action-delete" type="button" data-supplier-action="delete" data-supplier-row-id="${escapeHtml(supplier.id)}">删除</button>` : ""}</div>
     </article>`).join("") : `<div class="empty-cell">${state.suppliers.length ? "没有符合筛选条件的供应商。" : "暂无供应商。"}</div>`;
   }
 
@@ -11351,6 +11436,7 @@ function renderSuppliers() {
         renderSupplierDrawer(supplier);
         openSupplierDrawer();
       }
+      if (button.dataset.supplierAction === "claim") void claimSupplier(supplier);
       if (button.dataset.supplierAction === "edit") openSupplierModal(supplier);
       if (button.dataset.supplierAction === "delete") void deleteSuppliers([supplier.id]);
     }));
@@ -11620,6 +11706,8 @@ function renderSupplierDrawer(supplier?: Supplier) {
       <div class="info"><span>付款条款</span><b>${escapeHtml(supplier.paymentTerm || "待补充")}</b></div>
       <div class="info"><span>交货周期</span><b>${supplier.leadTimeDays ? `${supplier.leadTimeDays} 天` : "待登记"}</b></div>
       <div class="info"><span>来源</span><b>${escapeHtml(supplier.source || "未登记")}</b></div>
+      <div class="info"><span>当前归属</span><b>${escapeHtml(supplierOwnerPlain(supplier))}</b></div>
+      <div class="info"><span>建档人</span><b>${escapeHtml(supplier.createdByName || "未记录")}</b></div>
       <div class="info"><span>建档时间</span><b>${escapeHtml(formatLeadDate(supplier.createdAt))}</b></div>
       <div class="info"><span>保护期</span><b>${supplier.status !== "open" ? "已成交 / 公池，不限" : (supplier.protectedUntil ? `至 ${escapeHtml(formatLeadDate(supplier.protectedUntil))}` : "未设置")}</b></div>
     </div>
@@ -11758,7 +11846,7 @@ function openSupplierModal(supplier?: Supplier) {
       <div class="form-field"><label>付款条款</label><input id="supplierPaymentTermInput" maxlength="200" value="${escapeHtml(supplier?.paymentTerm || "")}" placeholder="例如 T/T 30% deposit"></div>
       <div class="form-field"><label>交货周期（天）</label><input id="supplierLeadTimeInput" type="number" min="0" max="3650" step="1" value="${supplier?.leadTimeDays || 0}"></div>
       <div class="form-field"><label>供应分级</label><select id="supplierGradeInput">${gradeOptions}</select></div>
-      <div class="form-field"><label>供应商状态</label><select id="supplierStatusInput">${statusOptions}</select></div>
+      <div class="form-field"><label>供应商状态</label><select id="supplierStatusInput">${statusOptions}</select><small class="form-hint">选「供应商公池」会清空归属（原归属人记入历史），任何同事都能认领</small></div>
       <div class="form-field"><label>来源</label><input id="supplierSourceInput" maxlength="120" value="${escapeHtml(supplier?.source || (editing ? "" : "手动新增"))}" placeholder="展会、官网、转介绍等"></div>
       <div class="form-field full">
         <label>备注</label>
@@ -20482,6 +20570,7 @@ function installEvents() {
     await api("/api/auth/logout", { method: "POST" }).catch(() => null);
     localStorage.removeItem(storage.user);
     state.user = null;
+    resetAccountScopedCaches();
     document.body.classList.remove("is-authenticated");
     prefillLoginCredentials();
     toast("已退出登录");

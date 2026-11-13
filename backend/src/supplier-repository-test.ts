@@ -6,10 +6,14 @@ import {
   normalizeSupplierGrade,
   normalizeSupplierInput,
   normalizeSupplierStatus,
+  SUPPLIER_PROTECTION_DAYS,
+  supplierClaimable,
+  supplierClaimUpdate,
   supplierCodeFromSequence,
   supplierCodeSequence,
   supplierDuplicateKey,
   supplierFromRow,
+  supplierPublicOwnership,
   type Supplier
 } from "./supplier-repository.js";
 
@@ -29,6 +33,8 @@ function existing(): Supplier {
   return {
     id: "sup_1",
     ownerId: "u_1",
+    createdBy: "u_1",
+    previousOwnerId: "",
     teamId: "team_1",
     code: "SUP-0007",
     company: "Acme Sensors",
@@ -161,5 +167,41 @@ const codeIgnored = normalizeSupplierInput({ phone: "+49 2" }, existing());
 ok(codeIgnored.code === "SUP-0007", "未提交 code 时要保留原编码");
 ok(supplierFromRow({ supplier_code: "SUP-0042" }).code === "SUP-0042", "supplier_code 列要映射到 code");
 ok(sparse.code === "", "缺列的行编码为空串（老库尚未回填时也不能抛错）");
+
+// —— 归属三件套：建档人 / 现归属 / 原归属 ——
+const ownershipRow = supplierFromRow({
+  owner_id: "",
+  created_by: "u_1",
+  previous_owner_id: "u_2",
+  status: "public"
+});
+ok(ownershipRow.createdBy === "u_1", "created_by 要映射到 createdBy（管理员看「谁建的」靠它）");
+ok(ownershipRow.previousOwnerId === "u_2", "previous_owner_id 要映射到 previousOwnerId（公池看「原属谁」靠它）");
+ok(ownershipRow.ownerId === "", "公池行的 owner_id 必须为空，否则别人认领会变成抢人");
+ok(supplierFromRow({}).createdBy === "" && supplierFromRow({}).previousOwnerId === "",
+  "老库没有这两列时回落空串，不能抛错");
+
+// 进公池：先记原主人，再清空归属
+const pooled = supplierPublicOwnership({ ownerId: "u_1", previousOwnerId: "" });
+ok(pooled.ownerId === "", "进公池必须清空 ownerId");
+ok(pooled.previousOwnerId === "u_1", "清空前必须把原归属搬到 previousOwnerId，否则历史永久丢失");
+const pooledAgain = supplierPublicOwnership({ ownerId: "", previousOwnerId: "u_1" });
+ok(pooledAgain.previousOwnerId === "u_1", "已在公池再置一次公池，不能把原归属覆盖成空");
+
+// 认领的不变量：只有公池行可认领
+ok(supplierClaimable("public") === true, "公池行可认领");
+ok(supplierClaimable("open") === false && supplierClaimable("won") === false,
+  "非公池行归某人所有，认领等于抢别人的供应商");
+
+// 认领后的归属与保护期
+const claimNow = new Date("2026-11-13T00:00:00.000Z");
+const claimPatch = supplierClaimUpdate("u_9", claimNow);
+ok(claimPatch.ownerId === "u_9" && claimPatch.previousOwnerId === "", "认领后归属落到认领人，原归属清空");
+ok(claimPatch.status === "open", "认领后回到「未成交」（还要靠成交才能长期持有）");
+ok(
+  claimPatch.protectedUntil.toISOString()
+    === new Date(claimNow.getTime() + SUPPLIER_PROTECTION_DAYS * 86_400_000).toISOString(),
+  "认领要重给 21 天保护期，不能继承上一个人的过期时间"
+);
 
 console.log(JSON.stringify({ ok: true, checked: passed }, null, 2));

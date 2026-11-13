@@ -386,6 +386,8 @@ function iamBusinessPermission(req: Request) {
   }
   if (pathName.startsWith("/api/suppliers")) {
     if (pathName.includes("/bulk-delete")) return "supplier.delete";
+    // 认领是把无主公池行落到自己名下，属于对供应商的写操作，不是「删除」也不是「新建」
+    if (pathName.includes("/claim")) return "supplier.update";
     if (method === "GET") return "supplier.read";
     if (method === "DELETE") return "supplier.delete";
     if (method === "POST" && /^\/api\/suppliers\/?$/u.test(pathName)) return "supplier.create";

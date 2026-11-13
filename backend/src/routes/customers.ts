@@ -16,7 +16,7 @@ import { parseCustomerIntakeResult } from "../customer-intake-parse.js";
 import { OFFICE_BINARY_EXTENSIONS, officeDocumentToText, officeExtensionHint } from "../office-document-text.js";
 import { aiEngineAdapterLabel, clampAiEngineTimeout, readTeamAiEngineSettings } from "../ai-engine-settings.js";
 import { classifyEngineCliIssue, cliTaskDone, type EngineCliIssue, type EngineCliTaskSnapshot, engineRunnerOfflineIssue, engineRunnerQueueState, EngineUnavailableError, enqueueEngineCliTask, pickEngineRunner, readEngineCliTask, waitForEngineCliTask } from "../ai-engine-service.js";
-import { getSupplierRepository, SupplierCodeConflictError, supplierDuplicateKey, type SupplierInput } from "../supplier-repository.js";
+import { getSupplierRepository, SupplierCodeConflictError, supplierClaimable, supplierDuplicateKey, normalizeSupplierStatus, type Supplier, type SupplierInput } from "../supplier-repository.js";
 import { getFileRepository } from "../file-storage.js";
 import { type Customer, type CustomerIntelligenceFieldKey, type SessionUser } from "../types.js";
 import { getLocalRunnerService } from "../integrations/integration-runtime.js";
@@ -1114,13 +1114,38 @@ export function registerCustomersRoutes(app: Express) {
     return supplier.ownerId === user.id;
   }
 
+  /**
+   * 供应商出参：把 ownerId / createdBy / previousOwnerId 翻成人名。
+   *
+   * 为什么在后端翻而不是前端查：普通业务员拿不到全员花名册，前端自己查只能查到自己的名字，
+   * 结果就是「归属人」列永远是空白 —— 那正是管理员这次要解决的问题。
+   * canClaim 也在这里算：认领按钮出不出现由权限决定，不能让前端猜。
+   *
+   * names 由调用方按请求建一次（supplierNameMap），不要每行重建 —— 列表 50 行就是 50 张全表。
+   */
+  function supplierView(supplier: Supplier, user: SessionUser, names: Map<string, string>) {
+    return {
+      ...supplier,
+      ownerName: names.get(supplier.ownerId) || "",
+      previousOwnerName: names.get(supplier.previousOwnerId) || "",
+      createdByName: names.get(supplier.createdBy) || "",
+      canClaim: supplierClaimable(supplier.status) && hasIamPermission(user, "supplier.update")
+    };
+  }
+
+  function supplierNameMap() {
+    return new Map(getStore().users.map((item) => [item.id, item.name]));
+  }
+
   app.get("/api/suppliers", requireAuth, asyncRoute(async (req, res) => {
     const repository = getSupplierRepository();
     if (!repository) { res.status(503).json({ message: "供应商库不可用" }); return; }
     // 先惰性释放超期未成交的供应商，再按可见范围取
     await repository.releaseExpired().catch(() => 0);
+    const names = supplierNameMap();
     const suppliers = (await repository.list(req.user!.teamId))
-      .filter((row) => row.status === "public" || canSeeSupplier(req.user!, row));
+      .filter((row) => row.status === "public" || canSeeSupplier(req.user!, row))
+      .map((row) => supplierView(row, req.user!, names));
     res.json({ suppliers });
   }));
 
@@ -1147,7 +1172,7 @@ export function registerCustomersRoutes(app: Express) {
         ...body,
         source: body.source || "手动新增"
       } satisfies SupplierInput);
-      res.json({ supplier });
+      res.json({ supplier: supplierView(supplier, req.user!, supplierNameMap()) });
     } catch (error) {
       if (!(error instanceof SupplierCodeConflictError)) throw error;
       res.status(409).json({ message: error.message, errorCode: error.errorCode, supplierCode: error.supplierCode });
@@ -1163,13 +1188,51 @@ export function registerCustomersRoutes(app: Express) {
       const visible = (await repository.list(req.user!.teamId))
         .find((row) => row.id === req.params.id && canSeeSupplier(req.user!, row));
       if (!visible) { res.status(404).json({ message: "供应商不存在或无权访问" }); return; }
+      // 公池行被手工改成「未成交 / 已成交」时视同认领：先落到操作人名下，
+      // 否则会留下 owner_id 为空的无主行 —— 除了管理员谁都看不见，比留在公池更糟。
+      if (visible.status === "public" && body.status !== undefined && normalizeSupplierStatus(body.status) !== "public") {
+        await repository.claim(req.user!.teamId, req.params.id, req.user!.id);
+      }
       const supplier = await repository.update(req.user!.teamId, req.params.id, body);
       if (!supplier) { res.status(404).json({ message: "供应商不存在或无权访问" }); return; }
-      res.json({ supplier });
+      res.json({ supplier: supplierView(supplier, req.user!, supplierNameMap()) });
     } catch (error) {
       if (!(error instanceof SupplierCodeConflictError)) throw error;
       res.status(409).json({ message: error.message, errorCode: error.errorCode, supplierCode: error.supplierCode });
     }
+  }));
+
+  /**
+   * 从供应商公池认领（对应前端公池行上的「认领」按钮）。
+   *
+   * 可见性口径与列表一致：公池行谁都能看见、也就能认领；非公池行只有本人/管理视角可见，
+   * 对其他人一律回 404 而不是 409 —— 409 会连带把公司名吐出去，等于绕过隔离探到别人的供应商。
+   */
+  app.post("/api/suppliers/:id/claim", requireAuth, asyncRoute(async (req, res) => {
+    const repository = getSupplierRepository();
+    if (!repository) { res.status(503).json({ message: "供应商库不可用" }); return; }
+    const existing = await repository.find(req.user!.teamId, req.params.id);
+    const claimable = existing ? supplierClaimable(existing.status) : false;
+    if (!existing || (!claimable && !canSeeSupplier(req.user!, existing))) {
+      res.status(404).json({ message: "供应商不存在或无权访问" });
+      return;
+    }
+    if (!claimable) {
+      res.status(409).json({
+        message: `「${existing.company}」不在供应商公池里，无法认领`,
+        errorCode: "SUPPLIER_NOT_IN_POOL"
+      });
+      return;
+    }
+    // 仓库以 status='public' 作乐观锁：并发认领时只有一个人拿得到结果。
+    // 输的一方到这里会先撞上上面的「已不是公池」判定：对看不见的人一律回 404，
+    // 不为了把话说清楚而泄露「这条存在、归别人」—— 文案由前端补（刷新列表 + 提示可能被同事认领）。
+    const supplier = await repository.claim(req.user!.teamId, req.params.id, req.user!.id);
+    if (!supplier) {
+      res.status(404).json({ message: "供应商不存在或无权访问", errorCode: "SUPPLIER_ALREADY_CLAIMED" });
+      return;
+    }
+    res.json({ supplier: supplierView(supplier, req.user!, supplierNameMap()) });
   }));
 
   app.post("/api/suppliers/bulk-delete", requireAuth, asyncRoute(async (req, res) => {
@@ -1190,8 +1253,10 @@ export function registerCustomersRoutes(app: Express) {
     if (files) {
       await Promise.all(deleted.map((id) => files.removeReferencesForEntity("supplier", id).catch(() => 0)));
     }
+    const names = supplierNameMap();
     const remaining = (await repository.list(req.user!.teamId))
-      .filter((row) => row.status === "public" || canSeeSupplier(req.user!, row));
+      .filter((row) => row.status === "public" || canSeeSupplier(req.user!, row))
+      .map((row) => supplierView(row, req.user!, names));
     res.json({ deleted, suppliers: remaining });
   }));
 
