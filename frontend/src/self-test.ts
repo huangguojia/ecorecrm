@@ -540,8 +540,13 @@ assert.match(prototype, /\.doc-paper\.custom-b-po \{/u, "PO 定制B 必须有独
 assert.match(prototype, /\.custom-b-po \.cbp-parties \{[\s\S]{0,200}?grid-template-columns: 1fr 1fr/u, "PO 的 Vendor / Ship to 必须是两栏等高");
 assert.match(prototype, /\.custom-b-po \.cbp-table th \{[\s\S]{0,160}?background: #d9d9d9/u, "PO 表头必须是黑白模板的浅灰底");
 assert.match(prototype, /\.custom-b-po \.cbp-head \{[\s\S]{0,160}?justify-content: space-between/u, "PO 页头必须是 Logo 与公司名左右分置");
+assert.match(prototype, /\.custom-b-po \.cb-logo-image \{[\s\S]{0,220}?max-height: 40px/u, "PO 页头 Logo 高度上限 40px：再调大就会压到 Ship to 区块，也没有留白");
+assert.match(prototype, /\.custom-b-po \.cbp-company \{[\s\S]{0,260}?overflow-wrap: anywhere/u, "PO 页头买方公司名必须允许在任意位置断行，否则长名字会顶出纸张、被 .doc-paper 的 overflow:hidden 裁掉");
 assert.match(prototype, /\.custom-b-po \.cbp-sign \{[\s\S]{0,120}?grid-template-columns: 1fr 1fr/u, "PO 的 Confirmed By / For and on behalf of 必须是双栏签章区");
-assert.match(prototype, /\.custom-b-po \.cbp-terms-table th:nth-child\(4\) \{ width: 31%; \}/u, "PO 条款表必须固定五列比例，否则 Payment Term 会把 Terms 挤没");
+assert.match(apiLayer, /const PO_COLGROUP = `<colgroup>[\s\S]{0,300}?<\/colgroup>`/u, "PO 的列宽必须由共享 colgroup 定义");
+assert.match(apiLayer, /cbp-terms-table">\s*\$\{PO_COLGROUP\}/u, "PO 条款表必须用共享 colgroup，否则与明细表竖线对不齐");
+assert.match(apiLayer, /cbp-items-table">\s*\$\{PO_COLGROUP\}/u, "PO 明细表必须用共享 colgroup，否则与条款表竖线对不齐");
+assert.match(apiLayer, /function renderCustomBPoPreview[\s\S]{0,12000}?HS Code/u, "PO 明细表必须有独立的 HS Code 列（不再拼进 Description）");
 assert.doesNotMatch(prototype, /id="leadFinderLfindButton"[\s\S]*Lfind 深入查询/u, "『自动获客页必须提供 Lfind 深入查询入口』所属模块已从精简版移除");
 assert.doesNotMatch(prototype, /id="leadFinderLfindInlineButton"[\s\S]*Lfind 深入查询/u, "『来源与执行设置中必须提供 Lfind 深入查询入口』所属模块已从精简版移除");
 

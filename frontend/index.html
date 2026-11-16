@@ -4099,10 +4099,13 @@
       box-shadow: 0 16px 36px rgba(33,45,62,.12);
     }
     .custom-b-po .cbp-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 62px; }
-    .custom-b-po .cb-logo { display: flex; align-items: center; flex: none; min-width: 120px; max-width: 212px; min-height: 40px; }
-    .custom-b-po .cb-logo-image { display: block; width: auto; height: auto; max-width: 212px; max-height: 44px; object-fit: contain; object-position: left center; }
-    .custom-b-po .cb-logo-text { display: block; max-width: 212px; color: #111; font-size: 19px; font-weight: 800; letter-spacing: 1.5px; line-height: 1.15; overflow-wrap: anywhere; }
-    .custom-b-po .cbp-company { color: #111; font-size: 16px; font-weight: 700; text-align: right; }
+    .custom-b-po .cb-logo { display: flex; align-items: center; flex: none; min-width: 110px; max-width: 190px; min-height: 36px; }
+    .custom-b-po .cb-logo-image { display: block; width: auto; height: auto; max-width: 190px; max-height: 40px; object-fit: contain; object-position: left center; }
+    .custom-b-po .cb-logo-text { display: block; max-width: 190px; color: #111; font-size: 19px; font-weight: 800; letter-spacing: 1.5px; line-height: 1.15; overflow-wrap: anywhere; }
+    /* 页头公司名：允许折行且不得溢出纸张。
+       .doc-paper 带 overflow:hidden（主题层），公司名一长、又是个不折行的整串，
+       就会顶出纸张右边被裁掉，只剩左边一截。这里给宽度上限 + 任意位置断行。 */
+    .custom-b-po .cbp-company { min-width: 0; max-width: 62%; position: relative; z-index: 1; color: #111; font-size: 16px; font-weight: 700; line-height: 1.35; text-align: right; overflow-wrap: anywhere; }
     .custom-b-po .cbp-title { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 24px; margin: 26px 0 14px; }
     .custom-b-po .cbp-title h1 { margin: 0; color: #111; font-size: 21px; font-weight: 700; letter-spacing: .6px; line-height: 1.15; white-space: nowrap; }
     .custom-b-po .cbp-meta { display: grid; gap: 4px; min-width: 236px; font-size: 10.5px; }
@@ -4120,27 +4123,20 @@
     .custom-b-po .cbp-table th,
     .custom-b-po .cbp-table td { border: 1px solid #111 !important; padding: 7px 9px !important; vertical-align: middle; line-height: 1.45; }
     .custom-b-po .cbp-table th { background: #d9d9d9 !important; color: #111 !important; font-size: 10.5px; font-weight: 700; text-align: center; line-height: 1.3; }
-    /* 列宽写死比例：Payment Term 的内容最长，自动布局会把 Terms 挤成一条缝 */
-    .custom-b-po .cbp-terms-table th:nth-child(1) { width: 15%; }
-    .custom-b-po .cbp-terms-table th:nth-child(2) { width: 17%; }
-    .custom-b-po .cbp-terms-table th:nth-child(3) { width: 15%; }
-    .custom-b-po .cbp-terms-table th:nth-child(4) { width: 31%; }
-    .custom-b-po .cbp-terms-table th:nth-child(5) { width: 22%; }
-    .custom-b-po .cbp-items-table th:nth-child(1) { width: 14%; }
-    .custom-b-po .cbp-items-table th:nth-child(2) { width: 44%; }
-    .custom-b-po .cbp-items-table th:nth-child(3) { width: 10%; }
-    .custom-b-po .cbp-items-table th:nth-child(4) { width: 14%; }
-    .custom-b-po .cbp-items-table th:nth-child(5) { width: 18%; }
+    /* 列宽由模板里的 PO_COLGROUP 统一提供（条款表与明细表共用同一套 <col>，
+       两张表的竖线才会严格重合）。这里不要再写 th:nth-child 宽度，否则会盖掉 col。 */
     .custom-b-po .cbp-table td { overflow-wrap: anywhere; word-break: break-word; }
     .custom-b-po .cbp-terms-table td { height: 32px; }
     .custom-b-po .cbp-center { text-align: center; }
     .custom-b-po .cbp-money { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
     /* 表头不继承 nowrap：TOTAL AMOUNT (USD) 这种长标题会被单元格裁掉 */
     .custom-b-po .cbp-items-table th.cbp-money { text-align: center; white-space: normal; font-size: 10px; word-break: normal; }
-    /* 明细表：条文号左对齐、描述顶对齐（多行描述不把金额行挤歪） */
+    /* 明细表：产品名左对齐可换行（16% 列宽放不下长品名）、描述顶对齐（多行描述不把金额行挤歪） */
     .custom-b-po .cbp-items-table td:nth-child(2) { vertical-align: top; }
-    .custom-b-po .cbp-items-table td.cbp-item-no,
-    .custom-b-po .cbp-items-table th.cbp-item-no { text-align: left; white-space: nowrap; }
+    .custom-b-po .cbp-items-table td.cbp-product { text-align: left; font-weight: 700; }
+    .custom-b-po .cbp-items-table th.cbp-product { text-align: left; white-space: normal; }
+    .custom-b-po .cbp-items-table th.cbp-hs,
+    .custom-b-po .cbp-items-table td.cbp-hs { text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: 0.2px; }
     .custom-b-po .cbp-items-table tbody tr:nth-child(even) td { background: #fbfbfb; }
     .custom-b-po .cbp-items-table:not(.doc-items-table) tbody td { height: 32px; }
     .custom-b-po .cbp-items-table tbody td b { font-size: 10.5px; font-weight: 700; }
@@ -4164,8 +4160,8 @@
     @media (max-width: 600px) {
       .doc-paper.custom-b-po { padding: 24px 18px 32px; }
       .custom-b-po .cbp-head { flex-direction: column; align-items: flex-start; gap: 10px; }
-      .custom-b-po .cb-logo-image { max-width: 160px; max-height: 34px; }
-      .custom-b-po .cbp-company { text-align: left; }
+      .custom-b-po .cb-logo-image { max-width: 148px; max-height: 32px; }
+      .custom-b-po .cbp-company { max-width: 100%; text-align: left; }
       .custom-b-po .cbp-title { flex-direction: column; align-items: flex-start; gap: 8px; }
       .custom-b-po .cbp-title h1 { font-size: 17px; }
       .custom-b-po .cbp-meta { width: 100%; min-width: 0; }
@@ -4178,8 +4174,9 @@
       .custom-b-po .cbp-table th { font-size: 9px; }
       /* 手机上金额/数量列没有空间 nowrap，必须允许折行，否则整张明细表会撑出纸张 */
       .custom-b-po .cbp-money { white-space: normal; }
-      .custom-b-po .cbp-items-table td.cbp-item-no,
-      .custom-b-po .cbp-items-table th.cbp-item-no { width: 58px; }
+      /* 6 列在手机上更挤：HS 编码也放开折行，产品名换成小一点的字重 */
+      .custom-b-po .cbp-items-table td.cbp-hs { white-space: normal; }
+      .custom-b-po .cbp-items-table td.cbp-product { font-weight: 700; }
       .custom-b-po .cbp-sign { grid-template-columns: 1fr; }
       .custom-b-po .cbp-sign-cell + .cbp-sign-cell { border-left: 1px solid #111; border-top: 1px solid #111; }
       .custom-b-po .cbp-legal { padding: 8px 10px 10px; }

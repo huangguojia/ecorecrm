@@ -15336,6 +15336,13 @@ function renderCustomBPiPreview(document: TradeDocument, preview: HTMLElement) {
  * 表头固定英文（Condition / Warranty / Terms / Payment Term / Lead Time），
  * 因为采购单通常直接发给海外供应商；单据标题继续跟随单据语言。
  */
+// PO 的条款表与明细表是两张独立的 <table>，必须共用同一套 6 列 colgroup，
+// 否则两段表格的竖线各算各的、永远对不齐。
+const PO_COLGROUP = `<colgroup>
+        <col style="width:16%"><col style="width:28%"><col style="width:12%">
+        <col style="width:10%"><col style="width:16%"><col style="width:18%">
+      </colgroup>`;
+
 function renderCustomBPoPreview(document: TradeDocument, preview: HTMLElement) {
   const total = documentTotal(document);
   const productItems = document.items.filter((item) => item.lineType !== "shipping_cost");
@@ -15364,19 +15371,19 @@ function renderCustomBPoPreview(document: TradeDocument, preview: HTMLElement) {
   const partyRow = (label: string, value: string) => `<div class="cbp-row"><span class="cbp-row-label">${escapeHtml(label)}</span><span class="cbp-row-value">${escapeHtml(value || "")}</span></div>`;
 
   const itemRows = productItems.map((item, index) => {
-    const spec = [item.description || itemLegacySpec(item), item.hsCode && `HS ${item.hsCode}`].filter(Boolean).join(" · ");
-    // Item Number 只放型号，没型号就用行号；不拿 HS Code 顶替——
-    // 列名是 Item Number，HS 已单独拼进 Description 的 spec 里，顶替会重复且让人误读
-    const itemNumber = item.model || String(index + 1).padStart(2, "0");
+    // 第 1 列放产品名，Description 列只放描述；HS 编码单独成列（见右侧 HS CODE 列）
+    const productName = documentItemDisplayName(document, item) || String(index + 1).padStart(2, "0");
+    const description = item.description || itemLegacySpec(item) || "";
     return `<tr>
-      <td class="cbp-item-no">${escapeHtml(itemNumber)}</td>
-      <td><b>${escapeHtml(documentItemDisplayName(document, item) || "—")}</b>${spec ? `<span class="cbp-item-spec">${escapeHtml(spec)}</span>` : ""}</td>
+      <td class="cbp-product">${escapeHtml(productName)}</td>
+      <td>${escapeHtml(description || "—")}</td>
+      <td class="cbp-hs">${escapeHtml(item.hsCode || "—")}</td>
       <td class="cbp-center">${escapeHtml(`${Number(item.quantity || 0)}${item.unit ? ` ${item.unit}` : ""}`)}</td>
       <td class="cbp-money">${money(Number(item.unitPrice || 0))}</td>
       <td class="cbp-money">${money(Number(item.quantity || 0) * Number(item.unitPrice || 0))}</td>
     </tr>`;
   }).join("");
-  const emptyItemRow = `<tr><td class="cbp-item-no"></td><td class="cbp-item-empty">—</td><td class="cbp-center"></td><td class="cbp-money"></td><td class="cbp-money"></td></tr>`;
+  const emptyItemRow = `<tr><td class="cbp-product"></td><td class="cbp-item-empty">—</td><td class="cbp-hs"></td><td class="cbp-center"></td><td class="cbp-money"></td><td class="cbp-money"></td></tr>`;
 
   const shipmentDate = document.validityDate ? formatLongtecDate(document.validityDate) : "";
 
@@ -15418,25 +15425,28 @@ function renderCustomBPoPreview(document: TradeDocument, preview: HTMLElement) {
       </div>
     </section>
     <table class="cbp-table cbp-terms-table">
+      ${PO_COLGROUP}
       <thead><tr>
         <th>Condition</th>
         <th>Warranty</th>
         <th>Terms</th>
-        <th>Payment Term</th>
+        <th colspan="2">Payment Term</th>
         <th>Lead Time</th>
       </tr></thead>
       <tbody><tr>
         <td class="cbp-center">${escapeHtml(document.condition || "")}</td>
         <td class="cbp-center">${escapeHtml(document.warranty || "")}</td>
         <td>${escapeHtml(document.incoterm || "")}</td>
-        <td>${escapeHtml(document.paymentTerm || "")}</td>
+        <td colspan="2">${escapeHtml(document.paymentTerm || "")}</td>
         <td class="cbp-center">${escapeHtml(document.leadTime || "")}</td>
       </tr></tbody>
     </table>
     <table class="cbp-table cbp-items-table">
+      ${PO_COLGROUP}
       <thead><tr>
-        <th class="cbp-item-no">Item Number</th>
+        <th class="cbp-product">Product Name</th>
         <th>Description</th>
+        <th class="cbp-hs">HS Code</th>
         <th class="cbp-center">Qty</th>
         <th class="cbp-money">Rate</th>
         <th class="cbp-money">Total Amount (${escapeHtml(document.currency || "USD")})</th>
@@ -15445,11 +15455,11 @@ function renderCustomBPoPreview(document: TradeDocument, preview: HTMLElement) {
       <tfoot>
         <tr class="cbp-shipping-row">
           <td></td>
-          <td colspan="3" class="cbp-center">Shipping Fee</td>
+          <td colspan="4" class="cbp-center">Shipping Fee</td>
           <td class="cbp-money">${shippingTotal ? money(shippingTotal) : ""}</td>
         </tr>
         <tr class="cbp-total-row">
-          <td colspan="4">Total</td>
+          <td colspan="5">Total</td>
           <td class="cbp-money">${money(total)}</td>
         </tr>
       </tfoot>
