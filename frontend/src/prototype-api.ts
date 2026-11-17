@@ -15134,6 +15134,7 @@ function renderLongtecPiPreview(document: TradeDocument, preview: HTMLElement) {
 const CUSTOM_B_PI_TEXT: Record<string, Record<string, string>> = {
   EN: {
     company: "Company", address: "Address", tell: "Tell", email: "E-mail", attn: "Attn", item: "Item",
+    productName: "Product Name",
     expiry: "Expiry", reference: "Reference", quoteNumber: "Quote Number", amount: "Amount",
     onBehalf: "For and on behalf of", authorized: "Authorized Signature(s)", noVat: "No VAT",
     totalNoVat: "TOTAL NO VAT", totalPrefix: "TOTAL", conditions: "Conditions", dispatchBy: "Dispatch by", terms: "Terms",
@@ -15141,6 +15142,7 @@ const CUSTOM_B_PI_TEXT: Record<string, Record<string, string>> = {
   },
   ZH: {
     company: "公司", address: "地址", tell: "电话", email: "邮箱", attn: "联系人", item: "项目",
+    productName: "产品名称",
     expiry: "有效期至", reference: "参考号", quoteNumber: "单据编号", amount: "金额",
     onBehalf: "代表签署", authorized: "授权签字", noVat: "无增值税",
     totalNoVat: "合计（不含增值税）", totalPrefix: "合计", conditions: "贸易条件", dispatchBy: "发运方式", terms: "条款",
@@ -15148,6 +15150,7 @@ const CUSTOM_B_PI_TEXT: Record<string, Record<string, string>> = {
   },
   ES: {
     company: "Empresa", address: "Dirección", tell: "Tel.", email: "Correo", attn: "Atención", item: "Ítem",
+    productName: "Nombre del producto",
     expiry: "Vence", reference: "Referencia", quoteNumber: "Nº de Documento", amount: "Importe",
     onBehalf: "En nombre de", authorized: "Firma autorizada", noVat: "Sin IVA",
     totalNoVat: "TOTAL SIN IVA", totalPrefix: "TOTAL", conditions: "Condiciones", dispatchBy: "Envío", terms: "Términos",
@@ -15155,6 +15158,7 @@ const CUSTOM_B_PI_TEXT: Record<string, Record<string, string>> = {
   },
   RU: {
     company: "Компания", address: "Адрес", tell: "Тел.", email: "E-mail", attn: "Внимание", item: "Позиция",
+    productName: "Наименование",
     expiry: "Действует до", reference: "Референс", quoteNumber: "Номер документа", amount: "Сумма",
     onBehalf: "От имени", authorized: "Подпись", noVat: "Без НДС",
     totalNoVat: "ИТОГО БЕЗ НДС", totalPrefix: "ИТОГО", conditions: "Условия", dispatchBy: "Отправка", terms: "Условия",
@@ -15162,6 +15166,7 @@ const CUSTOM_B_PI_TEXT: Record<string, Record<string, string>> = {
   },
   AR: {
     company: "الشركة", address: "العنوان", tell: "الهاتف", email: "البريد", attn: "عناية", item: "البند",
+    productName: "اسم المنتج",
     expiry: "ينتهي في", reference: "المرجع", quoteNumber: "رقم المستند", amount: "المبلغ",
     onBehalf: "نيابة عن", authorized: "توقيع معتمد", noVat: "بدون ضريبة",
     totalNoVat: "الإجمالي بدون ضريبة", totalPrefix: "الإجمالي", conditions: "الشروط", dispatchBy: "الشحن", terms: "الشروط",
@@ -15233,12 +15238,16 @@ function renderCustomBPiPreview(document: TradeDocument, preview: HTMLElement) {
     [T("attn"), contactName]
   ];
 
-  // 参考件的表格只有横线：表头除 Item / Description 外全部右对齐，正文 9pt 常规字重。
+  // 参考件的表格只有横线：表头除 Product Name / Description / HS Code 外全部右对齐，正文 9pt 常规字重。
+  // 列序与 PO 对齐：产品名 → 描述 → HS 编码 → 数量 → 单价 → 增值税 → 金额。
+  // 产品名从 Description 里拆出来单独成列；Description 只放描述本身（不再拼型号和 HS）。
   const itemRows = productItems.map((item, index) => {
-    const spec = [item.model, item.description || itemLegacySpec(item), item.hsCode && `HS ${item.hsCode}`].filter(Boolean).join(" · ");
+    const productName = documentItemDisplayName(document, item) || String(index + 1).padStart(3, "0");
+    const description = item.description || itemLegacySpec(item) || "";
     return `<tr>
-      <td class="cbq-item-no">${escapeHtml(String(index + 1).padStart(3, "0"))}</td>
-      <td class="cbq-desc">${escapeHtml(documentItemDisplayName(document, item) || "—")}${spec ? `<span>${escapeHtml(spec)}</span>` : ""}</td>
+      <td class="cbq-product">${escapeHtml(productName)}</td>
+      <td class="cbq-desc">${escapeHtml(description || "—")}</td>
+      <td class="cbq-hs">${escapeHtml(item.hsCode || "—")}</td>
       <td class="cbq-money">${escapeHtml(`${Number(item.quantity || 0)}${item.unit ? ` ${item.unit}` : ""}`)}</td>
       <td class="cbq-money">${money(Number(item.unitPrice || 0))}</td>
       <td class="cbq-money cbq-vat">${escapeHtml(T("noVat"))}</td>
@@ -15246,14 +15255,15 @@ function renderCustomBPiPreview(document: TradeDocument, preview: HTMLElement) {
     </tr>`;
   }).join("");
   const shippingRows = shippingItems.map((item) => `<tr>
-      <td class="cbq-item-no"></td>
+      <td class="cbq-product"></td>
       <td class="cbq-desc">${escapeHtml(documentItemDisplayName(document, item) || L("shippingCost"))}</td>
+      <td class="cbq-hs"></td>
       <td class="cbq-money"></td>
       <td class="cbq-money"></td>
       <td class="cbq-money cbq-vat"></td>
       <td class="cbq-money">${money(Number(item.quantity || 0) * Number(item.unitPrice || 0))}</td>
     </tr>`).join("");
-  const emptyRow = `<tr><td class="cbq-item-no"></td><td class="cbq-desc">—</td><td class="cbq-money"></td><td class="cbq-money"></td><td class="cbq-money cbq-vat"></td><td class="cbq-money"></td></tr>`;
+  const emptyRow = `<tr><td class="cbq-product"></td><td class="cbq-desc">—</td><td class="cbq-hs"></td><td class="cbq-money"></td><td class="cbq-money"></td><td class="cbq-money cbq-vat"></td><td class="cbq-money"></td></tr>`;
 
   // 参考件的贸易条件压在最底部（Conditions / Payment / Dispatch by 三行紧凑排列），
   // 不跟银行信息混在一起。
@@ -15286,8 +15296,9 @@ function renderCustomBPiPreview(document: TradeDocument, preview: HTMLElement) {
     </div>
     <table class="cbq-table">
       <thead><tr>
-        <th class="cbq-col-no">${escapeHtml(T("item"))}</th>
+        <th class="cbq-col-product">${escapeHtml(T("productName"))}</th>
         <th class="cbq-col-desc">${escapeHtml(L("description"))}</th>
+        <th class="cbq-col-hs">${escapeHtml(L("hsCode"))}</th>
         <th class="cbq-col-qty">${escapeHtml(L("quantity"))}</th>
         <th class="cbq-col-price">${escapeHtml(L("unitPrice"))}</th>
         <th class="cbq-col-vat">${escapeHtml(L("vat"))}</th>

@@ -481,7 +481,8 @@ assert.match(prototype, /\.custom-b-pi \.cbq-top \{[\s\S]{0,120}?justify-content
 assert.match(prototype, /\.custom-b-pi \.cbq-title \{[\s\S]{0,160}?font-size: 32px;[\s\S]{0,40}?font-weight: 400/u, "标题必须是参考件的 24pt 常规字重");
 assert.match(prototype, /\.custom-b-pi \.cbq-party p:nth-child\(3\) \{ margin-top: 10\.5px; \}/u, "抬头必须是参考件的五行结构（Company/Address 松、Tell/E-mail/Attn 紧）");
 assert.match(apiLayer, /partyRows[\s\S]{0,400}?T\("tell"\)/, "抬头必须输出 Tell 行（参考件有电话标签）");
-assert.match(prototype, /\.custom-b-pi \.cbq-col-no \{ width: 10%; \}[\s\S]{0,300}?\.custom-b-pi \.cbq-col-amount \{ width: 15%; \}/u, "明细表列宽必须是参考件的 10/35/15/15/10/15");
+assert.match(prototype, /\.custom-b-pi \.cbq-col-product \{ width: 17%; \}[\s\S]{0,400}?\.custom-b-pi \.cbq-col-amount \{ width: 16%; \}/u, "PI 明细表 7 列列宽必须是 17/24/10/10/14/9/16（产品名 + 描述 + HS + 数量 + 单价 + VAT + 金额）");
+assert.match(apiLayer, /function renderCustomBPiPreview[\s\S]{0,9000}?cbq-col-product">\$\{escapeHtml\(T\("productName"\)\)\}[\s\S]{0,400}?cbq-col-hs/u, "PI 明细表必须有独立的产品名列与 HS 编码列（描述列不再拼型号与 HS）");
 assert.match(prototype, /\.custom-b-pi \.cbq-table th,[\s\S]{0,120}?border: 0 !important/u, "定制B 的明细表必须去掉竖线与外框，只保留横线");
 assert.match(prototype, /\.custom-b-pi \.cbq-table th \{[\s\S]{0,160}?border-bottom: 1\.3px solid #000/u, "表头下必须只有一条 1pt 横线");
 assert.match(prototype, /\.custom-b-pi \.cbq-table td \{[\s\S]{0,160}?border-bottom: 1px solid #000/u, "明细行下必须是 .75pt 细横线");

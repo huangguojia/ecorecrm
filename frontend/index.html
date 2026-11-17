@@ -4013,16 +4013,20 @@
     .custom-b-pi .cbq-table th,
     .custom-b-pi .cbq-table td { border: 0 !important; background: transparent !important; }
     .custom-b-pi .cbq-table th { padding: 0 3.8px 8.5px !important; border-bottom: 1.3px solid #000 !important; color: #000 !important; font-size: 12px; font-weight: 400; line-height: 1.3; text-align: right; }
-    .custom-b-pi .cbq-table th.cbq-col-no,
-    .custom-b-pi .cbq-table th.cbq-col-desc { text-align: left; }
+    .custom-b-pi .cbq-table th.cbq-col-product,
+    .custom-b-pi .cbq-table th.cbq-col-desc,
+    .custom-b-pi .cbq-table th.cbq-col-hs { text-align: left; }
     .custom-b-pi .cbq-table td { padding: 6.8px 3.8px 22.1px !important; border-bottom: 1px solid #000 !important; line-height: 1.3; vertical-align: top; }
-    .custom-b-pi .cbq-desc span { margin-left: 5px; color: #333; font-size: 10px; }
-    .custom-b-pi .cbq-col-no { width: 10%; }
-    .custom-b-pi .cbq-col-desc { width: 35%; }
-    .custom-b-pi .cbq-col-qty { width: 15%; }
-    .custom-b-pi .cbq-col-price { width: 15%; }
-    .custom-b-pi .cbq-col-vat { width: 10%; }
-    .custom-b-pi .cbq-col-amount { width: 15%; }
+    /* 产品名、HS 编码都按原样断行：编码是纯数字长串，任意断行会把 10 位码拆成两段 */
+    .custom-b-pi .cbq-product { overflow-wrap: anywhere; }
+    .custom-b-pi .cbq-hs { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .custom-b-pi .cbq-col-product { width: 17%; }
+    .custom-b-pi .cbq-col-desc { width: 24%; }
+    .custom-b-pi .cbq-col-hs { width: 10%; }
+    .custom-b-pi .cbq-col-qty { width: 10%; }
+    .custom-b-pi .cbq-col-price { width: 14%; }
+    .custom-b-pi .cbq-col-vat { width: 9%; }
+    .custom-b-pi .cbq-col-amount { width: 16%; }
     .custom-b-pi .cbq-money { text-align: right; white-space: nowrap; }
     .custom-b-pi .cbq-vat { color: #000; font-size: 12px; }
     .custom-b-pi .cbq-totals { width: 323px; margin: 7px 0 0 auto; font-size: 12px; }
@@ -4067,15 +4071,16 @@
       .custom-b-pi .cbq-table { margin-top: 26px !important; font-size: 9px; }
       .custom-b-pi .cbq-table th { padding: 0 2px 6px !important; font-size: 8.5px; border-bottom-width: 1px !important; }
       .custom-b-pi .cbq-table td { padding: 6px 2px 8px !important; }
-      /* 6 列挤在 330px 里会把 Unit Price / VAT 撞在一起，手机上不显示恒为 No VAT 的列 */
+      /* 7 列挤在 330px 里会把 Unit Price / VAT 撞在一起，手机上不显示恒为 No VAT 的列 */
       .custom-b-pi .cbq-table th.cbq-col-vat,
       .custom-b-pi .cbq-table td.cbq-vat { display: none; }
-      .custom-b-pi .cbq-col-no { width: 11%; }
-      .custom-b-pi .cbq-col-desc { width: 39%; }
-      .custom-b-pi .cbq-col-qty { width: 15%; }
-      .custom-b-pi .cbq-col-price { width: 15%; }
-      .custom-b-pi .cbq-col-amount { width: 20%; }
-      .custom-b-pi .cbq-desc span { font-size: 8.5px; }
+      .custom-b-pi .cbq-col-product { width: 18%; }
+      .custom-b-pi .cbq-col-desc { width: 24%; }
+      .custom-b-pi .cbq-col-hs { width: 13%; }
+      .custom-b-pi .cbq-col-qty { width: 13%; }
+      .custom-b-pi .cbq-col-price { width: 14%; }
+      .custom-b-pi .cbq-col-amount { width: 18%; }
+      .custom-b-pi .cbq-hs { white-space: normal; overflow-wrap: anywhere; }
       .custom-b-pi .cbq-money { white-space: normal; }
       .custom-b-pi .cbq-totals { width: 100%; margin-top: 12px; font-size: 10.5px; }
       .custom-b-pi .cbq-totals p b { width: 96px; }
