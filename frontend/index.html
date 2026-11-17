@@ -3988,9 +3988,11 @@
     /* 上半部分固定高度：明细表顶端落在参考件的 338.27pt（451px）处 */
     .custom-b-pi .cbq-head { min-height: 397px; }
     .custom-b-pi .cbq-top { display: flex; align-items: flex-start; justify-content: flex-end; }
-    .custom-b-pi .cbq-logo { display: flex; align-items: flex-start; justify-content: flex-end; height: 42px; }
-    .custom-b-pi .cb-logo-image { display: block; width: auto; height: auto; max-width: 200px; max-height: 42px; object-fit: contain; object-position: right center; }
-    .custom-b-pi .cb-logo-text { display: block; max-width: 200px; overflow: hidden; color: #000; font-size: 33px; font-weight: 800; letter-spacing: 2.5px; line-height: 1.26; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+    /* Logo 尺寸：140×29（原 200×42）。ECORE 横版 logo 比例 4.82:1，
+       29px 高正好落在 140px 宽，A4 纸宽 794px 下占 17.6%，与参考件的抬头比例一致。 */
+    .custom-b-pi .cbq-logo { display: flex; align-items: flex-start; justify-content: flex-end; height: 30px; }
+    .custom-b-pi .cb-logo-image { display: block; width: auto; height: auto; max-width: 140px; max-height: 29px; object-fit: contain; object-position: right center; }
+    .custom-b-pi .cb-logo-text { display: block; max-width: 140px; overflow: hidden; color: #000; font-size: 24px; font-weight: 800; letter-spacing: 2px; line-height: 1.26; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
     .custom-b-pi .cbq-body { display: grid; grid-template-columns: minmax(0, 1fr) 287px; column-gap: 32px; align-items: start; margin-top: 41px; }
     .custom-b-pi .cbq-title { margin: 0; color: #000; font-size: 32px; font-weight: 400; letter-spacing: 0; line-height: 1.1; white-space: nowrap; }
     .custom-b-pi .cbq-meta { font-size: 12px; line-height: 16.8px; }
@@ -4049,9 +4051,9 @@
     @media (max-width: 600px) {
       .doc-paper.custom-b-pi { padding: 26px 18px 34px; }
       .custom-b-pi .cbq-head { min-height: 0; }
-      .custom-b-pi .cbq-logo { height: 32px; }
-      .custom-b-pi .cb-logo-image { max-width: 150px; max-height: 32px; }
-      .custom-b-pi .cb-logo-text { font-size: 22px; letter-spacing: 2px; }
+      .custom-b-pi .cbq-logo { height: 24px; }
+      .custom-b-pi .cb-logo-image { max-width: 110px; max-height: 23px; }
+      .custom-b-pi .cb-logo-text { font-size: 17px; letter-spacing: 1.5px; }
       .custom-b-pi .cbq-body { grid-template-columns: 1fr; gap: 0; margin-top: 20px; }
       .custom-b-pi .cbq-title { font-size: 24px; white-space: normal; }
       .custom-b-pi .cbq-meta { width: 100%; margin-top: 14px; }
@@ -4099,9 +4101,9 @@
       box-shadow: 0 16px 36px rgba(33,45,62,.12);
     }
     .custom-b-po .cbp-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 62px; }
-    .custom-b-po .cb-logo { display: flex; align-items: center; flex: none; min-width: 110px; max-width: 190px; min-height: 36px; }
-    .custom-b-po .cb-logo-image { display: block; width: auto; height: auto; max-width: 190px; max-height: 40px; object-fit: contain; object-position: left center; }
-    .custom-b-po .cb-logo-text { display: block; max-width: 190px; color: #111; font-size: 19px; font-weight: 800; letter-spacing: 1.5px; line-height: 1.15; overflow-wrap: anywhere; }
+    .custom-b-po .cb-logo { display: flex; align-items: center; flex: none; min-width: 90px; max-width: 140px; min-height: 28px; }
+    .custom-b-po .cb-logo-image { display: block; width: auto; height: auto; max-width: 140px; max-height: 29px; object-fit: contain; object-position: left center; }
+    .custom-b-po .cb-logo-text { display: block; max-width: 140px; color: #111; font-size: 17px; font-weight: 800; letter-spacing: 1.2px; line-height: 1.15; overflow-wrap: anywhere; }
     /* 页头公司名：允许折行且不得溢出纸张。
        .doc-paper 带 overflow:hidden（主题层），公司名一长、又是个不折行的整串，
        就会顶出纸张右边被裁掉，只剩左边一截。这里给宽度上限 + 任意位置断行。 */
@@ -4160,7 +4162,7 @@
     @media (max-width: 600px) {
       .doc-paper.custom-b-po { padding: 24px 18px 32px; }
       .custom-b-po .cbp-head { flex-direction: column; align-items: flex-start; gap: 10px; }
-      .custom-b-po .cb-logo-image { max-width: 148px; max-height: 32px; }
+      .custom-b-po .cb-logo-image { max-width: 110px; max-height: 23px; }
       .custom-b-po .cbp-company { max-width: 100%; text-align: left; }
       .custom-b-po .cbp-title { flex-direction: column; align-items: flex-start; gap: 8px; }
       .custom-b-po .cbp-title h1 { font-size: 17px; }
