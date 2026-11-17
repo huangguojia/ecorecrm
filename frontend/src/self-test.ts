@@ -549,8 +549,8 @@ assert.match(prototype, /\.custom-b-po \.cbp-sign \{[\s\S]{0,120}?grid-template-
 assert.match(apiLayer, /const PO_COLGROUP = `<colgroup>[\s\S]{0,300}?<\/colgroup>`/u, "PO 的列宽必须由共享 colgroup 定义");
 assert.match(apiLayer, /cbp-terms-table">\s*\$\{PO_COLGROUP\}/u, "PO 条款表必须用共享 colgroup，否则与明细表竖线对不齐");
 assert.match(apiLayer, /cbp-items-table">\s*\$\{PO_COLGROUP\}/u, "PO 明细表必须用共享 colgroup，否则与条款表竖线对不齐");
-assert.match(apiLayer, /const specLine = \[[\s\S]{0,320}?\["Condition", document\.condition\][\s\S]{0,80}?\["Warranty", document\.warranty\][\s\S]{0,80}?\["Lead Time", document\.leadTime\][\s\S]{0,200}?\.filter\(\(\[, value\]\) => value\)/u, "PO 必须把「产品状态 / 质保 / 交货周期」按填了才输出的方式压成一行");
-assert.match(apiLayer, /<section class="cbp-legal">\s*\$\{specLine \? `<p class="cbp-spec-line">\$\{specLine\}<\/p>` : ""\}\s*<h4>STANDARD PURCHASE ORDER TERMS/u, "PO 的这一行必须落在法务条款框顶部、STANDARD PURCHASE ORDER TERMS 标题之上");
+assert.match(apiLayer, /<section class="cbp-legal">\s*<h4>STANDARD PURCHASE ORDER TERMS/u, "PO 法务条款框必须以 STANDARD PURCHASE ORDER TERMS 标题开头，不再在顶部重复 Condition/Warranty/Lead Time 一行（三项已在上方条款表）");
+assert.ok(!apiLayer.includes("cbp-spec-line"), "PO 不应再渲染 cbp-spec-line（三项只出现在条款表）");
 assert.match(apiLayer, /function renderCustomBPoPreview[\s\S]{0,12000}?HS Code/u, "PO 明细表必须有独立的 HS Code 列（不再拼进 Description）");
 // PI / PO 各持一份编辑草稿：切类型不擦内容、两边数据互不串，只有「新建单据」才清空当前这一型
 assert.match(apiLayer, /const piPoDrafts = new Map<PiPoDocType, DocumentDraftSnapshot>\(\)/u, "PI / PO 必须各有一份独立草稿槽位（内存）");

@@ -15523,15 +15523,8 @@ function renderCustomBPoPreview(document: TradeDocument, preview: HTMLElement) {
 
   const shipmentDate = document.validityDate ? formatLongtecDate(document.validityDate) : "";
 
-  // 产品状态 / 质保 / 交货周期：PO 表头固定英文（单据直接发给海外供应商），
-  // 三项按「填了才写」压成一行，放在法务条款框顶部（STANDARD PURCHASE ORDER TERMS 上方）。
-  const specLine = [
-    ["Condition", document.condition],
-    ["Warranty", document.warranty],
-    ["Lead Time", document.leadTime]
-  ].filter(([, value]) => value)
-    .map(([label, value]) => `<b>${escapeHtml(String(label))}:</b> ${escapeHtml(String(value))}`)
-    .join(`<span class="cbp-spec-sep"> · </span>`);
+  // 产品状态 / 质保 / 交货周期在 PO 里只出现在上方条款表的 CONDITION / WARRANTY / LEAD TIME
+  // 三列，法务条款框顶部不再重复一行（用户 2026-11-17 要求去掉）。
 
   preview.className = "doc-paper custom-b-po";
   preview.dir = isRTL ? "rtl" : "ltr";
@@ -15625,7 +15618,6 @@ function renderCustomBPoPreview(document: TradeDocument, preview: HTMLElement) {
       </div>
     </section>
     <section class="cbp-legal">
-      ${specLine ? `<p class="cbp-spec-line">${specLine}</p>` : ""}
       <h4>STANDARD PURCHASE ORDER TERMS AND CONDITIONS:</h4>
       <p>The following Standard Purchase Order Terms and Conditions ("Terms"), together with any Buyer specifications, Special Conditions, drawings, master agreement and riders, whether physically attached or incorporated by reference (collectively "Purchase Order") shall constitute the entire and exclusive agreement between Supplier and Buyer for Goods ("Goods"). In the event of a conflict, the order of precedence shall be the Special Conditions, the master agreement, and then these Standard Purchase Order Terms and Conditions.</p>
       <h5>CONDITION AND QUALITY:</h5>
