@@ -483,6 +483,7 @@ assert.match(prototype, /\.custom-b-pi \.cbq-party p:nth-child\(3\) \{ margin-to
 assert.match(apiLayer, /partyRows[\s\S]{0,400}?T\("tell"\)/, "抬头必须输出 Tell 行（参考件有电话标签）");
 assert.match(prototype, /\.custom-b-pi \.cbq-col-product \{ width: 17%; \}[\s\S]{0,400}?\.custom-b-pi \.cbq-col-amount \{ width: 16%; \}/u, "PI 明细表 7 列列宽必须是 17/24/10/10/14/9/16（产品名 + 描述 + HS + 数量 + 单价 + VAT + 金额）");
 assert.match(apiLayer, /function renderCustomBPiPreview[\s\S]{0,9000}?cbq-col-product">\$\{escapeHtml\(T\("productName"\)\)\}[\s\S]{0,400}?cbq-col-hs/u, "PI 明细表必须有独立的产品名列与 HS 编码列（描述列不再拼型号与 HS）");
+assert.match(apiLayer, /const conditionLines = \[[\s\S]{0,700}?\[T\("condition"\), document\.condition\][\s\S]{0,120}?\[T\("warranty"\), document\.warranty\][\s\S]{0,120}?\[T\("leadTime"\), document\.leadTime\]/u, "PI 条款块必须把「产品状态 / 质保 / 交货周期」接在 Dispatch by 之后（填了才输出）");
 assert.match(prototype, /\.custom-b-pi \.cbq-table th,[\s\S]{0,120}?border: 0 !important/u, "定制B 的明细表必须去掉竖线与外框，只保留横线");
 assert.match(prototype, /\.custom-b-pi \.cbq-table th \{[\s\S]{0,160}?border-bottom: 1\.3px solid #000/u, "表头下必须只有一条 1pt 横线");
 assert.match(prototype, /\.custom-b-pi \.cbq-table td \{[\s\S]{0,160}?border-bottom: 1px solid #000/u, "明细行下必须是 .75pt 细横线");
@@ -548,7 +549,20 @@ assert.match(prototype, /\.custom-b-po \.cbp-sign \{[\s\S]{0,120}?grid-template-
 assert.match(apiLayer, /const PO_COLGROUP = `<colgroup>[\s\S]{0,300}?<\/colgroup>`/u, "PO 的列宽必须由共享 colgroup 定义");
 assert.match(apiLayer, /cbp-terms-table">\s*\$\{PO_COLGROUP\}/u, "PO 条款表必须用共享 colgroup，否则与明细表竖线对不齐");
 assert.match(apiLayer, /cbp-items-table">\s*\$\{PO_COLGROUP\}/u, "PO 明细表必须用共享 colgroup，否则与条款表竖线对不齐");
+assert.match(apiLayer, /const specLine = \[[\s\S]{0,320}?\["Condition", document\.condition\][\s\S]{0,80}?\["Warranty", document\.warranty\][\s\S]{0,80}?\["Lead Time", document\.leadTime\][\s\S]{0,200}?\.filter\(\(\[, value\]\) => value\)/u, "PO 必须把「产品状态 / 质保 / 交货周期」按填了才输出的方式压成一行");
+assert.match(apiLayer, /<section class="cbp-legal">\s*\$\{specLine \? `<p class="cbp-spec-line">\$\{specLine\}<\/p>` : ""\}\s*<h4>STANDARD PURCHASE ORDER TERMS/u, "PO 的这一行必须落在法务条款框顶部、STANDARD PURCHASE ORDER TERMS 标题之上");
 assert.match(apiLayer, /function renderCustomBPoPreview[\s\S]{0,12000}?HS Code/u, "PO 明细表必须有独立的 HS Code 列（不再拼进 Description）");
+// PI / PO 各持一份编辑草稿：切类型不擦内容、两边数据互不串，只有「新建单据」才清空当前这一型
+assert.match(apiLayer, /const piPoDrafts = new Map<PiPoDocType, DocumentDraftSnapshot>\(\)/u, "PI / PO 必须各有一份独立草稿槽位（内存）");
+assert.match(apiLayer, /function switchDocumentType[\s\S]{0,900}?if \(isPiPoDocType\(newType\)\) \{\s*rememberActiveDocumentDraft\(\);/u, "切到 PI / PO 之前必须先把当前这型的内容存进它自己的槽位");
+assert.match(apiLayer, /function switchDocumentType[\s\S]{0,1400}?restoreDocumentDraftSnapshot\(snapshot\)/u, "切回 PI / PO 必须恢复该型自己的草稿，而不是铺空白单");
+assert.doesNotMatch(
+  apiLayer,
+  /function switchDocumentType\(newType[\s\S]{0,700}?state\.selectedDocumentId = "__new__";\s*fillDocumentEditor\(defaultTradeDocument\(newType\)\);[\s\S]{0,200}?return;/u,
+  "PI / PO 的切换不能再走「换一张空白单据」的老逻辑（那会把另一型的内容整套带过去 / 擦掉）"
+);
+assert.match(apiLayer, /function openNewDocument\(\)[\s\S]{0,400}?forgetDocumentDraft\(type\)/u, "只有「新建单据」才作废当前这一型的草稿，另一型不受影响");
+assert.match(apiLayer, /const keepNewDraft = state\.selectedDocumentId === "__new__";/u, "列表刷新不能把正在编辑的未保存草稿替换成列表第一份");
 assert.doesNotMatch(prototype, /id="leadFinderLfindButton"[\s\S]*Lfind 深入查询/u, "『自动获客页必须提供 Lfind 深入查询入口』所属模块已从精简版移除");
 assert.doesNotMatch(prototype, /id="leadFinderLfindInlineButton"[\s\S]*Lfind 深入查询/u, "『来源与执行设置中必须提供 Lfind 深入查询入口』所属模块已从精简版移除");
 

@@ -12327,12 +12327,17 @@ function activeTradeDocument() {
 function renderTradeDocuments(documents: TradeDocument[]) {
   const list = qs<HTMLElement>("#documentList");
   if (!list) return;
-  const active = documents.find((document) => document.id === state.selectedDocumentId) || documents[0] || defaultTradeDocument();
-  state.selectedDocumentId = active.id;
+  // 正在编辑一张还没保存的单据时（selectedDocumentId === "__new__"），刷新列表不能把它
+  // 换成列表里的第一份 —— 否则新建 / 切类型后的空白草稿会被列表刷新悄悄冲掉。
+  const keepNewDraft = state.selectedDocumentId === "__new__";
+  const active = documents.find((document) => document.id === state.selectedDocumentId)
+    || (keepNewDraft ? undefined : documents[0]);
+  if (!keepNewDraft) state.selectedDocumentId = active?.id || "__new__";
+  const activeId = active?.id || "";
   list.innerHTML = `
     <div class="section-title"><h2>最近单据</h2><span>最多显示 9 份</span></div>
     ${documents.length ? documents.map((document) => `
-      <article class="doc-list-card ${document.id === active.id ? "active" : ""}" data-document-id="${escapeHtml(document.id)}">
+      <article class="doc-list-card ${document.id === activeId && !keepNewDraft ? "active" : ""}" data-document-id="${escapeHtml(document.id)}">
         <b>${escapeHtml(document.title)}</b>
         <span>${escapeHtml(document.number)} · ${document.type}</span>
         <small>${documentStatusText(document.status)}${["PL","COO","SHIPPING","CUSTOMS"].includes(document.type) ? "" : " · " + formatDocumentMoney(documentTotal(document), document.currency)}</small>
@@ -12341,11 +12346,13 @@ function renderTradeDocuments(documents: TradeDocument[]) {
   `;
   qsa<HTMLElement>("[data-document-id]", list).forEach((card) => {
     card.addEventListener("click", () => {
+      // 换一份单据之前，先把当前这型正在编的内容存进它的槽位，切回来才不会丢未保存的改动
+      rememberActiveDocumentDraft();
       state.selectedDocumentId = card.dataset.documentId || null;
       renderTradeDocuments(state.tradeDocuments);
     });
   });
-  fillDocumentEditor(active);
+  if (!keepNewDraft) fillDocumentEditor(active || defaultTradeDocument());
 }
 
 function documentTypeLabel(type: string) {
@@ -14463,10 +14470,120 @@ function currentDocumentType(): "PI" | "CI" | "PO" | "CUSTOMS" | "PL" | "CONTRAC
 
 // PI / PO 的切换入口有两处：单据页内的类型 tab、侧栏的 PI / PO 导航按钮。
 // 两处必须走同一套逻辑：切 tab、按类型重配卖方档案、新建态的标题/编号跟随类型。
+type PiPoDocType = "PI" | "PO";
+
+/**
+ * PI / PO 各自持有一份编辑草稿，切类型只改「现在看哪一份」，不擦内容。
+ *
+ * - PI 填了 A/B/C，切到 PO：PO 显示它自己的那份（没编辑过就是空白），A/B/C 不会跟过去；
+ * - PO 填了 D/E，切回 PI：PI 仍然是 A/B/C，D/E 也不会倒灌；
+ * - 已保存单据的未保存改动同样留在各自槽位里，切走再切回仍在；
+ * - 只有「新建单据」会作废当前这一型的草稿，得到全空单据。
+ *
+ * 只活在内存里：刷新浏览器即丢弃，回来读数据库里的版本。
+ */
+interface DocumentDraftSnapshot {
+  document: TradeDocument;
+  selectedDocumentId: string;
+  customerId: string;
+  dataSource: string;
+  sellerProfileId: string;
+  stampId: string;
+  signatureId: string;
+}
+
+const piPoDrafts = new Map<PiPoDocType, DocumentDraftSnapshot>();
+
+function isPiPoDocType(type: string): type is PiPoDocType {
+  return type === "PI" || type === "PO";
+}
+
+/** 把当前编辑区原样拍下来（不碰预览、不发请求） */
+function captureDocumentDraftSnapshot(type: PiPoDocType): DocumentDraftSnapshot {
+  const document = collectDocumentDraft();
+  return {
+    // collectDocumentDraft 的类型取自当前激活的 tab，这里再钉一次，避免拍错槽位
+    document: { ...document, type },
+    selectedDocumentId: state.selectedDocumentId || document.id,
+    customerId: qs<HTMLSelectElement>("#docCustomerInput")?.value || "",
+    dataSource: qs<HTMLSelectElement>("#docDataSourceInput")?.value || "manual",
+    // 卖方档案 / 印章 / 签字不在 fillDocumentEditor 的字段表里，独立存取才不会丢
+    sellerProfileId: qs<HTMLSelectElement>("#docSellerProfileInput")?.value || "",
+    stampId: qs<HTMLInputElement>("#docStampIdInput")?.value || "",
+    signatureId: qs<HTMLInputElement>("#docSignatureIdInput")?.value || ""
+  };
+}
+
+/** 记录当前 tab 这一型的草稿；切走 / 打开别的单据之前调用 */
+function rememberActiveDocumentDraft() {
+  const type = currentDocumentType();
+  if (isPiPoDocType(type)) piPoDrafts.set(type, captureDocumentDraftSnapshot(type));
+}
+
+/** 丢弃某一型的草稿（新建单据时用） */
+function forgetDocumentDraft(type: string) {
+  if (isPiPoDocType(type)) piPoDrafts.delete(type);
+}
+
+/** 把拍下来的草稿原样放回编辑区：连「打开的是哪份已保存单据」一起还原 */
+function restoreDocumentDraftSnapshot(snapshot: DocumentDraftSnapshot) {
+  state.selectedDocumentId = snapshot.selectedDocumentId;
+  fillDocumentEditor(snapshot.document);
+  const setValue = (selector: string, value: string) => {
+    const input = qs<HTMLInputElement | HTMLSelectElement>(selector);
+    if (input) input.value = value;
+  };
+  setValue("#docCustomerInput", snapshot.customerId);
+  setValue("#docDataSourceInput", snapshot.dataSource);
+  setValue("#docSellerProfileInput", snapshot.sellerProfileId);
+  setValue("#docStampIdInput", snapshot.stampId);
+  setValue("#docSignatureIdInput", snapshot.signatureId);
+  qsa<HTMLElement>(".doc-list-card").forEach((card) => {
+    card.classList.toggle("active", card.dataset.documentId === state.selectedDocumentId);
+  });
+  renderDocumentPreview(collectDocumentDraft());
+}
+
+/** 给某一型铺一张全空单据（新建 / 该型还没有草稿时） */
+function resetDocumentEditorToBlank(type: TradeDocument["type"]) {
+  state.selectedDocumentId = "__new__";
+  const blank = defaultTradeDocument(type);
+  fillDocumentEditor(blank);
+  const setValue = (selector: string, value: string) => {
+    const input = qs<HTMLInputElement | HTMLSelectElement>(selector);
+    if (input) input.value = value;
+  };
+  setValue("#docCustomerInput", "");
+  setValue("#docDataSourceInput", "manual");
+  setValue("#docSellerProfileInput", blank.letterheadId || "");
+  setValue("#docStampIdInput", blank.stampId || "");
+  setValue("#docSignatureIdInput", blank.signatureId || "");
+  qsa<HTMLElement>(".doc-list-card").forEach((card) => card.classList.remove("active"));
+  renderDocumentPreview(collectDocumentDraft());
+}
+
 function switchDocumentType(newType: "PI" | "CI" | "PO" | "CUSTOMS" | "PL" | "CONTRACT" | "QUOTATION" | "COO" | "SHIPPING") {
   if (currentDocumentType() === newType) return;
-  // 切到另一种单据 = 换一张空白单据：
-  // 以前只改标题和编号，PO 的买方、明细、条款会整套留在 PI 里（试用反馈第 5 条之②）。
+
+  // PI / PO：两种单据各存一份草稿，切过去再切回来内容还在，两边数据互不串。
+  // （类型 tab / 侧栏导航 / 切走前都会先走一遍 rememberActiveDocumentDraft）
+  if (isPiPoDocType(newType)) {
+    rememberActiveDocumentDraft();
+    const snapshot = piPoDrafts.get(newType);
+    const stillAlive = snapshot
+      && (snapshot.selectedDocumentId === "__new__"
+        || state.tradeDocuments.some((document) => document.id === snapshot.selectedDocumentId));
+    if (snapshot && stillAlive) {
+      restoreDocumentDraftSnapshot(snapshot);
+      return;
+    }
+    // 这一型还没编辑过（或它打开的那份单据已被删）：给一张它自己的空白单
+    piPoDrafts.delete(newType);
+    resetDocumentEditorToBlank(newType);
+    return;
+  }
+
+  // 其它单据类型本次不改：沿用原行为，切过去就是换一张空白单据。
   // 「把这张单转成另一种」是另一个动作，走「生成其它单据」按钮，不该由切页签顺手完成。
   const selected = state.tradeDocuments.find((document) => document.id === state.selectedDocumentId);
   if (!selected || selected.type !== newType) {
@@ -15138,6 +15255,7 @@ const CUSTOM_B_PI_TEXT: Record<string, Record<string, string>> = {
     expiry: "Expiry", reference: "Reference", quoteNumber: "Quote Number", amount: "Amount",
     onBehalf: "For and on behalf of", authorized: "Authorized Signature(s)", noVat: "No VAT",
     totalNoVat: "TOTAL NO VAT", totalPrefix: "TOTAL", conditions: "Conditions", dispatchBy: "Dispatch by", terms: "Terms",
+    condition: "Condition", warranty: "Warranty", leadTime: "Lead Time",
     termsIntro: "By accepting this quote you agree to the terms and conditions below:"
   },
   ZH: {
@@ -15146,6 +15264,7 @@ const CUSTOM_B_PI_TEXT: Record<string, Record<string, string>> = {
     expiry: "有效期至", reference: "参考号", quoteNumber: "单据编号", amount: "金额",
     onBehalf: "代表签署", authorized: "授权签字", noVat: "无增值税",
     totalNoVat: "合计（不含增值税）", totalPrefix: "合计", conditions: "贸易条件", dispatchBy: "发运方式", terms: "条款",
+    condition: "产品状态", warranty: "质保", leadTime: "交货周期",
     termsIntro: "接受本报价即表示同意以下条款与条件："
   },
   ES: {
@@ -15154,6 +15273,7 @@ const CUSTOM_B_PI_TEXT: Record<string, Record<string, string>> = {
     expiry: "Vence", reference: "Referencia", quoteNumber: "Nº de Documento", amount: "Importe",
     onBehalf: "En nombre de", authorized: "Firma autorizada", noVat: "Sin IVA",
     totalNoVat: "TOTAL SIN IVA", totalPrefix: "TOTAL", conditions: "Condiciones", dispatchBy: "Envío", terms: "Términos",
+    condition: "Estado", warranty: "Garantía", leadTime: "Plazo de entrega",
     termsIntro: "Al aceptar esta cotización usted acepta los términos y condiciones siguientes:"
   },
   RU: {
@@ -15162,6 +15282,7 @@ const CUSTOM_B_PI_TEXT: Record<string, Record<string, string>> = {
     expiry: "Действует до", reference: "Референс", quoteNumber: "Номер документа", amount: "Сумма",
     onBehalf: "От имени", authorized: "Подпись", noVat: "Без НДС",
     totalNoVat: "ИТОГО БЕЗ НДС", totalPrefix: "ИТОГО", conditions: "Условия", dispatchBy: "Отправка", terms: "Условия",
+    condition: "Состояние", warranty: "Гарантия", leadTime: "Срок поставки",
     termsIntro: "Принимая данное предложение, вы соглашаетесь со следующими условиями:"
   },
   AR: {
@@ -15170,6 +15291,7 @@ const CUSTOM_B_PI_TEXT: Record<string, Record<string, string>> = {
     expiry: "ينتهي في", reference: "المرجع", quoteNumber: "رقم المستند", amount: "المبلغ",
     onBehalf: "نيابة عن", authorized: "توقيع معتمد", noVat: "بدون ضريبة",
     totalNoVat: "الإجمالي بدون ضريبة", totalPrefix: "الإجمالي", conditions: "الشروط", dispatchBy: "الشحن", terms: "الشروط",
+    condition: "الحالة", warranty: "الضمان", leadTime: "مدة التسليم",
     termsIntro: "بقبولك هذا العرض فإنك توافق على الشروط والأحكام التالية:"
   }
 };
@@ -15266,11 +15388,14 @@ function renderCustomBPiPreview(document: TradeDocument, preview: HTMLElement) {
   const emptyRow = `<tr><td class="cbq-product"></td><td class="cbq-desc">—</td><td class="cbq-hs"></td><td class="cbq-money"></td><td class="cbq-money"></td><td class="cbq-money cbq-vat"></td><td class="cbq-money"></td></tr>`;
 
   // 参考件的贸易条件压在最底部（Conditions / Payment / Dispatch by 三行紧凑排列），
-  // 不跟银行信息混在一起。
+  // 不跟银行信息混在一起。产品状态 / 质保 / 交货周期是选填项，填了才追加在同一块里。
   const conditionLines = [
     [T("conditions"), document.incoterm],
     [L("payment"), document.paymentTerm],
-    [T("dispatchBy"), [document.shippingMethod, document.portLoading && `${L("portLoading")}: ${document.portLoading}`, document.portDischarge && `${L("portDischarge")}: ${document.portDischarge}`].filter(Boolean).join(" · ")]
+    [T("dispatchBy"), [document.shippingMethod, document.portLoading && `${L("portLoading")}: ${document.portLoading}`, document.portDischarge && `${L("portDischarge")}: ${document.portDischarge}`].filter(Boolean).join(" · ")],
+    [T("condition"), document.condition],
+    [T("warranty"), document.warranty],
+    [T("leadTime"), document.leadTime]
   ].filter(([, value]) => value)
     .map(([label, value]) => `<p><b>${escapeHtml(String(label))}:</b> ${escapeHtml(String(value))}</p>`).join("");
 
@@ -15398,6 +15523,16 @@ function renderCustomBPoPreview(document: TradeDocument, preview: HTMLElement) {
 
   const shipmentDate = document.validityDate ? formatLongtecDate(document.validityDate) : "";
 
+  // 产品状态 / 质保 / 交货周期：PO 表头固定英文（单据直接发给海外供应商），
+  // 三项按「填了才写」压成一行，放在法务条款框顶部（STANDARD PURCHASE ORDER TERMS 上方）。
+  const specLine = [
+    ["Condition", document.condition],
+    ["Warranty", document.warranty],
+    ["Lead Time", document.leadTime]
+  ].filter(([, value]) => value)
+    .map(([label, value]) => `<b>${escapeHtml(String(label))}:</b> ${escapeHtml(String(value))}`)
+    .join(`<span class="cbp-spec-sep"> · </span>`);
+
   preview.className = "doc-paper custom-b-po";
   preview.dir = isRTL ? "rtl" : "ltr";
   preview.innerHTML = `
@@ -15490,6 +15625,7 @@ function renderCustomBPoPreview(document: TradeDocument, preview: HTMLElement) {
       </div>
     </section>
     <section class="cbp-legal">
+      ${specLine ? `<p class="cbp-spec-line">${specLine}</p>` : ""}
       <h4>STANDARD PURCHASE ORDER TERMS AND CONDITIONS:</h4>
       <p>The following Standard Purchase Order Terms and Conditions ("Terms"), together with any Buyer specifications, Special Conditions, drawings, master agreement and riders, whether physically attached or incorporated by reference (collectively "Purchase Order") shall constitute the entire and exclusive agreement between Supplier and Buyer for Goods ("Goods"). In the event of a conflict, the order of precedence shall be the Special Conditions, the master agreement, and then these Standard Purchase Order Terms and Conditions.</p>
       <h5>CONDITION AND QUALITY:</h5>
@@ -15775,18 +15911,11 @@ function addDocumentItem() {
 }
 
 function openNewDocument() {
-  state.selectedDocumentId = "__new__";
-  const draft = defaultTradeDocument(currentDocumentType());
-  // 「新建」必须是真的空白：关联客户与数据源这两项以前不重置，
-  // 上一份单据的客户会被原样带过来（试用反馈第 5 条）。
-  const customerSelect = qs<HTMLSelectElement>("#docCustomerInput");
-  if (customerSelect) customerSelect.value = "";
-  const sourceSelect = qs<HTMLSelectElement>("#docDataSourceInput");
-  if (sourceSelect) sourceSelect.value = "manual";
-  fillDocumentEditor(draft);
-  const profileSelect = qs<HTMLSelectElement>("#docSellerProfileInput");
-  if (profileSelect) profileSelect.value = draft.letterheadId || "";
-  qsa<HTMLElement>(".doc-list-card").forEach((card) => card.classList.remove("active"));
+  const type = currentDocumentType();
+  // 「新建」才是真的空白：作废当前这一型的草稿，另一型（比如 PO）的内容不受影响。
+  forgetDocumentDraft(type);
+  // 关联客户与数据源也必须清空，否则上一份单据的客户会被原样带过来（试用反馈第 5 条）。
+  resetDocumentEditorToBlank(type);
   toast("已创建空白单据草稿，保存后写入数据库");
 }
 
